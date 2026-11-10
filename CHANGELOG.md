@@ -6,7 +6,13 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-10
+
+Mốc M2 và M3 (xem `agent.md` §8): xếp hạng ổn định trên nhiều lần chia dữ liệu, mỗi con số có ± std.
+
 ### Thêm
+- Xếp hạng trên nhiều lần chia dữ liệu: `--cv-splits K` huấn luyện các finalist trên K lần chia khác nhau (seed chia = `--seed` + i, tiền xử lý fit lại trên train của từng lần chia). HSI chia theo khối mặc định K = 3; còn lại mặc định 1. Độ lệch chuẩn và nhóm "chưa phân biệt được" nay gồm cả nhiễu do cách chia. Baseline tham chiếu được lấy trung bình trên cùng các lần chia.
+- Leaderboard và `report.md` ghi số lần chạy, số lần chia và ± std của điểm test.
 - Hyperparameter đi kèm mỗi baseline: `dlnet/hparams.py` ước lượng lr (LR range test, Smith), batch size (gradient noise scale, McCandlish) và weight decay (normalized, AdamW), kiểm chứng bằng huấn luyện lại và chỉ chấp nhận khi tốt hơn rõ rệt. Khối `hyperparameters` có trong `config.yaml`, `leaderboard.json`, `report.md`; `leaderboard.md` thêm cột lr, wd, batch. 20% cuối `--budget` dành cho bước này.
 - `ref/optimazeDL/`: 22 paper về ước lượng chất lượng mạng và hyperparameter (SNIP, GraSP, ZiCo, Zen-NAS, TE-NAS, GradSign, WeightWatcher, Hyperband, BOHB, ASHA, Optuna, PBT, ...) cùng mã chính thức đã ghim commit; quy tắc `agent.md` §16 và skill `implement-standard-algorithm`: phải tham khảo và implement theo thuật toán chuẩn.
 - Môi trường Python tái lập: `scripts/setup_env.sh` (Linux/macOS) và `scripts/setup_env.ps1` (Windows) tạo `.venv`, cài torch CPU (tự lùi về PyPI nếu chỉ mục bị chặn) cùng DLNet và công cụ dev, rồi tự kiểm tra; `.python-version` (3.12) và `requirements.txt`/`requirements-dev.txt` ghim phiên bản đã kiểm tra, để pull về chỉ cần `python -m venv .venv`, activate, `pip install -r requirements.txt`. Không commit venv vì vượt giới hạn 100 MB/file của GitHub và không mang đi máy khác được.
@@ -16,6 +22,11 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ### Sửa
 - Seed nay quyết định cả khởi tạo trọng số (trước đây mô hình được tạo trước `torch.manual_seed` nên cùng seed vẫn cho trọng số khác nhau giữa các lần chạy).
+
+### Hạn chế đã biết
+- Chia theo khối vẫn bỏ nhiều pixel ở mép khối và có thể thiếu lớp trong train hoặc test; nhiều lần chia chỉ làm lộ nhiễu này trong ± std, không làm nó mất đi.
+- Gói xuất ra huấn luyện trên lần chia đầu tiên (`split_seed`); các lần chia khác chỉ dùng để xếp hạng.
+- Ước lượng hyperparameter chưa cho thấy lợi ích trên dữ liệu thật: trong lần chạy thử, mọi đề xuất đều thua giá trị đã tìm và bị loại.
 
 ## [0.1.0] - 2026-11-10
 
@@ -43,5 +54,6 @@ Bản đầu tiên: prototype chạy được từ dữ liệu đến Top-K base
 - Chưa có zero-cost proxy, cost model FLOPs/VRAM, Tensor-LoRA, deep unfolding; chưa có plugin image và timeseries.
 - Kết quả trên Indian Pines và Pavia University là một lần chạy ngắn trên CPU: với chia theo khối, mạng sâu chưa vượt rõ baseline cổ điển.
 
-[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.2.0
 [0.1.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.1.0

@@ -41,10 +41,14 @@ def _cfg(**kw):
     return c
 
 
-def _tab_data(n=160, seed=0):
+def _tab_xy(n=160, seed=0):
     rng = np.random.default_rng(seed)
     X = rng.normal(size=(n, 4)).astype("float32")
-    return core.prepare(X, (X[:, 0] > 0).astype(int), "classification", seed=0)
+    return X, (X[:, 0] > 0).astype(int)
+
+
+def _tab_data(n=160, seed=0):
+    return core.prepare(*_tab_xy(n, seed), "classification", seed=0)
 
 
 # ============================================================ search: budget / fairness
@@ -380,7 +384,9 @@ def test_refine_keeps_searched_setting_unless_clearly_better(monkeypatch):
                             log=lambda *_: None)  # fmt: skip
     searched = {id(r): dict(r["cfg"]) for r in res}
     # estimate says: much worse proposal (val 0.0) -> must be rejected
-    monkeypatch.setattr(hparams, "_evaluate", lambda *a, **k: ([0.0, 0.0], [{"score": 0.0}] * 2))
+    monkeypatch.setattr(
+        search, "eval_runs", lambda *a, **k: ([0.0, 0.0], [{"score": 0.0}] * 2, 0.0, 1)
+    )
     out = hparams.refine(res, d, build_model, time.time() + 60, log=lambda *_: None)
     for r in out:
         assert r["hparams"]["adopted"] == "searched"
@@ -397,7 +403,9 @@ def test_refine_adopts_a_clearly_better_proposal(monkeypatch):
         lambda *a, **k: {"lr": 5e-3, "batch": 64, "wd": 2e-4, "gradient_noise_scale": None},
     )  # fmt: skip
     monkeypatch.setattr(
-        hparams, "_evaluate", lambda *a, **k: ([2.0, 2.0], [{"score": 2.0, "accuracy": 2.0}] * 2)
+        search,
+        "eval_runs",
+        lambda *a, **k: ([2.0, 2.0], [{"score": 2.0, "accuracy": 2.0}] * 2, 0.0, 1),
     )
     out = hparams.refine(res, d, build_model, time.time() + 60, log=lambda *_: None)
     r = out[0]
@@ -438,3 +446,52 @@ def test_seed_controls_weight_initialisation():
     torch.manual_seed(999)  # disturb the global RNG between the two builds
     b = search._new_trainer(_cfg(), d, 3, build_model).model
     assert all(torch.equal(x, y) for x, y in zip(a.parameters(), b.parameters(), strict=True))
+
+
+# ---------------------------------------------------------------- repeated-split ranking (M3)
+
+
+def test_finalists_are_ranked_on_several_splits():
+    """agent.md 9.7: seed std misses split noise, so stage 2 must really use the other splits."""
+    X, y = _tab_xy(300)
+    folds = [core.prepare(X, y, "classification", seed=s) for s in range(3)]
+    assert not np.array_equal(folds[0]["Xnp"]["va"], folds[1]["Xnp"]["va"])
+    used = []
+
+    def build(cfg, i, o):
+        return build_model(cfg, i, o)
+
+    orig = search._new_trainer
+
+    def spy(cfg, data, seed, build_fn):
+        used.append((seed, next(i for i, f in enumerate(folds) if f is data)))
+        return orig(cfg, data, seed, build_fn)
+
+    search._new_trainer = spy
+    try:
+        res = search.run_search(folds[0], [_cfg()], time.time() + 60, 1, build, rungs=(1, 2),
+                                seeds=2, log=lambda *_: None, folds=folds)  # fmt: skip
+    finally:
+        search._new_trainer = orig
+    assert used == [(0, 0), (1, 1), (2, 2)]  # run i = seed i on split i; run 0 reuses stage 1
+    r = res[0]
+    assert r["n_splits"] == 3 and r["n_seeds"] == 3 and r["test_std"] >= 0
+
+
+def test_mean_reference_averages_over_splits():
+    a = [{"name": "m", "seconds": 1.0, "va": {"score": 0.8}, "te": {"score": 0.6}}]
+    b = [{"name": "m", "seconds": 1.0, "va": {"score": 0.6}, "te": {"score": 0.8}}]
+    out = export.mean_reference([a, b])
+    assert out[0]["va"]["score"] == pytest.approx(0.7) and out[0]["n_splits"] == 2
+    assert export.mean_reference([a]) is a
+
+
+def test_cli_block_split_uses_three_splits_by_default(tmp_path, hsi_npz):
+    out = tmp_path / "o"
+    argv = ["design", "--data", str(hsi_npz), "--split", "block", "--block-size", "8", "--patch",
+            "3", "--pca", "8", "--frac", "0.4,0.2,0.4", "--budget", "40s", "--topk", "1",
+            "--per-family", "1", "--out", str(out)]  # fmt: skip
+    assert cli.main(argv) == 0
+    board = json.loads((out / "leaderboard.json").read_text())
+    assert board["top_k"][0]["n_splits"] >= 2
+    assert "split-to-split" in (out / "leaderboard.md").read_text()

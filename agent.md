@@ -227,8 +227,8 @@ Nguyên tắc: lõi **tổng quát trước**, kiểm chứng end-to-end sớm t
 |---|---|---|
 | **M0** | Khung repo, `ArchSpec/ProblemSpec`, registry module, compiler, giao diện plugin (§14) | Sinh model từ YAML, test pass |
 | **M1** | **End-to-end tổng quát**: plugin tabular + bộ ứng viên MLP/ResNet-MLP/FT-Transformer + proxy → short-train → **xuất Top-K + leaderboard** | `dlnet design --data x.csv --topk 3` ra 3 gói baseline chạy được |
-| **M2** | **Plugin HSI**: loader, split chống rò rỉ, preset 1D/2D/3D-CNN + HybridSN-style + CNN phân rã Tucker-2, metric OA/AA/Kappa | **Prototype xong** (chạy thật trên Indian Pines, Pavia University). Còn thiếu: xếp hạng ổn định theo nhiều lần chia khối (xem §9 mục 7) |
-| **M3** | Giao thức đánh giá đầy đủ (§12.2–12.3): nhiều seed, nhóm "chưa phân biệt được", quy tắc chấp nhận | Báo cáo tái lập, mỗi số có ± std |
+| **M2** | **Plugin HSI**: loader, split chống rò rỉ, preset 1D/2D/3D-CNN + HybridSN-style + CNN phân rã Tucker-2, metric OA/AA/Kappa | **Xong (v0.2.0)**: chạy thật trên Indian Pines, Pavia University; xếp hạng trên 3 lần chia khối (`--cv-splits`, §9 mục 7) |
+| **M3** | Giao thức đánh giá đầy đủ (§12.2–12.3): nhiều seed, nhóm "chưa phân biệt được", quy tắc chấp nhận | **Xong (v0.2.0)**: báo cáo tái lập, val và test đều có ± std qua seed và lần chia |
 | **M4** | Library mở rộng + tự ghép theo grammar (§13): SSRN, Transformer, Mamba/SSM, ResNet/ConvNeXt block | Sinh được ≥20 ứng viên hợp lệ từ registry |
 | **M5** | Cost model + tiết kiệm thời gian: zero-cost proxy (theo §16.1), successive halving, cache, resume; **hyperparameter estimate (LR range test, noise scale) đã có, §16.2** | Giảm ≥X% thời gian, cùng chất lượng top-1 |
 | **M6** | Estimator: intrinsic dim → dung lượng, rank tensor | Ước lượng ổn định trên nhiều dataset |
@@ -247,7 +247,7 @@ Nguyên tắc: lõi **tổng quát trước**, kiểm chứng end-to-end sớm t
 4. **Paper là survey**: không có thuật toán chọn kiến trúc sẵn; rule prior ở §2 là giả thuyết cần kiểm chứng bằng benchmark nội bộ.
 5. **Unfolding** chỉ hợp lý khi có mô hình thuận; nếu không, bỏ qua (không ép dùng).
 6. **Tái lập & giấy phép** dataset/pretrained.
-7. **Xếp hạng nhiễu khi chia theo khối** (phát hiện từ chạy thật trên Indian Pines/Pavia University): tập validation chỉ gồm vài khối ảnh nên điểm validation lệch xa điểm test (vd. Pavia: top1 theo validation 0.963 nhưng test 0.859, thấp hơn hạng 3 ở test 0.886). Std theo seed không phản ánh nhiễu này. Cần xếp hạng bằng **nhiều lần chia khối khác nhau (cross-validation theo khối)**; chưa cài đặt.
+7. **Xếp hạng nhiễu khi chia theo khối** (phát hiện từ chạy thật trên Indian Pines/Pavia University): tập validation chỉ gồm vài khối ảnh nên điểm validation lệch xa điểm test (vd. Pavia: top1 theo validation 0.963 nhưng test 0.859, thấp hơn hạng 3 ở test 0.886). Std theo seed không phản ánh nhiễu này. **Đã cài đặt (v0.2.0)**: finalist được huấn luyện trên nhiều lần chia khác nhau (`--cv-splits`, mặc định 3 khi chia khối; lần chạy i dùng seed i trên lần chia i), baseline tham chiếu lấy trung bình trên cùng các lần chia. Đây là chia lặp lại (repeated split), chưa phải k-fold phủ kín ảnh; successive halving vẫn chạy trên một lần chia.
 8. **Chia khối làm mất nhiều dữ liệu và lớp**: bỏ 41–51% pixel có nhãn ở margin, một số lớp vắng trong train hoặc test. Cần chiến lược chọn khối cân bằng lớp hơn hoặc k-fold theo khối.
 
 9. **Kết quả audit (regression test khóa từng lỗi, `tests/test_regression.py`)** — đã sửa: (a) hết ngân sách trước rung đầu → `IndexError`; (b) hết giờ giữa rung → ứng viên bị bỏ lại giữ điểm cũ và bị xếp hạng cùng ứng viên train nhiều epoch hơn; (c) `--out` bị `rmtree` toàn bộ (xóa cả file lạ); (d) impute thiếu dữ liệu bằng median của toàn bộ dòng (rò rỉ test sang train), giờ dùng median của train; (e) dòng thiếu nhãn không bị loại; (f) split rỗng (dữ liệu quá nhỏ, khối lớn hơn ảnh) làm `evaluate` sập với thông báo khó hiểu, giờ báo lỗi rõ; (g) không sinh được ứng viên nào → `IndexError`, giờ báo lỗi rõ; (h) lớp ≥3 mẫu có thể vắng trong val/test, giờ luôn có mặt trong mọi split. Chưa sửa: ngân sách thời gian vẫn chỉ kiểm tra giữa các ứng viên; các hạn chế ở mục 7–8.
@@ -342,7 +342,7 @@ Push lên `dev` mà **không** tăng version thì vẫn lên `main` nhưng **kh�
 1. Lọc bằng prior + cost model → ~50–200 ứng viên hợp lệ.
 2. Zero-cost proxy → giữ ~30.
 3. Short-train (Successive Halving) → giữ ~8–10.
-4. Huấn luyện vừa, nhiều seed → xếp hạng cuối theo trung bình ± std.
+4. Huấn luyện vừa, nhiều seed và nhiều lần chia (`--cv-splits`) → xếp hạng cuối theo trung bình ± std.
 
 **Chọn Top-K**:
 - Xếp theo metric trung bình; ứng viên có chênh lệch nhỏ hơn std được gom thành **nhóm "chưa phân biệt được"** và ghi rõ trong leaderboard.

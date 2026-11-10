@@ -67,6 +67,21 @@ def verdict(top1: dict, reference: list[dict], n_val: int, task: str) -> dict:
     }
 
 
+def mean_reference(per_fold: list[list[dict]]) -> list[dict]:
+    """Average each reference model over the splits (one list of results per split)."""
+    if len(per_fold) == 1:
+        return per_fold[0]
+    out = []
+    for name in [r["name"] for r in per_fold[0]]:
+        rs = [r for fold in per_fold for r in fold if r["name"] == name]
+        m = {"name": name, "seconds": round(sum(r["seconds"] for r in rs), 1), "n_splits": len(rs)}
+        for sp in ("va", "te"):
+            m[sp] = {k: float(sum(r[sp][k] for r in rs) / len(rs)) for k in rs[0][sp]}
+        out.append(m)
+    out.sort(key=lambda r: -r["va"]["score"])
+    return out
+
+
 def hyperparameters(r: dict, recipe_epochs: int) -> dict:
     """The full training setting of one baseline, plus how it was obtained."""
     cfg = r["cfg"]
@@ -158,6 +173,8 @@ def export(out_dir, plugin, data, prof, chosen, reference, seed, epochs_recipe=1
                 "val_std": r["val_std"],
                 "epochs_used": r["epochs"],
                 "seeds": r["n_seeds"],
+                "splits": r.get("n_splits", 1),
+                "test_std": r.get("test_std"),
             },
         }
         (d / "config.yaml").write_text(json.dumps(config, indent=2))
@@ -167,14 +184,15 @@ def export(out_dir, plugin, data, prof, chosen, reference, seed, epochs_recipe=1
             f"# top{i}: {cfg['family']}  {r['roles']}\n\n"
             f"- Config: `{arch}`\n- Params: {cfg['params']:,}\n"
             f"- Validation ({data['primary']}): {r['val_mean']:.4f} +/- {r['val_std']:.4f} "
-            f"({r['n_seeds']} seeds, {r['epochs']} epochs)\n"
-            f"- Test (mean over seeds): {_fmt(r['test'], task)}\n"
+            f"({r['n_seeds']} runs on {r.get('n_splits', 1)} split(s), {r['epochs']} epochs)\n"
+            f"- Test (mean over runs): {_fmt(r['test'], task)}, "
+            f"primary metric +/- {r.get('test_std', 0.0):.4f}\n"
             f"- Hyperparameters: lr {hp['lr']:.2g}, weight decay {hp['weight_decay']:.2g}, "
             f"batch {hp['batch_size']}, dropout {hp['dropout']}, AdamW, cosine, "
             f"{hp['epochs']} epochs (full recipe), clip {hp['grad_clip_norm']}"
             f"{_hp_note(hp)}\n"
             f"- Search time spent on this candidate: {r['train_seconds']}s\n"
-            f"- Indistinguishable-group id: {r['group']} (same id = difference within seed noise)\n\n"
+            f"- Indistinguishable-group id: {r['group']} (same id = difference within run-to-run noise)\n\n"
             f"Short search budget only. Re-train with the full recipe (see `python train.py -h`); "
             f"neighbouring ranks may reorder.\n"
         )
@@ -188,6 +206,9 @@ def export(out_dir, plugin, data, prof, chosen, reference, seed, epochs_recipe=1
                 "hyperparameters": hp,
                 "val_mean": round(r["val_mean"], 5),
                 "val_std": round(r["val_std"], 5),
+                "n_runs": r["n_seeds"],
+                "n_splits": r.get("n_splits", 1),
+                "test_std": round(r.get("test_std", 0.0), 5),
                 "test": {k: round(x, 5) for k, x in r["test"].items()},
             }
         )
@@ -222,9 +243,15 @@ def export(out_dir, plugin, data, prof, chosen, reference, seed, epochs_recipe=1
         md.append(
             f"| {r['rank']} | {r['name']} | {', '.join(r['roles'])} | {r['group']} | {r['params']:,} | "
             f"{h['lr']:.2g} | {h['weight_decay']:.2g} | {h['batch_size']} | "
-            f"{r['val_mean']} +/- {r['val_std']} | {ts} |"
+            f"{r['val_mean']} +/- {r['val_std']} | {ts} (+/- {r['test_std']}) |"
         )
-    md.append("\n## Reference baselines (same split)\n")
+    ns = max(r["n_splits"] for r in rows)
+    md.append(
+        f"\nEach number is a mean over runs (seeds); +/- is the std over those runs. "
+        f"Finalists were ranked on {ns} split(s)"
+        + (", so the std includes split-to-split noise." if ns > 1 else ".")
+    )
+    md.append("\n## Reference baselines (same split(s))\n")
     md.append("| model | val | test |\n|---|---|---|")
     for r in ref_rows:
         ts = _short(r["test"], task)

@@ -17,7 +17,43 @@ def _new_trainer(cfg, data, seed, build_fn):
     return Trainer(m, data, lr=cfg["lr"], wd=cfg["wd"], batch=cfg["batch"], seed=seed)
 
 
-def run_search(data, cands, deadline, topk, build_fn, rungs=(4, 12, 30), eta=3, seeds=3, log=print):
+def eval_runs(cfg, folds, build_fn, epochs, n_runs, deadline, first=None):
+    """Train `cfg` n_runs times: run i uses seed i on split folds[i % len(folds)].
+
+    With one fold this is plain multi-seed evaluation; with several folds (repeated splits) the
+    spread also contains the split noise, which seed std alone misses (agent.md sec. 9 item 7).
+    `first` is an already trained seed-0 trainer on folds[0], reused as run 0.
+    Returns (val scores, test metric dicts, seconds, number of distinct splits used).
+    """
+    vals, tests, secs = [], [], 0.0
+    for i in range(n_runs):
+        if vals and time.time() > deadline:
+            break
+        t = first if i == 0 and first is not None else None
+        if t is None:
+            t = _new_trainer(cfg, folds[i % len(folds)], i, build_fn)
+            t.fit(epochs)
+        vals.append(t.evaluate("va")["score"])
+        tests.append(t.evaluate("te"))
+        secs += t.seconds
+    return vals, tests, secs, min(len(vals), len(folds))
+
+
+def summarize(vals, tests) -> dict:
+    return {
+        "n_seeds": len(vals),
+        "val_mean": float(np.mean(vals)),
+        "val_std": float(np.std(vals)),
+        "test": {k: float(np.mean([t[k] for t in tests])) for k in tests[0]},
+        "test_std": float(np.std([t["score"] for t in tests])),
+    }
+
+
+def run_search(
+    data, cands, deadline, topk, build_fn, rungs=(4, 12, 30), eta=3, seeds=3, log=print, folds=None
+):
+    """`folds`: optional list of data dicts (repeated splits, folds[0] is `data`) for stage 2."""
+    folds = folds or [data]
     # --- stage 1: successive halving (resumable trainers, seed 0)
     if not cands:
         raise ValueError("no candidates to search")
@@ -46,39 +82,30 @@ def run_search(data, cands, deadline, topk, build_fn, rungs=(4, 12, 30), eta=3, 
             break
     finalists = alive[: max(topk * 2, topk + 2)]
 
-    # --- stage 2: multi-seed for finalists (seed 0 reused, extra seeds trained from scratch)
+    # --- stage 2: finalists on several seeds (and splits); run 0 reuses the stage-1 trainer
     results = []
+    n_runs = max(seeds, len(folds))
     for a in finalists:
         cfg, ep = a["cfg"], a["tr"].epochs_done
-        vals = [a["tr"].evaluate("va")["score"]]
-        tests = [a["tr"].evaluate("te")]
-        secs = a["tr"].seconds
-        for s in range(1, seeds):
-            if time.time() > deadline:
-                break
-            t = _new_trainer(cfg, data, s, build_fn)
-            t.fit(ep)
-            vals.append(t.evaluate("va")["score"])
-            tests.append(t.evaluate("te"))
-            secs += t.seconds
+        vals, tests, secs, n_splits = eval_runs(
+            cfg, folds, build_fn, ep, n_runs, deadline, first=a["tr"]
+        )
         results.append(
             {
                 "cfg": cfg,
-                "n_seeds": len(vals),
-                "val_mean": float(np.mean(vals)),
-                "val_std": float(np.std(vals)),
-                "test": {k: float(np.mean([t[k] for t in tests])) for k in tests[0]},
+                **summarize(vals, tests),
+                "n_splits": n_splits,
                 "train_seconds": round(secs, 1),
                 "epochs": ep,
                 "trainer": a["tr"],  # seed-0 trained model, used by hparams.estimate (not exported)
             }
         )
-    results.sort(key=lambda r: -r["val_mean"])
     return assign_groups(results)
 
 
 def assign_groups(results):
-    """Sort by validation and mark 'indistinguishable' groups: neighbours closer than the larger std."""
+    """Sort by validation and mark 'indistinguishable' groups: neighbours closer than the larger std
+    (std over seeds, and over splits when repeated splits are used)."""
     results.sort(key=lambda r: -r["val_mean"])
     g = 0
     for i, r in enumerate(results):
