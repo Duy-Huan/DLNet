@@ -114,16 +114,24 @@ def hyperparameters(r: dict, recipe_epochs: int) -> dict:
 
 
 _OWN = ("leaderboard.md", "leaderboard.json", "profile.json", "reference")
+CACHE_NAME = ".dlnet_cache.json"  # kept between runs (resume); see search.RunCache
+
+
+def check_out_dir(out) -> bool:
+    """Refuse a non-empty directory that is not a DLNet output. True if old output is present."""
+    out = Path(out)
+    files = [p for p in out.iterdir() if p.name != CACHE_NAME] if out.exists() else []
+    if files and not (out / "leaderboard.json").exists():
+        raise SystemExit(
+            f"--out {out} is not empty and does not look like a DLNet output; "
+            "pick an empty or new directory (nothing was deleted)"
+        )
+    return bool(files)
 
 
 def _prepare_out_dir(out: Path) -> None:
     """Create `out`; replace only what a previous DLNet run wrote, never foreign files."""
-    if out.exists() and any(out.iterdir()):
-        if not (out / "leaderboard.json").exists():
-            raise SystemExit(
-                f"--out {out} is not empty and does not look like a DLNet output; "
-                "pick an empty or new directory (nothing was deleted)"
-            )
+    if check_out_dir(out):
         for p in [*(out / n for n in _OWN), *out.glob("top[0-9]*_*")]:
             if p.is_dir():
                 shutil.rmtree(p)
@@ -132,7 +140,7 @@ def _prepare_out_dir(out: Path) -> None:
     out.mkdir(parents=True, exist_ok=True)
 
 
-def export(out_dir, plugin, data, prof, chosen, reference, seed, epochs_recipe=100):
+def export(out_dir, plugin, data, prof, chosen, reference, seed, epochs_recipe=100, extras=None):
     out = Path(out_dir)
     _prepare_out_dir(out)
     task = data["task"]
@@ -229,6 +237,7 @@ def export(out_dir, plugin, data, prof, chosen, reference, seed, epochs_recipe=1
                 "verdict": v,
                 "top_k": rows,
                 "reference": ref_rows,
+                **(extras or {}),
             },
             indent=2,
         )
@@ -267,6 +276,15 @@ def export(out_dir, plugin, data, prof, chosen, reference, seed, epochs_recipe=1
             f"**No significant win over the best reference ({v['best_reference']}).** "
             f"Val margin {v['val_margin']} vs noise {v['val_noise']}; test margin {v['test_margin']}. "
             "Consider the reference baseline first; the deep-learning candidates below are still valid to try."
+        )
+    zc = (extras or {}).get("zero_cost_proxies")
+    if zc:
+        md.append("\n## Zero-cost proxies (information only, nothing was pruned)\n")
+        md.append(f"Spearman rank correlation with the {zc['target']}:\n")
+        md.append("| proxy | Spearman | candidates |\n|---|---|---|")
+        md += [f"| {k} | {v['spearman']} | {v['n']} |" for k, v in zc["proxies"].items()]
+        md.append(
+            f"\nClearly better than the parameter count: {zc['better_than_param_count'] or 'none'}."
         )
     (out / "leaderboard.md").write_text("\n".join(md) + "\n")
     return v

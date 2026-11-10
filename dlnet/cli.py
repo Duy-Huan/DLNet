@@ -18,12 +18,18 @@ def parse_budget(s: str) -> float:
 
 
 def design(args) -> int:
-    from . import export, hparams, plugins, search
+    from pathlib import Path
+
+    import torch
+
+    from . import export, hparams, plugins, proxies, search
 
     t0 = time.time()
     budget = parse_budget(args.budget)
     deadline = t0 + budget
     search_deadline = t0 + 0.8 * budget  # the last 20% goes to hyperparameter estimation
+    export.check_out_dir(args.out)  # fail before spending the budget, not after
+    cache = None if args.no_cache else search.RunCache(Path(args.out) / export.CACHE_NAME)
     plugin = plugins.route(args.data) if args.plugin == "auto" else plugins.get_plugin(args.plugin)
     print(f"[plugin] {plugin.name}  data={args.data}")
 
@@ -63,14 +69,39 @@ def design(args) -> int:
     fams = sorted({c["family"] for c in cands})
     print(f"[generate] {len(cands)} valid candidates from families {fams}")
 
+    # Zero-cost proxies of the untrained candidates: measured against real training below,
+    # never used to prune (agent.md 16.1). At most 10% of the budget.
+    zc = {}
+    for c in cands:
+        if args.no_proxies or time.time() > t0 + 0.1 * budget:
+            break
+        torch.manual_seed(args.seed)
+        zc[id(c)] = proxies.score(
+            plugin.build_model(c, data["in_dim"], data["out_dim"]), data, seed=args.seed
+        )
+    trace = {}
     results = search.run_search(
-        data, cands, search_deadline, args.topk, plugin.build_model, folds=folds
-    )
+        data, cands, search_deadline, args.topk, plugin.build_model, folds=folds,
+        cache=cache, trace=trace,
+    )  # fmt: skip
     print("[hparams] estimating lr / batch size / weight decay for the finalists")
-    results = hparams.refine(results, data, plugin.build_model, deadline, log=print, folds=folds)
+    results = hparams.refine(
+        results, data, plugin.build_model, deadline, log=print, folds=folds, cache=cache
+    )
     results = search.assign_groups(results)
     chosen = search.select_topk(results, args.topk)
-    v = export.export(args.out, plugin, data, prof, chosen, ref, args.seed)
+    extras = {}
+    pairs = [(zc[id(c)], val) for c, val in trace.get("rung1", []) if id(c) in zc]
+    if len(pairs) >= 3:
+        rep = proxies.correlation_report(
+            *map(list, zip(*pairs, strict=True)), trace["rung1_epochs"]
+        )
+        extras["zero_cost_proxies"] = rep
+        shown = {k: v["spearman"] for k, v in rep["proxies"].items()}
+        print(f"[proxies] Spearman with rung-1 validation (n={len(pairs)}): {shown}")
+    if cache and cache.hits:
+        print(f"[cache] reused {cache.hits} finished runs from {cache.path}")
+    v = export.export(args.out, plugin, data, prof, chosen, ref, args.seed, extras=extras)
     print(f"[done] {time.time() - t0:.0f}s  -> {args.out}/leaderboard.md")
     print(
         f"[verdict] beats_reference={v['beats_reference']} "
@@ -131,6 +162,8 @@ def main(argv=None) -> int:
         help="rank finalists on this many different splits (0 = plugin default; 1 = off)",
     )
     d.add_argument("--out", default="dlnet_out")
+    d.add_argument("--no-cache", action="store_true", help="do not reuse finished runs of --out")
+    d.add_argument("--no-proxies", action="store_true", help="skip the zero-cost proxy report")
     for p in plugins._registry().values():
         p.add_arguments(d)
     args = ap.parse_args(argv)
