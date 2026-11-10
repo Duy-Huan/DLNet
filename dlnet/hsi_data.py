@@ -164,6 +164,11 @@ def build(cube, gt, split="pixel", seed=0, patch=9, pca=30, frac=None, block=16)
     rows, cols, labels, sid, keep, info = make_split(gt, split, seed, frac, patch, block)
     r, c, y, s = rows[keep], cols[keep], labels[keep], sid[keep]
     tr = s == 0
+    sizes = {n: int((s == i).sum()) for n, i in (("train", 0), ("val", 1), ("test", 2))}
+    if min(sizes.values()) == 0:
+        raise ValueError(
+            f"a split is empty ({sizes}); use a smaller --block-size / --patch or larger --frac"
+        )
 
     spec = cube[r[tr], c[tr]].astype(np.float64)
     mean, std = spec.mean(0), spec.std(0) + 1e-6

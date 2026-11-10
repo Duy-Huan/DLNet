@@ -53,11 +53,28 @@ def verdict(top1: dict, reference: list[dict], n_val: int, task: str) -> dict:
     }
 
 
+_OWN = ("leaderboard.md", "leaderboard.json", "profile.json", "reference")
+
+
+def _prepare_out_dir(out: Path) -> None:
+    """Create `out`; replace only what a previous DLNet run wrote, never foreign files."""
+    if out.exists() and any(out.iterdir()):
+        if not (out / "leaderboard.json").exists():
+            raise SystemExit(
+                f"--out {out} is not empty and does not look like a DLNet output; "
+                "pick an empty or new directory (nothing was deleted)"
+            )
+        for p in [*(out / n for n in _OWN), *out.glob("top[0-9]*_*")]:
+            if p.is_dir():
+                shutil.rmtree(p)
+            elif p.exists():
+                p.unlink()
+    out.mkdir(parents=True, exist_ok=True)
+
+
 def export(out_dir, plugin, data, prof, chosen, reference, seed, epochs_recipe=100):
     out = Path(out_dir)
-    if out.exists():
-        shutil.rmtree(out)
-    out.mkdir(parents=True)
+    _prepare_out_dir(out)
     task = data["task"]
     v = verdict(chosen[0], reference, len(data["yva"]), task)
 

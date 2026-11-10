@@ -17,5 +17,6 @@ grep -ril "<từ khóa>" skills/*/SKILL.md      # ví dụ: plugin, split, leaka
 | [evaluate-honestly](evaluate-honestly/SKILL.md) | Chia dữ liệu, chọn baseline tham chiếu, kết luận "thắng/không thắng" | split, leakage, reference, verdict, acceptance |
 | [run-on-real-data](run-on-real-data/SKILL.md) | Chạy thử DLNet trên dữ liệu thật, báo cáo kết quả | experiment, dataset, budget, report |
 | [fix-ranking-noise](fix-ranking-noise/SKILL.md) | Thứ hạng Top-K không ổn định / val nhiễu | ranking, noise, cross-validation, seeds |
+| [audit-and-regression](audit-and-regression/SKILL.md) | Audit mã, thêm regression test, sửa CI | audit, regression, test, bug, CI |
 | [git-dev-main](git-dev-main/SKILL.md) | Commit, push, CI/CD, merge | git, branch, dev, main, CI, promote |
 | [find-verify-papers](find-verify-papers/SKILL.md) | Tìm và tải paper vào `ref/` | paper, arXiv, ref |

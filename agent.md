@@ -250,6 +250,8 @@ Nguyên tắc: lõi **tổng quát trước**, kiểm chứng end-to-end sớm t
 7. **Xếp hạng nhiễu khi chia theo khối** (phát hiện từ chạy thật trên Indian Pines/Pavia University): tập validation chỉ gồm vài khối ảnh nên điểm validation lệch xa điểm test (vd. Pavia: top1 theo validation 0.963 nhưng test 0.859, thấp hơn hạng 3 ở test 0.886). Std theo seed không phản ánh nhiễu này. Cần xếp hạng bằng **nhiều lần chia khối khác nhau (cross-validation theo khối)**; chưa cài đặt.
 8. **Chia khối làm mất nhiều dữ liệu và lớp**: bỏ 41–51% pixel có nhãn ở margin, một số lớp vắng trong train hoặc test. Cần chiến lược chọn khối cân bằng lớp hơn hoặc k-fold theo khối.
 
+9. **Kết quả audit (regression test khóa từng lỗi, `tests/test_regression.py`)** — đã sửa: (a) hết ngân sách trước rung đầu → `IndexError`; (b) hết giờ giữa rung → ứng viên bị bỏ lại giữ điểm cũ và bị xếp hạng cùng ứng viên train nhiều epoch hơn; (c) `--out` bị `rmtree` toàn bộ (xóa cả file lạ); (d) impute thiếu dữ liệu bằng median của toàn bộ dòng (rò rỉ test sang train), giờ dùng median của train; (e) dòng thiếu nhãn không bị loại; (f) split rỗng (dữ liệu quá nhỏ, khối lớn hơn ảnh) làm `evaluate` sập với thông báo khó hiểu, giờ báo lỗi rõ; (g) không sinh được ứng viên nào → `IndexError`, giờ báo lỗi rõ; (h) lớp ≥3 mẫu có thể vắng trong val/test, giờ luôn có mặt trong mọi split. Chưa sửa: ngân sách thời gian vẫn chỉ kiểm tra giữa các ứng viên; các hạn chế ở mục 7–8.
+
 ---
 
 ## 10. Quy ước cho agent (người/AI) phát triển repo
@@ -260,6 +262,7 @@ Nguyên tắc: lõi **tổng quát trước**, kiểm chứng end-to-end sớm t
 - Kết quả thực nghiệm lưu kèm seed/config để tái lập.
 - Không commit dữ liệu thô hoặc khóa/bí mật.
 - Trước khi làm, chọn skill phù hợp trong `skills/` (§15).
+- Mỗi lỗi sửa phải có regression test đi kèm (`tests/test_regression.py`, đỏ trước xanh sau); thay đổi chỉ xanh khi `lint`, `test`, `regression`, `e2e` đều xanh.
 
 ## 11. Quy trình Git & CI/CD
 
@@ -272,8 +275,8 @@ commit ──► dev ──(CI xanh, tự động)──► main
 ```
 
 Workflow (`.github/workflows/`):
-- `ci.yml`: chạy khi push vào `dev`/`main` và khi có PR vào `main`: lint (ruff), test (pytest, Python 3.10–3.12); PR vào `main` mà nguồn không phải `dev` bị từ chối.
-- `promote.yml`: khi push vào `dev` và CI xanh → tự tạo PR `dev → main` và merge.
+- `ci.yml`: chạy khi push vào `dev`/`main`, khi có PR vào `main` và hàng tuần (bắt lỗi do nâng cấp thư viện). Các job: `lint` (ruff check + format), `test (py3.10–3.12)` (unit + regression, torch CPU, **fail nếu có test bị skip**), `regression` (riêng, để thấy ngay lỗi cũ quay lại), `e2e` (CLI thật → gói xuất ra → `pytest` và `train.py` trong gói, cho tabular và HSI). PR vào `main` mà nguồn không phải `dev` bị từ chối.
+- `promote.yml`: khi push vào `dev` và **mọi job CI xanh** → tự tạo PR `dev → main` và merge.
 Thiết lập thủ công trên GitHub (không làm được từ code): xem `.github/README.md`.
 
 ## 12. Tiết kiệm thời gian & Giao thức đánh giá
