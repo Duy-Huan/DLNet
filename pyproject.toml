@@ -11,6 +11,10 @@ dependencies = []
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.5"]
+design = ["numpy", "pandas", "scikit-learn", "torch"]
+
+[project.scripts]
+dlnet = "dlnet.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["dlnet*"]
