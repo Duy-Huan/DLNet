@@ -281,6 +281,7 @@ Nguyên tắc: lõi **tổng quát trước**, kiểm chứng end-to-end sớm t
 | **M6** | Estimator: intrinsic dim → dung lượng, rank tensor | **Xong phần đo được (v0.5.0)**, xem §16.4: hai bộ ước lượng (TwoNN, MLE) kèm độ lệch chuẩn qua mẫu con và cờ `stable`; đo trên 5 bộ biết đáp án và 5 bộ thật. Chưa có: bằng chứng `capacity_hint` dự đoán đúng độ rộng tốt nhất (nên chỉ ghi thông tin) |
 | **M7** | Tensor: Tucker/HOSVD tiền xử lý, lớp TT/Tucker/TR, Tensor-LoRA | **Xong phần module và phép đo (v0.6.0)**, xem "Kết quả đo M7" ở §4: lớp TT/TR nén 81–89% tham số, mất ≤0,4 điểm accuracy (trong mức nhiễu) trên digits. Tensor-LoRA có đủ 4 format nhưng **chưa nối vào `design`** (DLNet chưa có backbone pretrained) và trong phép đo nhỏ chưa hơn huấn luyện từ đầu. HOSVD chưa dùng làm tiền xử lý HSI |
 | **M8** | Deep unfolding (khi có mô hình thuận) | **Xong cho bài toán thưa tuyến tính (v0.7.0)**, xem "Kết quả đo M8" ở §5: lệnh `dlnet unfold`, LISTA-CP hơn ISTA và FISTA (λ đã tune) 3,3–6,3 dB ở cùng số vòng K trên dữ liệu tổng hợp. Chưa có: ADMM/AMP, support selection, toán tử A không tường minh (ảnh), dữ liệu thật |
+| **M13** | Port nhóm còn thiếu: đồ thị, id/recommender, autoencoder/VAE, GAN, Mamba-2; cost model; hợp nhất họ cũ | **Xong (v0.11.0–v0.12.0)**, xem §13.7. Chưa có: CVAE, loss cặp (BPR), GAN có điều kiện/FID, đồ thị lớn (dense), graph cạnh học được |
 | **M11** | Refactor lõi thành kho module có kiểu `dlnet/zoo/` dùng chung mọi plugin + ngữ pháp ghép + tiến hóa kiến trúc; gom module từ các repo GitHub | **Xong phần lõi (v0.10.0)**: §13.6; 54 op từ 6 repo, 14/14 khối đối chiếu torchvision khớp; kết quả đo zoo so với họ cũ ở §13.6. Chưa có: chuyển hẳn các họ cũ thành preset (vẫn song song), kiểu `graph`/`ids`, trọng số pretrained |
 | **M10** | Thư viện khối từ 4 repo GitHub (§13.5), plugin `image_classification` và `image_segmentation` | **Xong (v0.9.0)**: `dlnet/blocks.py` + `THIRD_PARTY.md`; kết quả đo ở §14.4. Chưa có: pretrained, augmentation, dữ liệu segmentation thật |
 | **M9** | Plugin ảnh, chuỗi thời gian; recommender học từ kho kết quả (meta-learning) | **Có plugin và recommender (v0.8.0), tiêu chí 80% CHƯA đạt**, xem §14.3: plugin `image` (cnn, resnet, vit) và `timeseries` (tcn, gru, ts_transformer) chạy end-to-end trên dữ liệu tổng hợp; recommender kNN đoán đúng họ tốt nhất trong top-3 ở 7/12 dataset bảng (58%, ngẫu nhiên 51%). Chưa có: Mamba/SSM, ConvNeXt cho ảnh, dữ liệu ảnh/chuỗi thật, kho kết quả đủ lớn |
@@ -513,6 +514,21 @@ Mục đích của platform là **tìm kiến trúc mới cho từng ứng dụn
 
 **Cost model (M12)** (`dlnet/zoo/cost.py`, áp cho mọi ứng viên, cũ lẫn mới): đo trên thiết bị `meta` (không tốn bộ nhớ): FLOPs ma trận/tích chập của một mẫu (`FlopCounterMode`; không tính phép elementwise, chuẩn hóa, kích hoạt và vòng lặp quét của Mamba), bộ nhớ kích hoạt từ hook trên các module lá, và VRAM huấn luyện ước lượng `16·params + 2·batch·act` byte (trọng số, gradient, hai moment Adam, kích hoạt lưu và gradient của chúng). `--max-flops 50M` và `--max-vram 4000` (MB) loại ứng viên **trước khi huấn luyện**; leaderboard có cột MFLOPs và MB. **Chưa đối chiếu với VRAM đo trên GPU** (môi trường không có GPU): coi là ước lượng ±30%.
 
+### 13.7 Các kiểu dữ liệu và tác vụ mới trong zoo (M13)
+- **Kiểu `graph`** `(N, F+N)` (đặc trưng nút rồi hàng kề của nó; đồ thị dày, N nhỏ) với các lớp GCN, GAT, GraphSAGE, GIN, readout; test bất biến theo thứ tự nút (hoán vị nút và ma trận kề không đổi đầu ra). Hai bộ lọc lưới của rasbt: `grid_graph_avg`, `grid_spectral_conv` (Laplacian của đồ thị pixel, `eigh` thay `eigsh`, bộ lọc được huấn luyện).
+- **Kiểu `ids`** (dims là số giá trị của từng trường, tensor `(B,F)` nguyên): `embed_fields` (LatentFactor của openrec), `gmf`, `pair_dots`; tác vụ điểm (pointwise) dạng hồi quy hoặc phân loại. Cold-start: id chưa thấy ở train giữ embedding khởi tạo.
+- **Tác vụ `reconstruction`**: mục tiêu là chính ảnh vào, metric MSE và PSNR (điểm = −MSE); `vae_bottleneck` thêm KL do `ZooNet.kl_loss()` gom và trainer cộng `beta·KL`. Baseline PCA 0/8/32 thành phần: **công bằng phụ thuộc kích thước mã** của ứng viên (xem `code` trong `config.yaml`), verdict không tự khớp kích thước mã.
+- **Lệnh `dlnet gan`**: DCGAN dựng từ zoo, huấn luyện Adam(2e-4, β=0,5/0,999) với loss generator không bão hòa, chọn checkpoint theo MMD² (nhân Gaussian, băng thông trung vị × {0,5; 1; 2}) trên ảnh validation; baseline là Gaussian khớp ảnh train và chính ảnh train. **Không có FID** (không có mạng Inception): MMD² trong không gian pixel là thước đo thô, ưu ái ảnh mờ.
+- **Đo trên dữ liệu tổng hợp (một lần chạy 120 s, `design`, 8 cấu hình zoo + 1 thế hệ tiến hóa):**
+
+| Bài toán | Dữ liệu | Top-1 | Baseline tốt nhất | Kết luận |
+|---|---|---|---|---|
+| đồ thị | 400 đồ thị 16 nút: ER so với thưa hơn cộng tam giác cài sẵn | GIN+GCN: val 0,72, test 0,75 | HistGradientBoosting trên thống kê đồ thị: val 0,90, test 0,87 | **GNN kém baseline** (baseline có đặc trưng tam giác và hệ số cụm đúng thứ phân biệt hai lớp) |
+| recommender | 150 người dùng × 80 mục, 8000 tương tác sinh từ phân rã hạng 4 | MF: RMSE test 0,129 | random forest trên one-hot: RMSE 1,77 | MF thắng xa, **nhưng dữ liệu sinh đúng theo mô hình MF** nên chỉ chứng minh khôi phục được cấu trúc đó |
+| autoencoder | digits 8×8 (thật) | `conv_ae` MSE 0,039 (mã 8–32 phần tử) | PCA 32 thành phần: MSE 0,019 | **PCA thắng** trên ảnh nhỏ gần tuyến tính |
+
+- **Cost model áp cho cả ứng viên con** của vòng tiến hóa.
+
 ## 14. Domain plugins (HSI là plugin đầu tiên)
 
 ### 14.1 Giao diện plugin
@@ -534,6 +550,9 @@ class DomainPlugin:
 | `tabular` | bảng đặc trưng | MLP, ResNet-MLP, FT-Transformer | M1 (kiểm chứng lõi nhanh) |
 | `hsi` | khối `H×W×B` siêu phổ | 1D/2D/3D-CNN, HybridSN, SSRN, SpectralFormer | M2 |
 | `image_classification` (tên cũ `image` vẫn dùng được) | ảnh RGB/xám, `.npz` có `X` (N,H,W[,C]) và `y` (N) | **đã có:** `cnn`, `resnet`, `vit`, `lenet`, `allconv`, `vgg`, `densenet`, `mobilenetv2` | M9, M10 |
+| `graph` | `.npz` có `X` (G,N,F), `A` (G,N,N), `y` (G): phân loại cả đồ thị | **đã có:** `gcn_net`, `gat_net`, `sage_net`, `gin_net`, `graph_mlp`; baseline cổ điển trên thống kê đồ thị (mật độ, bậc, tam giác, hệ số cụm, phổ Laplacian) | M13 |
+| `recsys` | `.npz` có `ids` (N,F) số nguyên và `y` (điểm hoặc nhấp) | **đã có:** `mf` (GMF), `ncf`, `fm`, `dlrm`; baseline one-hot | M13 |
+| `image_reconstruction` | `.npz` có `X` ảnh, không nhãn | **đã có:** `conv_ae`, `vae` (mã 2–8 kênh); baseline PCA 0/8/32 thành phần | M13 |
 | `image_segmentation` | ảnh + mask, `.npz` có `X` (N,H,W[,C]) và `y` (N,H,W) | **đã có:** `fcn`, `unet`, `deconvnet` × encoder `vgg`/`resnet`/`densenet`/`mobilenetv2`; metric mIoU | M10 (v0.9.0) |
 | `timeseries` | chuỗi thời gian, `.npz` có `X` (N,T[,C]) và `y` | **đã có:** `tcn`, `gru`, `ts_transformer` | M9 (v0.8.0) |
 | `signal`/khác | tín hiệu, tensor đa chiều | tuỳ domain | sau |

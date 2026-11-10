@@ -28,7 +28,11 @@ def _apply_cost_model(plugin, data, cands, args):
     kept, dropped = [], 0
     for c in cands:
         try:
-            c.update(cost.estimate(plugin.build_model, c, data["in_dim"], data["out_dim"], inp[1]))
+            c.update(
+                cost.estimate(
+                    plugin.build_model, c, data["in_dim"], data["out_dim"], inp[1], kind=inp[0]
+                )
+            )
         except (RuntimeError, ValueError, TypeError) as e:  # a candidate we cannot cost still runs
             print(f"[cost] {c['family']}: not costed ({str(e)[:60]})")
             kept.append(c)
@@ -150,6 +154,9 @@ def design(args) -> int:
         kids = space.offspring(
             parents, args.evolve_pop, args.seed + g, prof["max_params"], plugin.zoo_train, seen
         )
+        kids = _apply_cost_model(
+            plugin, data, kids, args
+        )  # children are costed and filtered like the rest
         if not kids:
             break
         seen |= {zoo.signature(k["spec"]) for k in kids}
@@ -242,13 +249,14 @@ def selfcheck() -> int:
 
 
 def main(argv=None) -> int:
-    from . import plugins, unfold_run
+    from . import gan_run, plugins, unfold_run
 
     ap = argparse.ArgumentParser(prog="dlnet")
     ap.add_argument("--version", action="version", version=f"dlnet {__version__}")
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("selfcheck", help="verify the installation end to end (about 20 seconds)")
     unfold_run.add_parser(sub)
+    gan_run.add_parser(sub)
     sub.add_parser("zoo", help="list every module of the zoo with kinds, tags and sources")
     d = sub.add_parser("design", help="propose Top-K deep learning baselines for a dataset")
     d.add_argument(
@@ -303,6 +311,8 @@ def main(argv=None) -> int:
         return 0
     if args.cmd == "unfold":
         return unfold_run.run(args)
+    if args.cmd == "gan":
+        return gan_run.run(args)
     return selfcheck() if args.cmd == "selfcheck" else design(args)
 
 

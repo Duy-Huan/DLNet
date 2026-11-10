@@ -46,6 +46,10 @@ def _sets_width(name):
 def sample(kind, dims, rng, head="cls", width=None):
     """Random body spec for an input of this kind and shape (not yet validated)."""
     w = width or int(_pick(rng, [8, 16, 32]))
+    if kind == "graph":
+        return _sample_graph(rng, w)
+    if kind == "ids":
+        return _sample_ids(dims, rng, w)
     if kind == "vec":
         return _sample_vec(dims, rng, w)
     if kind == "seq":
@@ -130,6 +134,34 @@ def _sample_vec(dims, rng, w):
                     "mode": _pick(rng, ["soft", "topk"]), "k": 2}  # fmt: skip
         layers.append(node)
     return S(*pre, *layers)
+
+
+def _sample_graph(rng, w):
+    layers = [
+        rand_params(_pick(rng, ops_with("block", "graph")), rng, out=2 * w)
+        for _ in range(int(rng.integers(1, 4)))
+    ]
+    return S(*layers, rand_params("graph_readout", rng))
+
+
+def _sample_ids(dims, rng, w):
+    emb = rand_params("embed_fields", rng, dim=w)
+    head = _pick(rng, ["ncf", "fm", "dlrm"] + (["gmf"] if len(dims) == 2 else []))
+    mlp = N("mlp", width=2 * w, depth=int(rng.integers(1, 3)), act="relu", dropout=0.0)
+    both = {
+        "op": "par",
+        "branches": [N("flatten"), N("pair_dots", self_interaction=0)],
+        "merge": "concat",
+    }
+    return S(
+        emb,
+        *{
+            "ncf": [N("flatten"), mlp],
+            "fm": [N("pair_dots", self_interaction=0)],
+            "gmf": [N("gmf")],
+            "dlrm": [both, mlp],
+        }[head],
+    )
 
 
 def _sample_dense(dims, rng, w):
@@ -353,6 +385,11 @@ def _candidate(spec, kind, dims, out_dim, head, train, rng, max_params, origin):
     if not (MIN_PARAMS <= info["params"] <= max_params):
         return None
     if head == "dense" and info["kind"] != "map":
+        return None
+    if info["kind"] in (
+        "graph",
+        "ids",
+    ):  # a head needs a vector, sequence or map: pooling is missing
         return None
     cfg = {"family": core.label(spec), "spec": spec, "input": {"kind": kind, "dims": list(dims)},
            "out_dim": out_dim, "head": head, "dropout": 0.0, "params": info["params"], "origin": origin}  # fmt: skip

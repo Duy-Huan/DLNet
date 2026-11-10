@@ -21,6 +21,7 @@ Tùy chọn (làm hết các bước trên bằng một lệnh, tự tìm Python
 - Plugin `tabular` (CSV) va plugin `hsi` (anh sieu pho: cube + ground truth, phan loai pixel).
 - Lenh `dlnet unfold`: deep unfolding (LISTA) cho bai toan nghich thua `y = A x + nhieu` khi biet ma tran `A`.
 - Module thu vien: Tensor-LoRA (`dlnet/tensor_lora.py`), HOSVD (`dlnet/tensor.py`); chua duoc `design` dung.
+- Plugin `graph` (X, A, y), `recsys` (ids, y), `image_reconstruction` (chi X); lenh `dlnet gan --data images.npz` (DCGAN, xep hang theo MMD).
 - Plugin `image_classification`, `image_segmentation` (mask `y` (N,H,W), metric mIoU) va `timeseries` (file `.npz` co `X` va `y`).
 - **Kho module `dlnet/zoo/` (54 module, ghep va tien hoa kien truc)**: moi `design` them cac kien truc tu zoo (`--zoo`, `--evolve`); `python -m dlnet zoo` liet ke module; nguon o `THIRD_PARTY.md`.
 - Thu vien khoi cu `dlnet/blocks.py` (backbone, decoder, attention, mixture of experts; nguon va giay phep o `THIRD_PARTY.md`): `python -m dlnet blocks`.

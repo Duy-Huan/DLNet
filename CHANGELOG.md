@@ -6,6 +6,25 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-11-10
+
+Mốc M13 (xem `agent.md` §13.7, `THIRD_PARTY.md`): port đồ thị, id/recommender, autoencoder/VAE, GAN.
+
+### Thêm
+- **Kiểu `graph`** và plugin `graph` (`.npz` với `X`, `A`, `y`): lớp GCN, GAT, GraphSAGE, GIN và readout; họ `gcn_net`, `gat_net`, `sage_net`, `gin_net`, `graph_mlp`; baseline cổ điển trên thống kê đồ thị. Hai bộ lọc lưới của rasbt (`grid_graph_avg`, `grid_spectral_conv`).
+- **Kiểu `ids`** và plugin `recsys` (`.npz` với `ids`, `y`): `embed_fields`, `gmf`, `pair_dots`; họ `mf`, `ncf`, `fm`, `dlrm`; baseline one-hot.
+- **Tác vụ `reconstruction`** và plugin `image_reconstruction` (`.npz` chỉ có `X`): họ `conv_ae`, `vae` (`vae_bottleneck` với KL), baseline PCA; metric MSE, PSNR.
+- **Lệnh `dlnet gan`**: DCGAN từ zoo, xếp hạng theo MMD², baseline Gaussian và ảnh train; gói xuất ra có `sample.py`.
+- Zoo có preset và bộ lấy mẫu cho `graph` và `ids`; `head: "none"` cho mô hình không cần head.
+
+### Sửa
+- Cost model nay cũng áp cho ứng viên con của vòng tiến hóa (trước đó cột MFLOPs của chúng bị trống).
+- `moe` bị từ chối trên đầu vào `ids` (cổng cần giá trị thực); phép chiếu residual báo `ValueError` cho kiểu không hỗ trợ.
+
+### Hạn chế đã biết
+- Đồ thị: chỉ đồ thị dày nhỏ; trên dữ liệu tổng hợp GNN **kém** baseline thống kê đồ thị. Recommender: chỉ điểm (pointwise), chưa có loss cặp BPR; kết quả MF tốt vì dữ liệu tổng hợp sinh đúng theo phân rã. Autoencoder: PCA 32 thành phần thắng conv-AE trên digits; baseline PCA không tự khớp kích thước mã.
+- GAN: chỉ DCGAN, chỉ MMD² trong không gian pixel (không có FID); chưa có CVAE và GAN có điều kiện.
+
 ## [0.11.0] - 2026-11-10
 
 Mốc M12 (xem `agent.md` §13.6, `THIRD_PARTY.md`): một thư viện duy nhất, cost model FLOPs/VRAM, đối chiếu số học với mã gốc.
@@ -216,7 +235,8 @@ Bản đầu tiên: prototype chạy được từ dữ liệu đến Top-K base
 - Chưa có zero-cost proxy, cost model FLOPs/VRAM, Tensor-LoRA, deep unfolding; chưa có plugin image và timeseries.
 - Kết quả trên Indian Pines và Pavia University là một lần chạy ngắn trên CPU: với chia theo khối, mạng sâu chưa vượt rõ baseline cổ điển.
 
-[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v0.11.0...HEAD
+[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v0.12.0...HEAD
+[0.12.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.12.0
 [0.11.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.11.0
 [0.10.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.10.0
 [0.9.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.9.0

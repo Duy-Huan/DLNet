@@ -403,10 +403,43 @@ def _vec_presets(d, w):
     return p
 
 
+def _graph_presets(dims, w):
+    ro = lambda m: N("graph_readout", mode=m)
+    return {
+        "gcn": S(N("gcn", out=2 * w), N("gcn", out=2 * w), ro("mean")),
+        "gcn_deep": S(*[N("gcn", out=2 * w) for _ in range(3)], ro("max")),
+        "gat": S(N("gat", out=2 * w, heads=2), N("gat", out=2 * w, heads=2), ro("mean")),
+        "graphsage": S(N("sage", out=2 * w), N("sage", out=2 * w), ro("mean")),
+        "gin": S(N("gin", out=2 * w), N("gin", out=2 * w), ro("sum")),
+        "graph_mlp": S(N("flatten"), N("mlp", width=4 * w, depth=2, act="gelu", dropout=0.1)),
+    }
+
+
+def _ids_presets(dims, w):
+    emb = N("embed_fields", dim=w)
+    both = {
+        "op": "par",
+        "branches": [N("flatten"), N("pair_dots", self_interaction=0)],
+        "merge": "concat",
+    }
+    p = {
+        "ncf": S(emb, N("flatten"), N("mlp", width=2 * w, depth=2, act="relu", dropout=0.0)),
+        "fm": S(emb, N("pair_dots", self_interaction=0)),
+        "dlrm": S(emb, both, N("mlp", width=2 * w, depth=2, act="relu", dropout=0.0)),
+    }
+    if len(dims) == 2:
+        p["gmf"] = S(emb, N("gmf"))
+    return p
+
+
 def presets(kind: str, dims, head: str = "cls", width: int = 16) -> dict[str, dict]:
     """name -> spec for this input. Candidates that do not fit the shape are dropped by the caller."""
     if kind == "map" and head == "dense":
         return _dense_presets(dims, width)
+    if kind == "graph":
+        return _graph_presets(dims, width)
+    if kind == "ids":
+        return _ids_presets(dims, width)
     if kind == "vec":
         return _vec_presets(dims[0], width)
     if kind == "seq":
