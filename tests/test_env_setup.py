@@ -62,17 +62,33 @@ def test_setup_scripts_install_the_extras_ci_uses():
         assert ".[dev,design]" in text and "selfcheck" in text, name
 
 
-def test_requirements_files_point_at_existing_extras():
+def _pins(name):
+    out = {}
+    for line in (ROOT / name).read_text().splitlines():
+        line = line.split("#")[0].strip()
+        if line and not line.startswith(("-", "http")):
+            m = re.fullmatch(r"([A-Za-z0-9_.\-]+)==([\w.+]+)", line)
+            assert m, f"{name}: '{line}' must be pinned as name==version"
+            out[m[1].lower().replace("_", "-")] = m[2]
+    return out
+
+
+def test_requirements_are_pinned_and_cover_the_design_extra():
     extras = re.search(
-        r"\[project\.optional-dependencies\](.*?)\n\[",
-        (ROOT / "pyproject.toml").read_text(),
-        re.DOTALL,
+        r"^design = \[(.*?)\]", (ROOT / "pyproject.toml").read_text(), re.DOTALL | re.MULTILINE
     )
-    names = set(re.findall(r"^(\w+)\s*=", extras.group(1), re.MULTILINE))
-    for f in ("requirements.txt", "requirements-dev.txt"):
-        used = set(re.findall(r"\[([\w,]+)\]", (ROOT / f).read_text()))
-        wanted = {x for u in used for x in u.split(",")}
-        assert wanted and wanted <= names, (f, wanted, names)
+    needed = set(re.findall(r'"([A-Za-z0-9_.\-]+)"', extras.group(1)))
+    assert needed and needed <= set(_pins("requirements.txt")), needed - set(
+        _pins("requirements.txt")
+    )
+    dev = _pins("requirements-dev.txt")
+    assert {"pytest", "ruff", "pyyaml"} <= set(dev)
+    assert "-r requirements.txt" in (ROOT / "requirements-dev.txt").read_text()
+
+
+def test_python_version_file_is_a_supported_minor_release():
+    v = (ROOT / ".python-version").read_text().strip()
+    assert re.fullmatch(r"3\.(10|11|12|13)", v), v
 
 
 @pytest.mark.e2e

@@ -122,3 +122,25 @@ jobs:
           (Get-Command dlnet).Source
           dlnet --version
           dlnet selfcheck
+
+  env-requirements:
+    name: env-requirements (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: .python-version
+      - name: venv va pip install -r requirements.txt (dung luong cua nguoi dung)
+        shell: bash
+        run: |
+          python -m venv .venv
+          if [ -f .venv/bin/activate ]; then source .venv/bin/activate; else source .venv/Scripts/activate; fi
+          python --version
+          pip install -r requirements.txt
+          python -m dlnet selfcheck

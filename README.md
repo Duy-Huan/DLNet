@@ -4,23 +4,18 @@ Tu dong de xuat Top-K baseline deep learning (PyTorch) cho mot tap du lieu. Kien
 
 ## Cài đặt nhanh (môi trường Python)
 
-Môi trường ảo (`.venv`) **không** nằm trong git (nặng hàng GB, chứa đường dẫn riêng của từng máy, GitHub từ chối file trên 100 MB). Thay vào đó repo có script tạo đúng môi trường trong vài phút. Sau khi `git pull`:
+Môi trường ảo (`.venv`) **không** nằm trong git (nặng hàng GB, riêng từng máy, GitHub từ chối file trên 100 MB). Repo ghi lại **phiên bản Python** (`.python-version` = 3.12) và **danh sách package** (`requirements.txt`). Sau khi `git pull`, dùng Python 3.12:
 
 ```bash
-# Linux / macOS / Git Bash
-./scripts/setup_env.sh            # thêm --gpu nếu muốn torch bản CUDA
-source .venv/bin/activate         # Git Bash: source .venv/Scripts/activate
-dlnet selfcheck                   # ~20 giây, in "selfcheck OK" là dùng được
+python -m venv .venv
+source .venv/bin/activate          # Windows PowerShell: .venv\Scripts\Activate.ps1
+pip install -r requirements.txt    # thêm pytest/ruff: requirements-dev.txt
+python -m dlnet selfcheck          # ~20 giây, in "selfcheck OK" là dùng được
 ```
 
-```powershell
-# Windows PowerShell
-powershell -ExecutionPolicy Bypass -File scripts\setup_env.ps1
-.venv\Scripts\Activate.ps1
-dlnet selfcheck
-```
+Chạy lệnh từ thư mục gốc của repo, không cần cài thêm gói. Muốn gõ `dlnet ...` thay cho `python -m dlnet ...`: `pip install -e .`. Linux/Windows chỉ cần torch CPU nhẹ hơn: xem dòng chú thích trong `requirements.txt`.
 
-Cần Python 3.10–3.13. Script tự chọn Python phù hợp, cài torch CPU (nhẹ; nếu chỉ mục pytorch.org bị chặn thì tự dùng bản PyPI), cài DLNet cùng pytest/ruff, rồi tự kiểm tra. Ai quen `pip` có thể dùng `pip install -r requirements.txt` (hoặc `requirements-dev.txt`). CI chạy đúng quy trình này trên Ubuntu, macOS và Windows ở mỗi lần push.
+Tùy chọn (làm hết các bước trên bằng một lệnh, tự tìm Python 3.10–3.13 và tự lùi về torch PyPI nếu mạng chặn): `./scripts/setup_env.sh` hoặc `powershell -ExecutionPolicy Bypass -File scripts\setup_env.ps1`. CI kiểm chứng cả hai đường (script và `requirements.txt`) ở mỗi lần push.
 
 ## Trang thai
 - Plugin `tabular` (CSV) va plugin `hsi` (anh sieu pho: cube + ground truth, phan loai pixel).

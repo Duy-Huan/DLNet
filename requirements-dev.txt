@@ -1,2 +1,5 @@
-# Chay + phat trien (pytest, ruff): pip install -r requirements-dev.txt
--e .[dev,design]
+# Chay + phat trien: them pytest, ruff, pyyaml (kiem thu va lint).
+-r requirements.txt
+pytest==9.2.0
+ruff==0.17.4
+PyYAML==6.0.3
