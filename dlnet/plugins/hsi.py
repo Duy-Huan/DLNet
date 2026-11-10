@@ -107,6 +107,10 @@ class HSIPlugin(DomainPlugin):
             "--block-size", type=int, default=16, help="[hsi] block size for --split block"
         )
 
+    def default_cv_splits(self, args):
+        # A block split leaves only a few validation blocks: one split ranks noisily (agent.md 9.7).
+        return 3 if args.split == "block" else 1
+
     def detect(self, path):
         return 0.9 if str(path).lower().endswith((".mat", ".npz", ".npy")) else 0.0
 

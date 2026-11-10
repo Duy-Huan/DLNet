@@ -175,33 +175,16 @@ def estimate(r: dict, data: dict, build_fn, epochs_recipe: int = 100, seed: int 
     }
 
 
-def _evaluate(cfg, data, build_fn, epochs, seeds, deadline):
-    vals, tests = [], []
-    for s in range(seeds):
-        if vals and time.time() > deadline:
-            break
-        torch.manual_seed(s)
-        t = Trainer(
-            build_fn(cfg, data["in_dim"], data["out_dim"]),
-            data,
-            lr=cfg["lr"],
-            wd=cfg["wd"],
-            batch=cfg["batch"],
-            seed=s,
-        )
-        t.fit(epochs)
-        vals.append(t.evaluate("va")["score"])
-        tests.append(t.evaluate("te"))
-    return vals, tests
-
-
-def refine(results, data, build_fn, deadline, epochs_recipe=100, log=print):
+def refine(results, data, build_fn, deadline, epochs_recipe=100, log=print, folds=None):
     """Estimate hyperparameters per finalist; adopt them only when clearly better on validation.
 
-    Same epochs and seeds as the search, so the numbers are comparable. A proposal is adopted if
+    Same epochs, seeds and splits as the search, so the numbers are comparable. A proposal is adopted if
     its mean validation score beats the searched one by more than the larger seed std.
     Each result gets r['hparams'] with the searched, estimated and validated values.
     """
+    from .search import eval_runs, summarize
+
+    folds = folds or [data]
     for r in results:
         cfg = r["cfg"]
         searched = {"lr": cfg["lr"], "batch": cfg["batch"], "wd": cfg["wd"]}
@@ -226,17 +209,13 @@ def refine(results, data, build_fn, deadline, epochs_recipe=100, log=print):
         if (est["lr"], est["batch"]) == (cfg["lr"], cfg["batch"]) or time.time() > deadline:
             continue
         cand = {**cfg, "lr": est["lr"], "batch": est["batch"], "wd": est["wd"]}
-        vals, tests = _evaluate(cand, data, build_fn, r["epochs"], r["n_seeds"], deadline)
-        v, sd = float(np.mean(vals)), float(np.std(vals))
+        vals, tests, _, _ = eval_runs(cand, folds, build_fn, r["epochs"], r["n_seeds"], deadline)
+        new = summarize(vals, tests)
+        v, sd = new["val_mean"], new["val_std"]
         r["hparams"]["val_estimated"] = v
         if v - r["val_mean"] > max(sd, r["val_std"], 1e-9):
             r["cfg"] = cand
-            r.update(
-                val_mean=v,
-                val_std=sd,
-                test={k: float(np.mean([t[k] for t in tests])) for k in tests[0]},
-                n_seeds=len(vals),
-            )
+            r.update(new)
             r["hparams"]["adopted"] = "estimated"
         log(
             f"[hparams] {cfg['family']}: searched val={r['hparams']['val_searched']:.4f} "

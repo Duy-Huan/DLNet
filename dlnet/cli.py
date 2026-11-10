@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import re
 import time
 
@@ -34,8 +35,25 @@ def design(args) -> int:
     shown = {k: v for k, v in prof.items() if k not in ("task",)}
     print(f"[profile] {shown}")
 
-    print("[reference] classical baselines on the same split")
-    ref = plugin.reference(data)
+    n_cv = args.cv_splits or plugin.default_cv_splits(args)
+    folds = [data]
+    for i in range(
+        1, n_cv
+    ):  # repeated splits: same data, split seed + i (preprocessing refit on train)
+        a = copy.copy(args)
+        a.seed = args.seed + i
+        try:
+            f = plugin.prepare(a)
+        except (ValueError, SystemExit) as e:
+            print(f"[cv] split {i} skipped: {e}")
+            continue
+        if (f["in_dim"], f["out_dim"]) == (data["in_dim"], data["out_dim"]):
+            folds.append(f)
+    if n_cv > 1:
+        print(f"[cv] ranking finalists on {len(folds)} different splits")
+
+    print("[reference] classical baselines on the same split(s)")
+    ref = export.mean_reference([plugin.reference(f) for f in folds])
     for r in ref:
         print(f"[reference] {r['name']:<26} val={r['va']['score']:.4f}")
 
@@ -45,9 +63,11 @@ def design(args) -> int:
     fams = sorted({c["family"] for c in cands})
     print(f"[generate] {len(cands)} valid candidates from families {fams}")
 
-    results = search.run_search(data, cands, search_deadline, args.topk, plugin.build_model)
+    results = search.run_search(
+        data, cands, search_deadline, args.topk, plugin.build_model, folds=folds
+    )
     print("[hparams] estimating lr / batch size / weight decay for the finalists")
-    results = hparams.refine(results, data, plugin.build_model, deadline, log=print)
+    results = hparams.refine(results, data, plugin.build_model, deadline, log=print, folds=folds)
     results = search.assign_groups(results)
     chosen = search.select_topk(results, args.topk)
     v = export.export(args.out, plugin, data, prof, chosen, ref, args.seed)
@@ -104,6 +124,12 @@ def main(argv=None) -> int:
     d.add_argument("--topk", type=int, default=3)
     d.add_argument("--per-family", type=int, default=8)
     d.add_argument("--seed", type=int, default=0)
+    d.add_argument(
+        "--cv-splits",
+        type=int,
+        default=0,
+        help="rank finalists on this many different splits (0 = plugin default; 1 = off)",
+    )
     d.add_argument("--out", default="dlnet_out")
     for p in plugins._registry().values():
         p.add_arguments(d)

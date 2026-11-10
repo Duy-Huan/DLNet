@@ -40,6 +40,10 @@ class DomainPlugin:
     def reference(self, data: dict) -> list[dict]:
         raise NotImplementedError
 
+    def default_cv_splits(self, args) -> int:
+        """How many different splits rank the finalists when --cv-splits is not given."""
+        return 1
+
     def data_config(self, data: dict) -> dict:
         """Data-side settings written to config.yaml so train.py can rebuild the same data."""
         return {}
