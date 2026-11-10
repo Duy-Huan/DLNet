@@ -161,6 +161,38 @@ Thiết kế module `TensorLoRA`:
 - Kiểm thử bắt buộc: `Δθ` tái tạo đúng shape; số tham số theo công thức; gradient chảy qua mọi lõi; với `rank` đủ lớn tái tạo được LoRA chuẩn.
 - Rủi ro đã biết: nén CNN bằng TT/TR dễ mất độ chính xác, CP dễ bất ổn số học (xem `ref/04_stable-lowrank-cp-cnn_2008.05441.pdf`) → mặc định dùng TT/TR cho FC/projection, Tucker cho conv, CP chỉ khi có bước ổn định hóa.
 
+### Kết quả đo M7 (`python scripts/bench_tensor.py`, scikit-learn digits, 3 seed, 40 epoch)
+Đã có: `dlnet/tensor_lora.py` (`TensorLoRALinear` với `lora`/`tt`/`tr`/`kronecker`, `apply_tensor_lora`, `merge_tensor_lora`, `tt_svd`), `dlnet/tensor.py` (`hosvd`, `multilinear_rank`, `compress_report`), lớp `TRLinear` và họ `tr_resmlp` trong `dlnet/library.py`. Công thức LoRA (eq. 3), Compacter (eq. 5) và Tensor Ring (eq. 1) đã đối chiếu PDF trong `ref/`; TT-SVD và HOSVD viết từ trí nhớ, có test đáp án đóng.
+
+**A. Nén trọng số** (ResMLP rộng 256, sâu 2, 10 lớp):
+
+| Lớp ẩn | Tham số | Giảm | Test accuracy | Mất so với dense |
+|---|---|---|---|---|
+| dense (`resmlp`) | 283.914 | 0% | 0,9755 ± 0,0044 | 0 |
+| `tt_resmlp` r=16 | 54.538 | 80,8% | 0,9774 ± 0,0034 | −0,0018 |
+| `tt_resmlp` r=4 | 29.962 | 89,4% | 0,9719 ± 0,0046 | +0,0036 |
+| `tr_resmlp` r=4 | 54.538 | 80,8% | 0,9764 ± 0,0051 | −0,0009 |
+| `tr_resmlp` r=2 | 29.962 | 89,4% | 0,9755 ± 0,0022 | 0,0000 |
+| `lowrank_mlp` r=16 | 27.658 | 90,3% | 0,9792 ± 0,0026 | −0,0036 |
+
+Mọi chênh lệch nằm trong độ lệch chuẩn qua seed: nén 80–90% không làm giảm accuracy đo được trên bộ này. Low-rank thường (ma trận) đạt kết quả tương đương TT/TR, nên chưa có bằng chứng TT/TR hơn low-rank.
+
+**B. Tensor-LoRA** (pretrain trên chữ số 0–4, thích nghi sang 5–9 với 100 nhãn, backbone đóng băng, head mới luôn được huấn luyện):
+
+| Phương pháp | Tham số huấn luyện | Test accuracy trên 5–9 |
+|---|---|---|
+| huấn luyện từ đầu | 41.989 | 0,9508 ± 0,0118 |
+| fine-tune toàn bộ | 41.989 | 0,9235 ± 0,0279 |
+| chỉ head | 645 | 0,5647 ± 0,0498 |
+| LoRA r=4 | 3.461 | 0,7978 ± 0,0648 |
+| TT r=4 | 3.973 | 0,8142 ± 0,0491 |
+| TR r=2 | 3.973 | 0,8342 ± 0,0670 |
+| Kronecker n=2, r=1 | 1.373 | 0,6321 ± 0,0545 |
+
+Kết luận trung thực: với backbone nhỏ pretrain trên 5 chữ số, pretrain **không giúp** (huấn luyện từ đầu tốt nhất) và mọi adapter kém fine-tune toàn bộ 9–30 điểm. TT/TR ngang LoRA ở cùng số tham số (chênh lệch trong mức nhiễu). Phép đo này chỉ xác nhận module chạy đúng; muốn đánh giá Tensor-LoRA cần backbone pretrained lớn, DLNet chưa có.
+
+**C. HOSVD** (khối tổng hợp 48×48×40, rank Tucker (6,6,4) + nhiễu 5%): giữ 99% năng lượng mỗi mode cho đúng rank [6,6,4], lưu 0,95% số phần tử, sai số tương đối 0,050 (cận lý thuyết 0,081). HOSVD **chưa** được dùng làm tiền xử lý trong plugin HSI: nhân tử không gian phải fit trên cả ảnh, kể cả pixel test, trái quy tắc "chỉ fit trên train".
+
 ---
 
 ## 5. Deep Unfolding (khi cần)
@@ -232,7 +264,7 @@ Nguyên tắc: lõi **tổng quát trước**, kiểm chứng end-to-end sớm t
 | **M4** | Library mở rộng + tự ghép theo grammar (§13): SSRN, Transformer, Mamba/SSM, ResNet/ConvNeXt block | **Xong phần lõi (v0.3.0)**: registry có kiểu + grammar trong `hsi_lib.py`, test sinh ≥20 ứng viên hợp lệ. Chưa có: Mamba/SSM, ViT/Swin |
 | **M5** | Cost model + tiết kiệm thời gian: zero-cost proxy (theo §16.1), successive halving, cache, resume; **hyperparameter estimate (LR range test, noise scale) đã có, §16.2** | **Xong phần đo được (v0.4.0)**, xem §16.3: successive halving giảm 50–70% thời gian (dữ liệu tổng hợp), cùng top-1 trên tabular, lệch trong mức nhiễu trên HSI; proxy chỉ ghi thông tin vì chưa hơn đếm tham số; cache cho giai đoạn nhiều seed. Chưa có: FLOPs/VRAM, resume cho successive halving |
 | **M6** | Estimator: intrinsic dim → dung lượng, rank tensor | **Xong phần đo được (v0.5.0)**, xem §16.4: hai bộ ước lượng (TwoNN, MLE) kèm độ lệch chuẩn qua mẫu con và cờ `stable`; đo trên 5 bộ biết đáp án và 5 bộ thật. Chưa có: bằng chứng `capacity_hint` dự đoán đúng độ rộng tốt nhất (nên chỉ ghi thông tin) |
-| **M7** | Tensor: Tucker/HOSVD tiền xử lý, lớp TT/Tucker/TR, Tensor-LoRA | Nén ≥X% tham số, mất ≤Y% metric |
+| **M7** | Tensor: Tucker/HOSVD tiền xử lý, lớp TT/Tucker/TR, Tensor-LoRA | **Xong phần module và phép đo (v0.6.0)**, xem "Kết quả đo M7" ở §4: lớp TT/TR nén 81–89% tham số, mất ≤0,4 điểm accuracy (trong mức nhiễu) trên digits. Tensor-LoRA có đủ 4 format nhưng **chưa nối vào `design`** (DLNet chưa có backbone pretrained) và trong phép đo nhỏ chưa hơn huấn luyện từ đầu. HOSVD chưa dùng làm tiền xử lý HSI |
 | **M8** | Deep unfolding (khi có mô hình thuận) | Vượt thuật toán lặp gốc ở cùng số vòng |
 | **M9** | Plugin ảnh, chuỗi thời gian; recommender học từ kho kết quả (meta-learning) | Top-K chứa mô hình tốt nhất trong ≥80% dataset giữ lại |
 

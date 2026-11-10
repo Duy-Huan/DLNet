@@ -6,6 +6,21 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-10
+
+Mốc M7 (xem `agent.md` §4, §8): module tensor và phép đo nén.
+
+### Thêm
+- Họ mô hình `tr_resmlp` cho dữ liệu bảng: ResMLP có lớp ẩn dạng Tensor-Ring (`TRLinear`). `design` nay sinh ứng viên từ 6 họ.
+- `dlnet/tensor_lora.py`: `TensorLoRALinear` (lớp tuyến tính đóng băng cộng delta huấn luyện được, format `lora`, `tt`, `tr`, `kronecker`), `apply_tensor_lora` / `merge_tensor_lora` cho cả mô hình, `tt_svd` để phân rã trọng số có sẵn. Delta bằng 0 lúc khởi tạo.
+- `dlnet/tensor.py`: HOSVD cắt cụt (`hosvd`, `tucker_to_tensor`), `multilinear_rank`, cận sai số và `compress_report` cho tensor dữ liệu.
+- `scripts/bench_tensor.py`: đo nén tham số, Tensor-LoRA và HOSVD trên dữ liệu digits của scikit-learn.
+
+### Hạn chế đã biết
+- Đo trên digits (3 seed): lớp TT/TR giảm 81–89% tham số, accuracy thay đổi trong mức nhiễu seed (≤0,4 điểm). Low-rank thường cho kết quả tương đương, chưa có bằng chứng TT/TR hơn.
+- Tensor-LoRA là module thư viện, chưa được `dlnet design` dùng (chưa có backbone pretrained). Trong phép đo nhỏ, adapter kém fine-tune toàn bộ 9–30 điểm và pretrain không hơn huấn luyện từ đầu.
+- HOSVD chưa dùng làm tiền xử lý HSI (nhân tử không gian cần cả pixel test).
+
 ## [0.5.0] - 2026-11-10
 
 Mốc M6 (xem `agent.md` §8, §16.4): ước lượng intrinsic dimension có đo độ ổn định.
@@ -101,7 +116,8 @@ Bản đầu tiên: prototype chạy được từ dữ liệu đến Top-K base
 - Chưa có zero-cost proxy, cost model FLOPs/VRAM, Tensor-LoRA, deep unfolding; chưa có plugin image và timeseries.
 - Kết quả trên Indian Pines và Pavia University là một lần chạy ngắn trên CPU: với chia theo khối, mạng sâu chưa vượt rõ baseline cổ điển.
 
-[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.6.0
 [0.5.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.5.0
 [0.4.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.4.0
 [0.3.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.3.0

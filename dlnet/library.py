@@ -4,6 +4,7 @@ Families:
   mlp            plain MLP
   resmlp         pre-norm residual MLP
   tt_resmlp      residual MLP whose hidden linears are Tensor-Train factorised
+  tr_resmlp      residual MLP whose hidden linears are Tensor-Ring factorised
   lowrank_mlp    MLP whose hidden linears are low-rank factorised (U V)
   ft_transformer feature-tokenizer transformer (one token per feature)
 """
@@ -15,7 +16,7 @@ import math
 import torch
 from torch import nn
 
-FAMILIES = ("mlp", "resmlp", "tt_resmlp", "lowrank_mlp", "ft_transformer")
+FAMILIES = ("mlp", "resmlp", "tt_resmlp", "tr_resmlp", "lowrank_mlp", "ft_transformer")
 
 
 def _factor(n: int) -> tuple[int, int]:
@@ -49,6 +50,30 @@ class TTLinear(nn.Module):
         return y.reshape(b, -1) + self.bias
 
 
+class TRLinear(nn.Module):
+    """Linear layer with weight in 2-core Tensor-Ring format (Zhao et al., arXiv:1606.05535, eq. 1).
+
+    W[(i1,i2),(o1,o2)] = Tr(G1[i1,o1] G2[i2,o2]) = sum_{a,b} G1[a,i1,o1,b] * G2[b,i2,o2,a]
+    Parameters: r^2 * (i1*o1 + i2*o2). Unlike TT there is no rank-1 boundary. Pairing input and
+    output indices per core follows the TT-matrix format; the init scale is a heuristic.
+    """
+
+    def __init__(self, in_f: int, out_f: int, rank: int):
+        super().__init__()
+        self.i1, self.i2 = _factor(in_f)
+        self.o1, self.o2 = _factor(out_f)
+        std = (1.0 / (in_f * rank * rank)) ** 0.25
+        self.g1 = nn.Parameter(torch.randn(rank, self.i1, self.o1, rank) * std)
+        self.g2 = nn.Parameter(torch.randn(rank, self.i2, self.o2, rank) * std)
+        self.bias = nn.Parameter(torch.zeros(out_f))
+
+    def forward(self, x):
+        b = x.shape[0]
+        t = torch.einsum("bij,aior->bjoar", x.reshape(b, self.i1, self.i2), self.g1)
+        y = torch.einsum("bjoar,rjpa->bop", t, self.g2)
+        return y.reshape(b, -1) + self.bias
+
+
 class LowRankLinear(nn.Module):
     def __init__(self, in_f: int, out_f: int, rank: int):
         super().__init__()
@@ -62,6 +87,8 @@ class LowRankLinear(nn.Module):
 def _linear(kind: str, i: int, o: int, rank: int) -> nn.Module:
     if kind == "tt":
         return TTLinear(i, o, rank)
+    if kind == "tr":
+        return TRLinear(i, o, rank)
     if kind == "lowrank":
         return LowRankLinear(i, o, rank)
     return nn.Linear(i, o)
@@ -140,6 +167,8 @@ def build_model(cfg: dict, in_dim: int, out_dim: int) -> nn.Module:
         return ResMLP(in_dim, out_dim, w, d, p)
     if f == "tt_resmlp":
         return ResMLP(in_dim, out_dim, w, d, p, kind="tt", rank=r)
+    if f == "tr_resmlp":
+        return ResMLP(in_dim, out_dim, w, d, p, kind="tr", rank=r)
     if f == "ft_transformer":
         return FTTransformer(in_dim, out_dim, w, d, p)
     raise ValueError(f"unknown family {f}")
