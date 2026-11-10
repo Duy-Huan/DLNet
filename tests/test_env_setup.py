@@ -6,6 +6,7 @@ over 100 MB), holds absolute paths and OS-specific binaries. See skills/setup-en
 
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 from pathlib import Path
@@ -49,7 +50,10 @@ def test_gitignore_blocks_the_venv():
 def test_setup_scripts_exist_and_unix_script_is_executable():
     assert (ROOT / "scripts/setup_env.ps1").exists()
     modes = {p: m for m, p in tracked()}
-    assert modes.get("scripts/setup_env.sh") == "100755", "git must keep the executable bit"
+    if "scripts/setup_env.sh" in modes:  # tracked: git must keep the executable bit
+        assert modes["scripts/setup_env.sh"] == "100755"
+    else:  # not added yet (local work in progress): the file mode must already be right
+        assert os.access(ROOT / "scripts/setup_env.sh", os.X_OK)
 
 
 def test_setup_scripts_install_the_extras_ci_uses():
