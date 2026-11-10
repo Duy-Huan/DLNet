@@ -10,6 +10,9 @@ Công cụ dùng nội bộ nên **không xét giấy phép** khi lấy module (
 | [yamsgithub/modular_deep_learning](https://github.com/yamsgithub/modular_deep_learning) | `8e197b4` | không có file giấy phép |
 | [pytorch/vision](https://github.com/pytorch/vision) (thêm ngoài bốn repo, vì là nguồn khối PyTorch giàu nhất) | `4260301` | BSD-3 |
 | [state-spaces/mamba](https://github.com/state-spaces/mamba) (thêm cho khối SSM) | `e9594ce` | Apache-2.0 |
+| [huggingface/pytorch-image-models](https://github.com/huggingface/pytorch-image-models) (timm, thư viện khối ảnh chính thống lớn nhất) | PyPI `timm==1.0.31` | Apache-2.0 |
+| [qubvel-org/segmentation_models_pytorch](https://github.com/qubvel-org/segmentation_models_pytorch) (decoder phân đoạn) | PyPI `segmentation-models-pytorch==0.6.0` | MIT |
+| [Project-MONAI/MONAI](https://github.com/Project-MONAI/MONAI) (ảnh y tế 2-D/3-D) | PyPI `monai==1.6.1` | Apache-2.0 |
 
 ## Đã port vào zoo
 
@@ -40,9 +43,15 @@ Công cụ dùng nội bộ nên **không xét giấy phép** khi lấy module (
 | pytorch/vision | `convnext.CNBlock`, `regnet.ResBottleneckBlock` | `convnext_block`, `regnet_block` |
 | pytorch/vision | `shufflenetv2.InvertedResidual`, `squeezenet.Fire` | `shuffle_unit`, `fire` |
 | pytorch/vision | `SqueezeExcitation`, `StochasticDepth`, `Conv2dNormActivation` | `se`, `res` (`drop_path`), `conv_bn_act` |
-| pytorch/vision | Swin `PatchMerging`, window attention (không có relative position bias) | `patch_merge`, `window_attn` |
+| pytorch/vision | Swin `PatchMerging`, `ShiftedWindowAttention` (relative position bias, mask cửa sổ dịch) | `patch_merge`, `window_attn` (trong residual pre-LayerNorm) |
+| pytorch/vision | `googlenet.Inception`, `BasicConv2d` | `inception` (tỉ lệ kênh như inception 3a; `k5=3` như torchvision, `k5=5` như paper) |
 | pytorch/vision | `ViT` | preset `vit` (`patchify` + `pos` + `transformer_block`) |
-| pytorch/vision | `segmentation` ASPP, FPN, FCN | decoder `aspp`, `fpn`, `fcn` (rút gọn) |
+| smp | `UnetDecoder`, `UnetPlusPlusDecoder`, `FPNDecoder`, `DeepLabV3Decoder`, `DeepLabV3PlusDecoder` (ASPP, SeparableConv2d), `PSPDecoder`, `LinknetDecoder`, `UPerNetDecoder`, `SegformerDecoder`, `SCSEModule` | decoder `unet`, `unetpp`, `fpn`, `deeplabv3` (tên cũ `aspp`), `deeplabv3plus`, `pspnet`, `linknet`, `upernet`, `segformer` (`dlnet/zoo/dense.py`); `attention: scse` cho unet/unet++; op `scse` |
+| timm | `CbamModule`, `EcaModule` | `cbam`, `eca` (`k=0`: kernel tự chọn theo số kênh như timm) |
+| timm | `SelectiveKernel`, `SplitAttn`, `GlobalContext`, `CoordAttn`, `GlobalResponseNorm` | `sk_conv`, `split_attn`, `gc_block`, `coord_attn`, `grn` |
+| timm | `ghostnet.GhostBottleneck`, `res2net.Bottle2neck`, khối `convmixer`, `byobnet.RepVggBlock` (có `fuse()` gộp ba nhánh thành một conv), `metaformer.MetaFormerBlock` + `Pooling` (PoolFormer v1) | `ghost_bottleneck`, `res2net_block`, `convmixer_block`, `repvgg_block`, `poolformer_block` |
+| timm | `mlp_mixer.MixerBlock`, `PatchEmbed`, `DepthwiseSeparableConv`, `resnetv2.PreActBasic` | đối chiếu `mixer_block`, `patchify`, `dw_sep`, `preact_block` có sẵn |
+| MONAI | `segresnet_block.ResBlock`, `dynunet_block.UnetResBlock` | `segres_block`, `unet_res_block` (1-D/2-D/3-D) |
 | mamba | `Mamba` (`mamba_simple.py`), `selective_scan_ref` | `mamba_block` (quét tuần tự, giới hạn độ dài 256) |
 | mamba | `Mamba2Simple`, `ssd_minimal_discrete` | `mamba2_block` (SSD theo khối, không giới hạn độ dài) |
 
@@ -60,6 +69,9 @@ Từ paper, viết từ trí nhớ (không có trong nguồn trên): GCN, GAT, G
 | cortex | phần protein: tokenizer, BLOSUM, corruption/diffusion, acquisition | ngoài phạm vi |
 | modular_deep_learning | EM, stochastic, expert-loss; optimizer hai nhiệt độ; attention trên hidden của experts | là biến thể huấn luyện, không phải module |
 | pytorch/vision | Inception v3, GoogLeNet phụ trợ, MaxViT, MNASNet, LRASPP, deform conv, DropBlock | chưa làm; detection, video, optical flow, quantization, trọng số pretrained: ngoài phạm vi |
+| timm | MobileViT, MaxViT/CoAtNet, EfficientFormer, EdgeNeXt, CSPNet, GhostNet SE (hard-sigmoid), HaloAttn, BottleneckAttn, LambdaLayer, trọng số pretrained | chưa làm (khối attention 2-D nặng hoặc cần nhiều tầng phụ trợ); trọng số pretrained ngoài phạm vi (DLNet huấn luyện từ đầu) |
+| smp | `MAnet`, `PAN`, `DPT`, encoder dùng trọng số ImageNet | MAnet/PAN chưa làm; DPT cần encoder ViT nhiều tầng; encoder của DLNet là các stage của zoo |
+| MONAI | UNETR, SwinUNETR, `AttentionUnet` (cổng attention hai đầu vào), mạng 3-D hoàn chỉnh | cổng attention cần hai tensor vào (chưa có trong ngữ pháp một-vào-một-ra); UNETR/SwinUNETR là mạng lớn |
 | mamba | Mamba3, kernel CUDA/Triton, cache suy luận, `Block`/`MHA`/`MLP` của gói | cần GPU và kernel riêng; Mamba và Mamba-2 đã port bằng PyTorch thuần (Mamba chạy tuần tự, Mamba-2 theo khối) |
 
 ## Kiểm chứng
@@ -84,7 +96,21 @@ Hai phép kiểm, đều cần cài tạm repo gốc (không phải phụ thuộ
 
 Những điều phép kiểm này **phát hiện và đã sửa**: (a) MobileNetV3 đặt SE trên kênh đã mở rộng; (b) khối transformer của cortex không có bias và nhánh skip của nó cộng MLP vào **đầu vào của khối** chứ không phải `x + attention` như transformer chuẩn: zoo giữ bản chuẩn làm mặc định và có tùy chọn `cortex_skip=1` để tái hiện chính xác; (c) LayerNorm theo kênh của cortex tính phương sai bằng `E[x²]-E[x]²` kẹp ở eps, nên `conv1d_resid` dùng đúng công thức đó thay vì `nn.LayerNorm`.
 
-**Chưa đối chiếu được** (không có mã tham chiếu cài được ở đây): `window_attn` (torchvision có relative position bias, zoo không), ASPP/FPN/FCN (bản rút gọn), CBAM, ECA, Inception, MLP-Mixer, GLU, DCN, FT-Transformer, U-Net (viết từ paper), `dw_sep` (MobileNetV1). Mamba chỉ đối chiếu đường chạy chậm trên CPU, không có kernel CUDA.
+3. **Thư viện ảnh** (`scripts/verify_vision_libs.py`, cần `timm==1.0.31`, `segmentation-models-pytorch==0.6.0`, `monai==1.6.1`, `torchvision==0.29.2` cài tạm): trọng số ngẫu nhiên (cả thống kê BatchNorm) chép từ khối gốc sang. **39/39 khớp**, sai khác lớn nhất 8,8e-6 (`gc_block`, sai số làm tròn của softmax), còn lại 0:
+
+| Khối DLNet | Khối gốc |
+|---|---|
+| decoder `unet` (có/không scse), `unetpp`, `fpn`, `deeplabv3`, `deeplabv3plus` (output stride 16), `pspnet`, `linknet`, `upernet`, `segformer` | smp 0.6.0 cùng tên, đặc trưng 5 mức stride 2 |
+| `cbam`, `eca` (k tự chọn, k=5), `coord_attn`, `gc_block`, `grn`, `sk_conv`, `split_attn` (stride 1, 2), `ghost_bottleneck` (2 cấu hình), `res2net_block` (2 cấu hình), `repvgg_block` (2 cấu hình), `poolformer_block`, `dw_sep`, `preact_block`, `mixer_block`, `patchify` | timm 1.0.31 |
+| `inception`, `window_attn` (dịch 0 và 2) | torchvision 0.29.2 |
+| `segres_block`, `unet_res_block` (2-D có stride, 3-D) | MONAI 1.6.1 |
+| `scse` | smp |
+| `glu` | `torch.nn.functional.glu` |
+| `repvgg_block.fuse()` | chính nó trước khi gộp (sai khác 6,7e-6) |
+
+Những điều phép kiểm M14 **phát hiện và đã sửa**: CBAM cũ có bias trong MLP và không có BatchNorm sau conv 7x7; ECA cũ không có kernel tự chọn; Inception cũ chia kênh tùy ý và dùng 5x5 (torchvision dùng 3x3); window attention cũ không có relative position bias và không có mask cho cửa sổ dịch; MLP-Mixer cũ tính độ rộng ẩn của nhánh token theo số token (timm theo số kênh) và eps LayerNorm khác; decoder U-Net, FPN, ASPP cũ là bản rút gọn viết từ trí nhớ (nay là bản smp). Số tham số các họ phân đoạn vì vậy đổi so với v0.12.
+
+**Còn chưa đối chiếu**: DCN (`cross_net`), FT-Transformer (`feature_tokens`), các op đồ thị (`gcn`, `gat`, `sage`, `gin` viết từ paper), decoder `fcn` (kiểu FCN-8s). Mamba chỉ đối chiếu đường chạy chậm trên CPU, không có kernel CUDA.
 
 ## Các họ cũ đã chuyển thành công thức (M12)
 

@@ -98,7 +98,9 @@ def test_router_and_generate_for_segmentation(seg_npz):
     data = plugin.prepare(argparse.Namespace(data=str(seg_npz), seed=0))
     prof = plugin.profile(data)
     cands = plugin.generate(prof, 2, 0)
-    assert {c["family"] for c in cands} == {"fcn", "unet", "deconvnet"}
+    from dlnet.zoo.families import SEGMENTATION
+
+    assert {c["family"] for c in cands} == set(SEGMENTATION)
     ref = plugin.reference(data)
     assert ref[0]["va"]["miou"] > 0.5  # the squares are easy for a 5x5 pixel classifier
 

@@ -16,7 +16,8 @@ or a combinator:
     {"op": "par", "branches": [node, ...], "merge": "concat|sum|gate|gated"}  (gated: two vectors, "width")
     {"op": "rep", "n": 3, "body": node, "share": false}      n copies (fresh weights, or one shared)
     {"op": "moe", "experts": [node, ...], "mode": "soft|topk|product", "k": 2}
-    {"op": "encdec", "stages": [node, ...], "dec": "unet|fcn|deconv|fpn|aspp", "width": 32}
+    {"op": "encdec", "stages": [node, ...], "dec": "unet|unetpp|fpn|deeplabv3|deeplabv3plus|pspnet|linknet|upernet|segformer|fcn|deconv",
+     "width": 32, "attention": "none|scse"}
 
 Shapes are inferred statically by building the model on the `meta` device and tracing one fake
 batch, so an invalid composition (kind mismatch, a map that shrinks to nothing, heads that do not
@@ -329,7 +330,10 @@ def _build(node, kind, dims):
                 raise ValueError("encoder stages must keep the map kind")
             stages.append(m)
             feats.append(d)
-        net = EncDec(stages, feats, node.get("dec", "unet"), int(node.get("width", 32)), dims)
+        net = EncDec(
+            stages, feats, node.get("dec", "unet"), int(node.get("width", 32)), dims,
+            node.get("attention", "none"),
+        )  # fmt: skip
         return net, "map", (net.out_ch, *dims[1:])
     return _leaf(node, kind, dims)
 

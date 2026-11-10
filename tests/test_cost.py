@@ -128,7 +128,8 @@ def test_family_param_counts_match_the_earlier_libraries():
               ("tabular", (20,), "tr_resmlp"): 2629, ("tabular", (20,), "lowrank_mlp"): 565, ("tabular", (20,), "fm_mlp"): 3813,
               ("image", (3, 16, 16), "cnn"): 16917, ("image", (3, 16, 16), "resnet"): 174933, ("image", (3, 16, 16), "lenet"): 205813,
               ("image", (3, 16, 16), "mobilenetv2"): 70805, ("timeseries", (4, 48), "gru"): 7077,
-              ("segmentation", (3, 16, 16), "unet"): 220965, ("hsi", (30, 9, 9), "cnn1d"): 2901, ("hsi", (30, 9, 9), "cnn3d"): 8853,
+              ("segmentation", (3, 16, 16), "unet"): 222685,  # smp decoder since v0.13 (was 220965)
+              ("hsi", (30, 9, 9), "cnn1d"): 2901, ("hsi", (30, 9, 9), "cnn3d"): 8853,
               ("hsi", (30, 9, 9), "ssrn"): 19973, ("hsi", (30, 9, 9), "tucker_cnn2d"): 5941}  # fmt: skip
     for (domain, dims, fam), n in golden.items():
         cfg = families.complete({"family": fam, **base}, domain, dims, 5)

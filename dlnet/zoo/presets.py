@@ -178,7 +178,28 @@ def _cnn_presets(kind, dims, w):
             ],
         ),
     }
+    # timm / MONAI blocks (dlnet/zoo/ops_img.py)
+    p["ghostnet"] = S(stem, *[S(N("ghost_bottleneck", out=c(i), expand=3, s=2 if i else 1, k=3),
+                                N("ghost_bottleneck", out=c(i), expand=3, s=1, k=3)) for i in st])  # fmt: skip
+    p["repvgg"] = S(*[S(N("repvgg_block", out=c(i), s=2 if i else 1), N("repvgg_block", out=c(i), s=1)) for i in st])  # fmt: skip
+    p["poolformer"] = S(stem, *[S(*([N("conv_bn_act", out=c(i), k=3, s=2, act="identity", norm="batch")] if i else []),
+                                  N("poolformer_block", pool=3, ratio=4), N("poolformer_block", pool=3, ratio=4)) for i in st])  # fmt: skip
+    p["convmixer"] = S(N("conv_bn_act", out=2 * w, k=2, s=2, act="gelu", norm="batch"),
+                       *[N("convmixer_block", k=5) for _ in range(max(2, 2 * s))])  # fmt: skip
+    p["segresnet"] = S(stem, *[S(*([N("conv_bn_act", out=c(i), k=3, s=2, act="identity", norm="batch")] if i else []),
+                                 N("segres_block", k=3)) for i in st])  # fmt: skip
+    p["nnunet_res"] = S(*[S(N("unet_res_block", out=c(i), k=3, s=2 if i else 1), N("unet_res_block", out=c(i), k=3, s=1)) for i in st])  # fmt: skip
     if kind == "map":
+        p["res2net"] = S(stem, *[N("res2net_block", out=4 * c(i), s=2 if i else 1, scale=4, base_width=26) for i in st])  # fmt: skip
+        p["sknet"] = S(stem, *[S(N("sk_conv", out=c(i), s=2 if i else 1), N("basic_block", out=c(i), s=1)) for i in st])  # fmt: skip
+        p["resnest"] = S(stem, *[S(N("split_attn", out=c(i), s=2 if i else 1, radix=2), N("basic_block", out=c(i), s=1)) for i in st])  # fmt: skip
+        for att, node in (
+            ("cbam", N("cbam", ratio=8)),
+            ("eca", N("eca", k=0)),
+            ("coord", N("coord_attn", rd_ratio=0.125)),
+            ("gc", N("gc_block", rd_ratio=0.125)),
+        ):
+            p[f"resnet_{att}"] = S(stem, *[S(N("basic_block", out=c(i), s=2 if i else 1), N("basic_block", out=c(i)), node) for i in st])  # fmt: skip
         p["shufflenet"] = S(
             N("conv_bn_act", out=2 * w, k=3, s=1, act="relu", norm="batch"),
             *[
@@ -259,7 +280,25 @@ def _dense_presets(dims, w):
         "unet_mobile": {"op": "encdec", "stages": enc("mb"), "dec": "unet", "width": w},
         "fcn_vgg": {"op": "encdec", "stages": enc("vgg"), "dec": "fcn", "width": w},
         "fpn_res": {"op": "encdec", "stages": enc("res"), "dec": "fpn", "width": w},
-        "deeplab_res": {"op": "encdec", "stages": enc("res"), "dec": "aspp", "width": w},
+        "deeplab_res": {"op": "encdec", "stages": enc("res"), "dec": "deeplabv3", "width": w},
+        "deeplabv3plus_res": {
+            "op": "encdec",
+            "stages": enc("res"),
+            "dec": "deeplabv3plus",
+            "width": w,
+        },
+        "unetpp_res": {"op": "encdec", "stages": enc("res"), "dec": "unetpp", "width": w},
+        "unet_scse_res": {
+            "op": "encdec",
+            "stages": enc("res"),
+            "dec": "unet",
+            "width": w,
+            "attention": "scse",
+        },
+        "pspnet_res": {"op": "encdec", "stages": enc("res"), "dec": "pspnet", "width": w},
+        "linknet_res": {"op": "encdec", "stages": enc("res"), "dec": "linknet", "width": w},
+        "upernet_res": {"op": "encdec", "stages": enc("res"), "dec": "upernet", "width": w},
+        "segformer_mobile": {"op": "encdec", "stages": enc("mb"), "dec": "segformer", "width": w},
         "autoencoder_deconv": {"op": "encdec", "stages": enc("vgg"), "dec": "deconv", "width": w},
     }
 

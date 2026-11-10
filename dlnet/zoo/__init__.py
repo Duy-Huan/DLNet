@@ -5,7 +5,8 @@ Importing this package registers every op. Layout:
   ops_basic    primitives and adapters between kinds          ops_cnn   1-D/2-D/3-D convolutional blocks
   ops_seq      attention, transformer, RNN, Mamba, TextCNN     ops_vec   factorised linear, interaction
   ops_graph    GCN, GAT, SAGE, GIN, grid graphs, id embeddings  ops_gen   VAE bottleneck, DCGAN stem
-  dense        encoder-decoder composition                     space     sampling, mutation, crossover
+  ops_img      image blocks ported from timm, smp and MONAI
+  dense        encoder-decoder composition, smp decoders                    space     sampling, mutation, crossover
   presets      well-known architectures written as specs
 Sources and what was and was not ported: THIRD_PARTY.md.
 """
@@ -16,6 +17,7 @@ from . import (  # noqa: F401  (registers the ops)
     ops_cnn,
     ops_gen,
     ops_graph,
+    ops_img,
     ops_seq,
     ops_vec,
 )

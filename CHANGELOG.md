@@ -6,6 +6,19 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-11-10
+
+Mốc M14 (xem `agent.md` §13.8, `THIRD_PARTY.md`): khối ảnh từ thư viện chính thống.
+
+### Thêm
+- **Decoder phân đoạn của segmentation_models_pytorch 0.6.0**: `unet`, `unetpp` (UNet++), `fpn`, `deeplabv3`, `deeplabv3plus`, `pspnet`, `linknet`, `upernet`, `segformer`, tùy chọn `attention: scse`; họ phân đoạn tương ứng; preset; phép đột biến `decoder`.
+- **13 khối từ timm và MONAI** (`dlnet/zoo/ops_img.py`): `scse`, `coord_attn`, `gc_block`, `grn`, `sk_conv`, `split_attn`, `ghost_bottleneck`, `res2net_block`, `convmixer_block`, `repvgg_block` (có `fuse()`), `poolformer_block`, `segres_block`, `unet_res_block`; preset phân loại `ghostnet`, `repvgg`, `poolformer`, `convmixer`, `segresnet`, `nnunet_res`, `res2net`, `sknet`, `resnest`, `resnet_cbam/eca/coord/gc`.
+- `scripts/verify_vision_libs.py`: đối chiếu số học với timm, torchvision, smp, MONAI (39/39 khớp).
+
+### Đổi
+- `cbam`, `eca`, `inception`, `window_attn`, `mixer_block` viết lại theo mã gốc (timm, torchvision); decoder `unet`, `fpn`, `aspp` thay bằng bản smp. Số tham số và kết quả của các mô hình dùng chúng khác v0.12; `dec: "aspp"` vẫn đọc được (là `deeplabv3`).
+- `window_attn` không còn đòi kích thước chia hết cho cửa sổ (đệm như torchvision).
+
 ## [0.12.0] - 2026-11-10
 
 Mốc M13 (xem `agent.md` §13.7, `THIRD_PARTY.md`): port đồ thị, id/recommender, autoencoder/VAE, GAN.
@@ -235,7 +248,8 @@ Bản đầu tiên: prototype chạy được từ dữ liệu đến Top-K base
 - Chưa có zero-cost proxy, cost model FLOPs/VRAM, Tensor-LoRA, deep unfolding; chưa có plugin image và timeseries.
 - Kết quả trên Indian Pines và Pavia University là một lần chạy ngắn trên CPU: với chia theo khối, mạng sâu chưa vượt rõ baseline cổ điển.
 
-[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v0.12.0...HEAD
+[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v0.13.0...HEAD
+[0.13.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.13.0
 [0.12.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.12.0
 [0.11.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.11.0
 [0.10.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.10.0
