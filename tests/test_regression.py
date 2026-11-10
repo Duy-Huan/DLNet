@@ -21,7 +21,7 @@ pytest.importorskip("scipy")
 
 import numpy as np
 
-from dlnet import cli, core, export, hsi_data, plugins, search
+from dlnet import cli, core, export, hparams, hsi_data, plugins, search
 from dlnet.library import TTLinear, build_model
 
 
@@ -323,3 +323,118 @@ def test_cli_without_candidates_fails_with_a_clear_message(tabular_csv, tmp_path
             "--out", str(tmp_path / "o")]  # fmt: skip
     with pytest.raises(SystemExit, match="candidate"):
         cli.main(argv)
+
+
+# ============================================================ hyperparameter estimation
+def test_noise_scale_estimator_matches_mccandlish_closed_form():
+    """E|G_B|^2 = |G|^2 + S/B (arXiv:1812.06162 A.1); inverting it must give |G|^2, S and B_simple."""
+    g2_true, s_true, bs, bb = 4.0, 100.0, 16, 256
+    g2, s, b_simple = hparams.noise_scale_from_norms(
+        g2_true + s_true / bs, bs, g2_true + s_true / bb, bb
+    )
+    assert g2 == pytest.approx(g2_true) and s == pytest.approx(s_true)
+    assert b_simple == pytest.approx(25.0)
+    # pure noise (|G|^2 <= 0) must not produce a bogus batch size
+    assert hparams.noise_scale_from_norms(1.0, 16, 1.0 + 1e-9, 256)[2] is None
+
+
+def test_normalized_weight_decay_scales_with_sqrt_batch():
+    """AdamW appendix B.1: lambda = lambda_norm * sqrt(b / (B*T)); lambda_norm kept when b changes."""
+    assert hparams.normalized_wd(0.01, 64, 256) == pytest.approx(0.02)
+    assert hparams.normalized_wd(0.01, 64, 64) == pytest.approx(0.01)
+
+
+def test_suggest_batch_is_power_of_two_and_clipped():
+    assert hparams.suggest_batch(216.0, 5000, 64) == 128
+    assert hparams.suggest_batch(5.0, 5000, 64) == hparams.MIN_BATCH
+    assert hparams.suggest_batch(1e6, 100000, 64) == hparams.MAX_BATCH
+    assert hparams.suggest_batch(300.0, 100, 64) == hparams.MIN_BATCH  # n_train // 4 caps it
+    assert hparams.suggest_batch(None, 5000, 64) == 64  # no estimate: keep the searched batch
+
+
+def test_lr_range_test_is_deterministic_and_inside_the_sweep():
+    d = _tab_data(400)
+    a = hparams.lr_range_test(build_model, _cfg(), d, 32, seed=0)
+    b = hparams.lr_range_test(build_model, _cfg(), d, 32, seed=0)
+    assert a == b
+    assert 1e-5 <= a["lr_base"] < a["lr"] < a["lr_max"] <= 1.0
+    assert a["lr_max"] == pytest.approx(2 * a["lr"]) and a["lr_max"] == pytest.approx(
+        4 * a["lr_base"]
+    )
+
+
+def test_gradient_noise_scale_on_trained_model_is_finite():
+    d = _tab_data(400)
+    tr = core.Trainer(build_model(_cfg(), 4, 2), d, lr=1e-2, wd=1e-4, batch=32)
+    tr.fit(3)
+    g = hparams.gradient_noise_scale(tr.model, d, n_meas=8)
+    assert g["grad_sq"] > 0 and g["trace_sigma"] > 0 and np.isfinite(g["b_simple"])
+    assert hparams.gradient_noise_scale(tr.model, _tab_data(20), b_big=256) is None  # too few rows
+
+
+def test_refine_keeps_searched_setting_unless_clearly_better(monkeypatch):
+    """The estimate is a proposal: adoption needs a margin larger than the seed std."""
+    d = _tab_data(300)
+    cands = [_cfg(), _cfg(width=32)]
+    res = search.run_search(d, cands, time.time() + 60, 1, build_model, rungs=(1, 2), seeds=2,
+                            log=lambda *_: None)  # fmt: skip
+    searched = {id(r): dict(r["cfg"]) for r in res}
+    # estimate says: much worse proposal (val 0.0) -> must be rejected
+    monkeypatch.setattr(hparams, "_evaluate", lambda *a, **k: ([0.0, 0.0], [{"score": 0.0}] * 2))
+    out = hparams.refine(res, d, build_model, time.time() + 60, log=lambda *_: None)
+    for r in out:
+        assert r["hparams"]["adopted"] == "searched"
+        assert r["cfg"] == searched[id(r)]
+        assert set(r["hparams"]["searched"]) == {"lr", "batch", "wd"}
+
+
+def test_refine_adopts_a_clearly_better_proposal(monkeypatch):
+    d = _tab_data(300)
+    res = search.run_search(d, [_cfg()], time.time() + 60, 1, build_model, rungs=(1, 2), seeds=2,
+                            log=lambda *_: None)  # fmt: skip
+    monkeypatch.setattr(
+        hparams, "estimate",
+        lambda *a, **k: {"lr": 5e-3, "batch": 64, "wd": 2e-4, "gradient_noise_scale": None},
+    )  # fmt: skip
+    monkeypatch.setattr(
+        hparams, "_evaluate", lambda *a, **k: ([2.0, 2.0], [{"score": 2.0, "accuracy": 2.0}] * 2)
+    )
+    out = hparams.refine(res, d, build_model, time.time() + 60, log=lambda *_: None)
+    r = out[0]
+    assert r["hparams"]["adopted"] == "estimated"
+    assert (r["cfg"]["lr"], r["cfg"]["batch"], r["cfg"]["wd"]) == (5e-3, 64, 2e-4)
+    assert r["val_mean"] == 2.0  # numbers of the adopted setting replace the searched ones
+
+
+def test_exported_outputs_carry_hyperparameters(tmp_path):
+    """Every Top-K entry lists lr, weight decay, batch size, epochs, schedule and where they came from."""
+    d = _tab_data(200)
+    plugin = plugins.get_plugin("tabular")
+    res = search.run_search(d, [_cfg()], time.time() + 60, 1, build_model, rungs=(1, 2), seeds=1,
+                            log=lambda *_: None)  # fmt: skip
+    res = hparams.refine(res, d, build_model, time.time() + 60, log=lambda *_: None)
+    chosen = search.select_topk(search.assign_groups(res), 1)
+    ref = [
+        {
+            "name": "r",
+            "va": {"score": 0.5},
+            "te": {"score": 0.5, "accuracy": 0.5, "balanced_accuracy": 0.5},
+        }
+    ]
+    export.export(tmp_path / "o", plugin, d, {"task": "classification"}, chosen, ref, 0)
+    row = json.loads((tmp_path / "o" / "leaderboard.json").read_text())["top_k"][0]
+    hp = row["hyperparameters"]
+    assert {"optimizer", "lr", "weight_decay", "batch_size", "epochs", "lr_schedule"} <= set(hp)
+    assert hp["source"]["adopted"] in ("searched", "estimated")
+    cfg = json.loads(next((tmp_path / "o").glob("top1_*")).joinpath("config.yaml").read_text())
+    assert cfg["hyperparameters"]["lr"] == cfg["arch"]["lr"]  # train.py reads arch; must agree
+    assert "lr" in (tmp_path / "o" / "leaderboard.md").read_text()
+
+
+def test_seed_controls_weight_initialisation():
+    """Was: models were built before torch.manual_seed, so the same seed gave different weights."""
+    d = _tab_data()
+    a = search._new_trainer(_cfg(), d, 3, build_model).model
+    torch.manual_seed(999)  # disturb the global RNG between the two builds
+    b = search._new_trainer(_cfg(), d, 3, build_model).model
+    assert all(torch.equal(x, y) for x, y in zip(a.parameters(), b.parameters(), strict=True))

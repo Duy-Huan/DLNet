@@ -22,6 +22,7 @@ include = ["dlnet*"]
 [tool.ruff]
 line-length = 100
 target-version = "py310"
+extend-exclude = ["ref"]  # third-party reference code, kept verbatim
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

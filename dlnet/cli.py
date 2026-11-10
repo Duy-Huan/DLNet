@@ -17,10 +17,12 @@ def parse_budget(s: str) -> float:
 
 
 def design(args) -> int:
-    from . import export, plugins, search
+    from . import export, hparams, plugins, search
 
     t0 = time.time()
-    deadline = t0 + parse_budget(args.budget)
+    budget = parse_budget(args.budget)
+    deadline = t0 + budget
+    search_deadline = t0 + 0.8 * budget  # the last 20% goes to hyperparameter estimation
     plugin = plugins.route(args.data) if args.plugin == "auto" else plugins.get_plugin(args.plugin)
     print(f"[plugin] {plugin.name}  data={args.data}")
 
@@ -43,7 +45,10 @@ def design(args) -> int:
     fams = sorted({c["family"] for c in cands})
     print(f"[generate] {len(cands)} valid candidates from families {fams}")
 
-    results = search.run_search(data, cands, deadline, args.topk, plugin.build_model)
+    results = search.run_search(data, cands, search_deadline, args.topk, plugin.build_model)
+    print("[hparams] estimating lr / batch size / weight decay for the finalists")
+    results = hparams.refine(results, data, plugin.build_model, deadline, log=print)
+    results = search.assign_groups(results)
     chosen = search.select_topk(results, args.topk)
     v = export.export(args.out, plugin, data, prof, chosen, ref, args.seed)
     print(f"[done] {time.time() - t0:.0f}s  -> {args.out}/leaderboard.md")

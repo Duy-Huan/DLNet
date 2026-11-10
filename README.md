@@ -31,6 +31,8 @@ python -m dlnet design --data data.csv --target label --budget 5m --topk 3
 # hyperspectral (.mat / .npz / .npy)
 python -m dlnet design --data cube.mat --gt gt.mat --split block --patch 9 --pca 30 --budget 10m --topk 3
 ```
+Moi baseline co kem hyperparameter (lr, weight decay, batch, epochs, schedule) o `hyperparameters` trong `config.yaml`/`leaderboard.json`, uoc luong bang LR range test + gradient noise scale va chi nhan khi tot hon ban da tim kiem.
+
 Ket qua: `dlnet_out/leaderboard.md` va `dlnet_out/top1_*/ ...` (moi goi doc lap: `model.py`, `core.py`, `train.py`,
 `config.yaml`, `report.md`, `tests/`). Train day du mot goi: `python train.py -h`.
 

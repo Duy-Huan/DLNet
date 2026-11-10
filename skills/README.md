@@ -21,4 +21,5 @@ grep -ril "<từ khóa>" skills/*/SKILL.md      # ví dụ: plugin, split, leaka
 | [git-dev-main](git-dev-main/SKILL.md) | Commit, push, CI/CD, merge | git, branch, dev, main, CI, promote |
 | [release](release/SKILL.md) | Phát hành phiên bản, cập nhật CHANGELOG, tag | release, version, tag, changelog, semver |
 | [setup-env](setup-env/SKILL.md) | Tạo/sửa môi trường Python, cài đặt, requirements | venv, environment, install, requirements, selfcheck |
+| [implement-standard-algorithm](implement-standard-algorithm/SKILL.md) | Thêm/sửa bộ ước lượng chất lượng mạng hoặc hyperparameter theo thuật toán chuẩn | proxy, hyperparameter, lr, batch, SynFlow, ZiCo, Hyperband |
 | [find-verify-papers](find-verify-papers/SKILL.md) | Tìm và tải paper vào `ref/` | paper, arXiv, ref |

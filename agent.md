@@ -230,7 +230,7 @@ Nguyên tắc: lõi **tổng quát trước**, kiểm chứng end-to-end sớm t
 | **M2** | **Plugin HSI**: loader, split chống rò rỉ, preset 1D/2D/3D-CNN + HybridSN-style + CNN phân rã Tucker-2, metric OA/AA/Kappa | **Prototype xong** (chạy thật trên Indian Pines, Pavia University). Còn thiếu: xếp hạng ổn định theo nhiều lần chia khối (xem §9 mục 7) |
 | **M3** | Giao thức đánh giá đầy đủ (§12.2–12.3): nhiều seed, nhóm "chưa phân biệt được", quy tắc chấp nhận | Báo cáo tái lập, mỗi số có ± std |
 | **M4** | Library mở rộng + tự ghép theo grammar (§13): SSRN, Transformer, Mamba/SSM, ResNet/ConvNeXt block | Sinh được ≥20 ứng viên hợp lệ từ registry |
-| **M5** | Cost model + tiết kiệm thời gian: zero-cost proxy, successive halving, cache, resume | Giảm ≥X% thời gian, cùng chất lượng top-1 |
+| **M5** | Cost model + tiết kiệm thời gian: zero-cost proxy (theo §16.1), successive halving, cache, resume; **hyperparameter estimate (LR range test, noise scale) đã có, §16.2** | Giảm ≥X% thời gian, cùng chất lượng top-1 |
 | **M6** | Estimator: intrinsic dim → dung lượng, rank tensor | Ước lượng ổn định trên nhiều dataset |
 | **M7** | Tensor: Tucker/HOSVD tiền xử lý, lớp TT/Tucker/TR, Tensor-LoRA | Nén ≥X% tham số, mất ≤Y% metric |
 | **M8** | Deep unfolding (khi có mô hình thuận) | Vượt thuật toán lặp gốc ở cùng số vòng |
@@ -263,6 +263,7 @@ Nguyên tắc: lõi **tổng quát trước**, kiểm chứng end-to-end sớm t
 - Không commit dữ liệu thô hoặc khóa/bí mật.
 - **Môi trường Python:** không commit `.venv` (nặng hàng GB, riêng từng máy, vượt giới hạn 100 MB/file của GitHub; `tests/test_env_setup.py` chặn). Môi trường tái lập bằng `scripts/setup_env.sh` / `scripts/setup_env.ps1` (hoặc `requirements*.txt`), kiểm bằng `dlnet selfcheck`; job CI `env-setup` chạy đúng quy trình này trên Ubuntu, macOS, Windows. Thêm phụ thuộc mới: sửa `pyproject.toml` (extras `design`/`dev`), không sửa riêng script.
 - Trước khi làm, chọn skill phù hợp trong `skills/` (§15).
+- **Thuật toán chuẩn:** mọi bộ ước lượng chất lượng mạng hoặc hyperparameter phải tham khảo `ref/optimazeDL/` và implement đúng công thức của paper/mã chính thức (§16); không tự chế.
 - Mỗi thay đổi người dùng thấy được phải thêm một dòng vào `CHANGELOG.md` mục `[Unreleased]`; phát hành theo §11.2.
 - Mỗi lỗi sửa phải có regression test đi kèm (`tests/test_regression.py`, đỏ trước xanh sau); thay đổi chỉ xanh khi `lint`, `test`, `regression`, `e2e` đều xanh.
 
@@ -348,7 +349,7 @@ Push lên `dev` mà **không** tăng version thì vẫn lên `main` nhưng **kh�
 - **Đa dạng**: không để K slot bị chiếm bởi các biến thể gần giống nhau; cố gắng phủ nhiều họ kiến trúc.
 - Gắn nhãn vai trò: `top1` (chính xác nhất), `best-small` (hiệu quả/độ chính xác), `most-stable` (std thấp nhất), `most-different` (họ khác, đáng thử).
 
-**Mỗi baseline trong Top-K kèm**: điểm ± std, #params/FLOPs/VRAM, thời gian train đã dùng, **công thức huấn luyện đầy đủ gợi ý** (epochs, lr schedule, augmentation), và lưu ý rủi ro.
+**Mỗi baseline trong Top-K kèm**: điểm ± std, #params/FLOPs/VRAM, thời gian train đã dùng, **hyperparameter đầy đủ** (`hyperparameters` trong `config.yaml` và `leaderboard.json`, xem §16.2: optimizer, lr, weight decay, batch size, epochs, lr schedule, dropout, width/depth/rank, cùng nguồn gốc: tìm kiếm hay ước lượng) và lưu ý rủi ro.
 
 **Chính trực**: nếu không ứng viên nào vượt bộ baseline tham chiếu (§12.2), `leaderboard` ghi rõ và đưa baseline tham chiếu tốt nhất lên đầu.
 
@@ -458,8 +459,29 @@ Quy trình đã đúc kết nằm trong `skills/` (chỉ mục: `skills/README.m
 4. Skill sai hoặc lỗi thời: sửa skill trong cùng commit với thay đổi gây ra sự lệch.
 5. Báo cáo cho người dùng nêu skill nào đã dùng.
 
+## 16. Thuật toán chuẩn và ước lượng hyperparameter
+
+### 16.1 Quy tắc: tham khảo và implement theo thuật toán chuẩn
+`ref/optimazeDL/` chứa paper (nhóm `zc_` zero-cost proxy, `wq_` chất lượng trọng số, `hp_` hyperparameter, `bm_` benchmark) và mã chính thức của tác giả (`official_code/`, ghim commit trong `OFFICIAL_CODE.md`). Khi thêm hoặc sửa một bộ ước lượng chất lượng mạng hay hyperparameter:
+1. Đọc paper và mã chính thức trước (skill `implement-standard-algorithm`). Công thức trong code phải khớp paper; mỗi hàm có docstring nêu paper + arXiv id + phương trình.
+2. Điều gì chưa đối chiếu với paper (lấy từ trí nhớ hoặc cách làm phổ biến) phải ghi là "chưa đối chiếu" trong docstring.
+3. Có test với **đáp án giải tích** (ví dụ ước lượng noise scale phải khớp công thức đóng) chứ không chỉ test hình dạng.
+4. Zero-cost proxy chỉ được dùng để loại ứng viên sau khi đo tương quan hạng (Spearman) với kết quả huấn luyện thật trên dữ liệu của DLNet và so với baseline "đếm tham số". Chưa có phép đo đó thì chỉ ghi thông tin, không loại.
+5. Một ước lượng chỉ là **đề xuất**: phải được kiểm chứng bằng huấn luyện cùng ngân sách và chỉ được chấp nhận khi tốt hơn rõ rệt (xem 16.2).
+
+### 16.2 Hyperparameter đi kèm mỗi baseline
+Sau khi tìm kiếm, `dlnet/hparams.py` (chạy trong 20% cuối của `--budget`) làm cho từng finalist:
+- **LR range test** (Smith, arXiv:1506.01186 §3.3): quét lr tăng theo cấp số nhân, lấy lr lớn nhất còn hội tụ `lr_max`; đề xuất `lr_max/2` (tối ưu thường trong hệ số 2 của lr lớn nhất hội tụ), khoảng `[lr_max/4, lr_max]`.
+- **Gradient noise scale** (McCandlish, arXiv:1812.06162, phương trình 2.9 và phụ lục A.1): `B_simple = tr(Σ)/|G|²` từ hai cỡ batch (16 và 256); đề xuất batch là lũy thừa của 2 không vượt `B_simple`, trong [16, 512] và ≤ n_train/4.
+- **Normalized weight decay** (Loshchilov & Hutter, arXiv:1711.05101 phụ lục B.1): khi đổi batch `b`, giữ `λ_norm` không đổi, tức `λ ∝ sqrt(b)`.
+- **Kiểm chứng**: huấn luyện lại bằng đề xuất với cùng số epoch và seed; chỉ **chấp nhận** nếu validation trung bình hơn bản đã tìm kiếm quá độ lệch chuẩn seed lớn hơn. Ngược lại giữ bản đã tìm và ghi cả hai con số.
+
+Output: `top<i>_*/config.yaml` và `leaderboard.json` có khối `hyperparameters` (giá trị cuối dùng cho `train.py`, kèm `source`: đã tìm/ước lượng/chấp nhận, giá trị `noise scale`, khoảng lr, điểm validation của hai bản); `leaderboard.md` có cột lr, wd, batch.
+
+Chưa làm: epochs (hiện là công thức mặc định 100 epoch, cosine, chọn checkpoint tốt nhất trên validation, chưa ước lượng), Hyperband/BOHB/ASHA (search hiện là một bracket successive halving), zero-cost proxy.
+
 ## Tài liệu tham khảo
-Toàn bộ PDF nằm trong `ref/` (mục lục: `ref/README.md`).
+Toàn bộ PDF nằm trong `ref/` (mục lục: `ref/README.md`); thuật toán ước lượng chất lượng và hyperparameter trong `ref/optimazeDL/` (§16).
 
 - Pfeiffer, Ruder, Vulić, Ponti. *Modular Deep Learning.* arXiv:2302.11529.
 - Hu et al. *LoRA*; Houlsby et al. *Adapters*; Li & Liang *Prefix-tuning*; Lester et al. *Prompt tuning*.
