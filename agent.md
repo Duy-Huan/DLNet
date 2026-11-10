@@ -281,6 +281,7 @@ Nguyên tắc: lõi **tổng quát trước**, kiểm chứng end-to-end sớm t
 | **M6** | Estimator: intrinsic dim → dung lượng, rank tensor | **Xong phần đo được (v0.5.0)**, xem §16.4: hai bộ ước lượng (TwoNN, MLE) kèm độ lệch chuẩn qua mẫu con và cờ `stable`; đo trên 5 bộ biết đáp án và 5 bộ thật. Chưa có: bằng chứng `capacity_hint` dự đoán đúng độ rộng tốt nhất (nên chỉ ghi thông tin) |
 | **M7** | Tensor: Tucker/HOSVD tiền xử lý, lớp TT/Tucker/TR, Tensor-LoRA | **Xong phần module và phép đo (v0.6.0)**, xem "Kết quả đo M7" ở §4: lớp TT/TR nén 81–89% tham số, mất ≤0,4 điểm accuracy (trong mức nhiễu) trên digits. Tensor-LoRA có đủ 4 format nhưng **chưa nối vào `design`** (DLNet chưa có backbone pretrained) và trong phép đo nhỏ chưa hơn huấn luyện từ đầu. HOSVD chưa dùng làm tiền xử lý HSI |
 | **M8** | Deep unfolding (khi có mô hình thuận) | **Xong cho bài toán thưa tuyến tính (v0.7.0)**, xem "Kết quả đo M8" ở §5: lệnh `dlnet unfold`, LISTA-CP hơn ISTA và FISTA (λ đã tune) 3,3–6,3 dB ở cùng số vòng K trên dữ liệu tổng hợp. Chưa có: ADMM/AMP, support selection, toán tử A không tường minh (ảnh), dữ liệu thật |
+| **M11** | Refactor lõi thành kho module có kiểu `dlnet/zoo/` dùng chung mọi plugin + ngữ pháp ghép + tiến hóa kiến trúc; gom module từ các repo GitHub | **Xong phần lõi (v0.10.0)**: §13.6; 54 op từ 6 repo, 14/14 khối đối chiếu torchvision khớp; kết quả đo zoo so với họ cũ ở §13.6. Chưa có: chuyển hẳn các họ cũ thành preset (vẫn song song), kiểu `graph`/`ids`, trọng số pretrained |
 | **M10** | Thư viện khối từ 4 repo GitHub (§13.5), plugin `image_classification` và `image_segmentation` | **Xong (v0.9.0)**: `dlnet/blocks.py` + `THIRD_PARTY.md`; kết quả đo ở §14.4. Chưa có: pretrained, augmentation, dữ liệu segmentation thật |
 | **M9** | Plugin ảnh, chuỗi thời gian; recommender học từ kho kết quả (meta-learning) | **Có plugin và recommender (v0.8.0), tiêu chí 80% CHƯA đạt**, xem §14.3: plugin `image` (cnn, resnet, vit) và `timeseries` (tcn, gru, ts_transformer) chạy end-to-end trên dữ liệu tổng hợp; recommender kNN đoán đúng họ tốt nhất trong top-3 ở 7/12 dataset bảng (58%, ngẫu nhiên 51%). Chưa có: Mamba/SSM, ConvNeXt cho ảnh, dữ liệu ảnh/chuỗi thật, kho kết quả đủ lớn |
 
@@ -466,6 +467,49 @@ Dùng ở đâu:
 - **Ước lượng:** mọi ứng viên dựng từ thư viện đều đi qua cùng pipeline (đếm tham số làm cost model, zero-cost proxy, successive halving, LR range test, noise scale).
 - Chưa được plugin nào dùng: `NeuralTree`, `SumTrunk`, `MeanPooling`, `LatentFactor`, `pairwise_log_loss`, `self_attention_2d` chỉ khi chọn `attention: self`. Có test nhưng chưa có bài toán nhiều đầu vào / recommendation.
 - Không có trọng số pretrained; không khối nào là bản tái hiện đã kiểm chứng của mô hình gốc.
+
+### 13.6 Kho module `dlnet/zoo/` (M11): nơi kiến trúc mới được ghép và tìm ra
+Mục đích của platform là **tìm kiến trúc mới cho từng ứng dụng**, nên nguồn ứng viên không còn là một danh sách họ cố định mà là một **không gian kiến trúc**: module có kiểu + toán tử ghép + tìm kiếm trên cây ghép. Toàn bộ torch-only và được copy vào gói xuất ra (`zoo/`).
+
+**Kiểu tensor** (bỏ trục batch): `vec (D)`, `seq (T,D)`, `map (C,H,W)`, `ser (C,T)`, `vol (C,D,H,W)`. HSI là `map` với C = số băng sau PCA; ảnh là `map`; chuỗi thời gian là `ser`; bảng là `vec`.
+
+**Module (`@op`)**: khai báo kiểu vào, kiểu ra, không gian tham số rời rạc (`space`), thẻ chức năng (`block`, `down`, `attn`, `stem`, `adapt`, `norm`, `tensor`, ...) và nguồn gốc. Hiện có 54 op (`python -m dlnet zoo`): khối conv tổng quát cho 1-D/2-D/3-D (basic, bottleneck/ResNeXt/Wide, pre-act, dense, NiN, LeNet, VGG, MBConv, fused MBConv, MobileNetV3, ConvNeXt, RegNet, ShuffleNet, Fire, Inception, depthwise-separable), attention (SE, ECA, CBAM, self-attention không gian, window attention kiểu Swin, transformer block, attention chuỗi), chuỗi (RNN/GRU/LSTM, MLP-Mixer, Mamba, conv1d residual kiểu cortex, TextCNN), vector (MLP, FFN, GLU, TT/TR/low-rank, tương tác FM, cross network), cầu nối giữa các kiểu (patchify, tokens, pooling, feature tokens, cls token, vị trí).
+
+**Kiến trúc = cây spec JSON** gồm lá `{"op": ...}` và toán tử ghép: `seq`, `res` (residual, tự chiếu 1×1 khi đổi shape, có stochastic depth), `par` (concat/sum/gate), `rep` (lặp, có chia sẻ trọng số), `moe` (soft / top-k / product-of-experts, expert là spec bất kỳ), `encdec` (encoder–decoder cho dự đoán dày: unet, fcn, fpn, aspp, deconv). Đầu ra (head) không nằm trong spec: được thêm theo tác vụ (`cls` hoặc `dense`), nên đột biến không thể phá head.
+
+**Kiểm tra tĩnh**: `zoo.check(spec, kind, dims)` dựng mô hình trên thiết bị `meta` và chạy một batch giả, trả số tham số và shape đầu ra, hoặc `ValueError` (sai kiểu, bản đồ co về 0, số head không chia hết độ rộng...) trong vài mili-giây, **trước khi huấn luyện**. Cost model hiện chỉ là đếm tham số.
+
+**Tìm kiếm có phương pháp** (`zoo/space.py`):
+1. **Ứng viên ban đầu** (`--zoo N`, mặc định 12): tối đa N/2 preset kiến trúc nổi tiếng viết dưới dạng spec (LeNet, VGG, ResNet/ResNeXt/Wide/pre-act/SE, DenseNet, MobileNet, EfficientNet, ConvNeXt, RegNet, ShuffleNet, SqueezeNet, NiN, Inception, ViT, Swin, hybrid CNN-transformer, TCN, TextCNN, GRU/LSTM, Mamba, MLP-Mixer, FT-Transformer, DCN, MoE, TT/TR-ResMLP, U-Net/FCN/FPN/DeepLab) và phần còn lại là mẫu ngẫu nhiên từ ngữ pháp theo thẻ (stem → các tầng độ phân giải → khối bổ sung → attention).
+2. **Tiến hóa** (`--evolve G`, mặc định 1 thế hệ, `--evolve-pop` con mỗi thế hệ): cha mẹ là các ứng viên zoo tốt nhất theo validation ở rung 1; con sinh bằng 8 phép đột biến (`param`, `swap` cùng kiểu và thẻ, `insert`, `delete`, `wrap_res`, `repeat`, `widen`, `to_moe`) và lai ghép theo tầng; mọi con đều qua `zoo.check` và ngân sách tham số, loại bản trùng (chữ ký SHA-1 của spec).
+3. Mọi ứng viên đi qua **cùng pipeline cũ**: successive halving, nhiều seed và lần chia, LR range test, noise scale, chọn Top-K đa dạng, verdict so với baseline cổ điển. Nhãn `origin` (preset / random / mutation / crossover) ghi trong leaderboard và `report.md` để biết kiến trúc đến từ đâu.
+
+**Thêm module mới**: một hàm có decorator `@op(name, kinds, space=..., tags=..., source=...)`; không cần sửa ngữ pháp, đột biến hay test: test tự quét mọi op trên mọi kiểu và mọi giá trị tham số (`tests/test_zoo.py`). Skill: `module-zoo`.
+
+**Nguồn và đối chiếu** (`THIRD_PARTY.md`): rasbt/deeplearning-models, prescient-design/cortex, ylongqi/openrec, yamsgithub/modular_deep_learning (bốn repo bạn chỉ định), thêm pytorch/vision và state-spaces/mamba. Giấy phép không được xét (công cụ nội bộ). `scripts/verify_zoo.py` so 14 khối với torchvision gốc: 14/14 khớp số tham số và shape (ghim ở `tests/test_zoo.py::GOLDEN`). Danh sách lớp chưa port và lý do nằm ở `THIRD_PARTY.md`.
+
+**Kết quả đo (`python scripts/bench_zoo.py`, ngân sách 100 s mỗi lần, 2 seed, 6 bộ dữ liệu; "họ cũ" = `--zoo 0 --evolve 0`, "zoo" = `--zoo 14 --evolve 1 --evolve-pop 8`):**
+
+| Bộ dữ liệu | seed | val top-1 họ cũ | test họ cũ | val top-1 zoo | test zoo | Người thắng của zoo (nguồn) |
+|---|---|---|---|---|---|---|
+| breast_cancer | 0 | 0,9617 | 0,9768 | 0,9617 | 0,9623 | lowrank_linear (đột biến insert) |
+| breast_cancer | 1 | 0,9735 | 0,9826 | 0,9852 | 0,9768 | lowrank+tr+tt linear (ngẫu nhiên) |
+| wine | 0 | 0,9804 | 0,9915 | 0,9804 | 0,9829 | họ cũ `resmlp` |
+| wine | 1 | 0,9608 | 0,9487 | 0,9804 | 0,9744 | lowrank+mlp+tr (đột biến repeat) |
+| make_classification 1500×30 | 0 | 0,6544 | 0,6370 | 0,6790 | 0,6634 | `mlp` (đột biến param) |
+| make_classification 1500×30 | 1 | 0,6980 | 0,6920 | 0,7013 | 0,6678 | `tt_linear` (lai ghép) |
+| ảnh digits 8×8 | 0 | 0,9944 | 0,9973 | 0,9916 | 0,9946 | bottleneck + MoE (đột biến to_moe) |
+| ảnh digits 8×8 | 1 | 0,9944 | 0,9973 | 0,9916 | 1,0000 | họ cũ `cnn` |
+| chuỗi thời gian tổng hợp | 0 | 0,9887 | 0,9785 | 1,0000 | 1,0000 | mixer + mlp (ngẫu nhiên) |
+| chuỗi thời gian tổng hợp | 1 | 0,9859 | 0,9839 | 0,9915 | 0,9839 | mixer + mlp (đột biến repeat) |
+| phân đoạn tổng hợp (mIoU) | 0 | 0,9148 | 0,9339 | 0,9208 | 0,9333 | basic_block + CBAM + convnext (đột biến widen) |
+| phân đoạn tổng hợp (mIoU) | 1 | 0,9232 | 0,9412 | 0,9243 | 0,9381 | basic + convnext + pre-act (ngẫu nhiên) |
+
+- **Validation**: zoo cao hơn ở 8/12 cặp, bằng ở 2, thấp hơn ở 2 (digits, chênh một mẫu). **Test**: zoo cao hơn ở 4/12, bằng 1, thấp hơn 7. Phần lớn lợi thế validation là **thiên lệch lựa chọn** (top-1 của nhiều ứng viên hơn nên validation lạc quan hơn), test không xác nhận. Verdict so với baseline cổ điển đổi từ không thắng sang thắng ở một cặp (chuỗi thời gian, seed 0).
+- Người thắng của zoo thường đến từ đột biến hoặc ngẫu nhiên (10/12), không phải từ preset: tức là tìm kiếm có tạo ra cấu trúc mới được chọn, nhưng **chưa có bằng chứng chúng tổng quát hóa tốt hơn họ cũ** ở ngân sách này.
+- Giới hạn của phép đo: bộ dữ liệu nhỏ hoặc tổng hợp, ngân sách 100 s (ứng viên chỉ được huấn luyện 4–30 epoch), 2 seed, chỉ 1 thế hệ tiến hóa. Chưa có kết luận cho ngân sách giờ trở lên hoặc dữ liệu thật lớn. Việc nên làm tiếp để kiểm tra: chạy lại với `--budget 30m --evolve 3` trên dữ liệu thật của bạn.
+
+**Tình trạng chuyển đổi**: các họ cũ (`library.py`, `array_lib.py`, `hsi_lib.py`, `blocks.py`) vẫn chạy song song để không phá kết quả cũ; lớp TT/TR đã dùng chung một bản trong zoo. Việc còn lại là biểu diễn nốt các họ cũ thành preset rồi gỡ bản cũ.
 
 ## 14. Domain plugins (HSI là plugin đầu tiên)
 

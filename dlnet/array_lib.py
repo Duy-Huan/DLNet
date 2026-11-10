@@ -196,6 +196,12 @@ class TSTransformer(nn.Module):
 
 def build_model(cfg: dict, in_dim: int, out_dim: int) -> nn.Module:
     """cfg['shape'] is the per-sample input shape: (C, H, W) for images, (C, T) for series."""
+    if cfg.get("spec"):  # an architecture of the module zoo (dlnet/zoo)
+        try:
+            from . import zoo
+        except ImportError:  # exported package: zoo/ sits next to model.py
+            import zoo
+        return zoo.build_model(cfg, in_dim, out_dim)
     f, w, d, p, shape = cfg["family"], cfg["width"], cfg["depth"], cfg["dropout"], cfg["shape"]
     if (
         f in IMAGE_FAMILIES + SEG_FAMILIES

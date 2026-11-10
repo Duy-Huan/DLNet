@@ -16,3 +16,4 @@ triggers: model, family, library, module, tensor, Tucker, TT, low-rank, SPACE
 9. Cập nhật `agent.md` §13 (registry / danh mục khối) và theo skill `git-dev-main`.
 10. Khối dùng chung cho nhiều plugin (backbone, decoder, attention, routing) đặt trong `dlnet/blocks.py` với decorator `@catalog(kind, name, source)`; plugin copy `blocks.py` vào gói qua `extra_files`, file thư viện import bằng `try: from . import blocks / except ImportError: import blocks`.
 11. Lấy khối từ repo ngoài: kiểm tra giấy phép trước. Không có giấy phép thì **không sao chép mã**, chỉ cài lại từ phương pháp. Ghi repo, commit, giấy phép và những gì đã đổi vào `THIRD_PARTY.md`.
+12. Module mới cho nhiều plugin nay đi vào kho `dlnet/zoo` (skill `module-zoo`), không còn thêm vào từng `*_lib.py`; họ cũ trong `library.py`/`array_lib.py`/`hsi_lib.py` chỉ giữ để tương thích.

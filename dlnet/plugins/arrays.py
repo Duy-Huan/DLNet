@@ -108,6 +108,13 @@ class ArrayPlugin(DomainPlugin):
         "array_data.py": HERE / "array_data.py",
         "blocks.py": HERE / "blocks.py",
     }
+    extra_dirs: ClassVar[dict[str, Path]] = {"zoo": HERE / "zoo"}
+    head = "cls"
+
+    def zoo_input(self, data):
+        kind = "ser" if self.kind == "timeseries" else "map"
+        return kind, tuple(data["shape"]), self.head
+
     train_template = TRAIN_PY
     test_template = TEST_PY
     metric_keys = ("accuracy", "balanced_accuracy", "rmse", "r2")
@@ -222,6 +229,7 @@ class ImageSegmentationPlugin(ArrayPlugin):
     name = "image_segmentation"
     kind = "segmentation"
     families = array_lib.SEG_FAMILIES
+    head = "dense"
     metric_keys = ("miou", "accuracy", "balanced_accuracy", "kappa")
     REF_PIXELS = 20000  # training pixels sampled for the classical per-pixel baselines
 

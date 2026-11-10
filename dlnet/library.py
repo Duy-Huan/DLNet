@@ -16,84 +16,19 @@ Families:
 
 from __future__ import annotations
 
-import math
-
 import torch
 from torch import nn
 
 try:  # inside the dlnet package
     from . import blocks
-except ImportError:  # inside an exported package (blocks.py sits next to model.py)
+    from .zoo.ops_vec import LowRankLinear, TRLinear, TTLinear
+except ImportError:  # inside an exported package (blocks.py and zoo/ sit next to model.py)
     import blocks
+    from zoo.ops_vec import LowRankLinear, TRLinear, TTLinear
 
 FAMILIES = (
     "mlp", "resmlp", "tt_resmlp", "tr_resmlp", "lowrank_mlp", "ft_transformer", "moe_mlp", "fm_mlp",
 )  # fmt: skip
-
-
-def _factor(n: int) -> tuple[int, int]:
-    best = (1, n)
-    for a in range(1, math.isqrt(n) + 1):
-        if n % a == 0:
-            best = (a, n // a)
-    return best
-
-
-class TTLinear(nn.Module):
-    """Linear layer with weight in 2-core Tensor-Train format.
-
-    W[(i1,i2),(o1,o2)] = sum_r G1[i1,o1,r] * G2[r,i2,o2]
-    Parameters: r*(i1*o1 + i2*o2) instead of in*out.
-    """
-
-    def __init__(self, in_f: int, out_f: int, rank: int):
-        super().__init__()
-        self.i1, self.i2 = _factor(in_f)
-        self.o1, self.o2 = _factor(out_f)
-        std = (1.0 / (in_f * rank)) ** 0.25
-        self.g1 = nn.Parameter(torch.randn(self.i1, self.o1, rank) * std)
-        self.g2 = nn.Parameter(torch.randn(rank, self.i2, self.o2) * std)
-        self.bias = nn.Parameter(torch.zeros(out_f))
-
-    def forward(self, x):
-        b = x.shape[0]
-        t = torch.einsum("bij,ior->bjor", x.reshape(b, self.i1, self.i2), self.g1)
-        y = torch.einsum("bjor,rjp->bop", t, self.g2)
-        return y.reshape(b, -1) + self.bias
-
-
-class TRLinear(nn.Module):
-    """Linear layer with weight in 2-core Tensor-Ring format (Zhao et al., arXiv:1606.05535, eq. 1).
-
-    W[(i1,i2),(o1,o2)] = Tr(G1[i1,o1] G2[i2,o2]) = sum_{a,b} G1[a,i1,o1,b] * G2[b,i2,o2,a]
-    Parameters: r^2 * (i1*o1 + i2*o2). Unlike TT there is no rank-1 boundary. Pairing input and
-    output indices per core follows the TT-matrix format; the init scale is a heuristic.
-    """
-
-    def __init__(self, in_f: int, out_f: int, rank: int):
-        super().__init__()
-        self.i1, self.i2 = _factor(in_f)
-        self.o1, self.o2 = _factor(out_f)
-        std = (1.0 / (in_f * rank * rank)) ** 0.25
-        self.g1 = nn.Parameter(torch.randn(rank, self.i1, self.o1, rank) * std)
-        self.g2 = nn.Parameter(torch.randn(rank, self.i2, self.o2, rank) * std)
-        self.bias = nn.Parameter(torch.zeros(out_f))
-
-    def forward(self, x):
-        b = x.shape[0]
-        t = torch.einsum("bij,aior->bjoar", x.reshape(b, self.i1, self.i2), self.g1)
-        y = torch.einsum("bjoar,rjpa->bop", t, self.g2)
-        return y.reshape(b, -1) + self.bias
-
-
-class LowRankLinear(nn.Module):
-    def __init__(self, in_f: int, out_f: int, rank: int):
-        super().__init__()
-        self.u = nn.Linear(in_f, rank, bias=False)
-        self.v = nn.Linear(rank, out_f)
-
-    def forward(self, x):
-        return self.v(self.u(x))
 
 
 def _linear(kind: str, i: int, o: int, rank: int) -> nn.Module:
@@ -189,6 +124,12 @@ def moe_mlp(in_dim, out_dim, width, depth, dropout, experts, routing):
 
 
 def build_model(cfg: dict, in_dim: int, out_dim: int) -> nn.Module:
+    if cfg.get("spec"):  # an architecture of the module zoo (dlnet/zoo)
+        try:
+            from . import zoo
+        except ImportError:  # exported package: zoo/ sits next to model.py
+            import zoo
+        return zoo.build_model(cfg, in_dim, out_dim)
     f, w, d, p, r = cfg["family"], cfg["width"], cfg["depth"], cfg["dropout"], cfg.get("rank", 8)
     if f == "mlp":
         return MLP(in_dim, out_dim, w, d, p)

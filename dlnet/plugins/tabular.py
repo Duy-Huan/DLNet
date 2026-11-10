@@ -60,6 +60,7 @@ class TabularPlugin(DomainPlugin):
     name = "tabular"
     model_file = HERE / "library.py"
     extra_files: ClassVar[dict[str, Path]] = {"blocks.py": HERE / "blocks.py"}
+    extra_dirs: ClassVar[dict[str, Path]] = {"zoo": HERE / "zoo"}
     train_template = TRAIN_PY
     test_template = TEST_PY
     metric_keys = ("accuracy", "balanced_accuracy", "rmse", "r2")
@@ -85,6 +86,9 @@ class TabularPlugin(DomainPlugin):
 
     def generate(self, prof, n_per_family, seed):
         return generate.generate(prof, n_per_family=n_per_family, seed=seed)
+
+    def zoo_input(self, data):
+        return "vec", (data["in_dim"],), "cls"
 
     def build_model(self, cfg, in_dim, out_dim):
         return build_model(cfg, in_dim, out_dim)

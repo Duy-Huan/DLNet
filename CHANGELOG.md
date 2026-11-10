@@ -6,6 +6,32 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-11-10
+
+Mốc M11 (xem `agent.md` §13.6, `THIRD_PARTY.md`): refactor lõi thành kho module có kiểu và tìm kiếm kiến trúc.
+
+### Thêm
+- **`dlnet/zoo/`**: kho module có kiểu dùng chung cho mọi plugin (bảng, HSI, ảnh, phân đoạn, chuỗi thời gian). 54 module có khai báo kiểu vào/ra, không gian tham số, thẻ chức năng và nguồn gốc; gom từ rasbt/deeplearning-models, prescient-design/cortex, ylongqi/openrec, yamsgithub/modular_deep_learning, pytorch/vision và state-spaces/mamba (giấy phép không xét vì dùng nội bộ). Liệt kê: `python -m dlnet zoo`; phần chưa port và lý do: `THIRD_PARTY.md`.
+- **Kiến trúc là cây spec JSON** ghép từ module và các toán tử `seq`, `res`, `par`, `rep`, `moe`, `encdec`. `zoo.check` kiểm tra tĩnh kiểu, shape và số tham số (dựng trên thiết bị `meta`) trước khi huấn luyện.
+- **Tìm kiếm kiến trúc**: `design` nay thêm ứng viên từ zoo (`--zoo N`, mặc định 12: tối đa một nửa là preset kiến trúc nổi tiếng viết dưới dạng spec, còn lại là mẫu ngẫu nhiên từ ngữ pháp) và chạy tiến hóa (`--evolve G` thế hệ, `--evolve-pop` con mỗi thế hệ) bằng 8 phép đột biến và lai ghép theo tầng. Nhãn nguồn gốc `origin` có trong `leaderboard.json` và `report.md`; khối `module_zoo` trong `leaderboard.json` ghi các thế hệ.
+- Gói xuất ra có thêm thư mục `zoo/` khi kiến trúc đến từ zoo; vẫn chạy độc lập.
+- `scripts/verify_zoo.py`: so 14 khối đã port với khối gốc của torchvision (số tham số và shape): 14/14 khớp. Các con số được ghim vào test.
+- `scripts/bench_zoo.py`: so top-1 của họ cũ với zoo + tiến hóa cùng ngân sách.
+- Skill mới `module-zoo`.
+
+### Đổi
+- Lớp TT/TR/low-rank của `library.py` nay lấy từ `dlnet/zoo/ops_vec.py` (một bản duy nhất).
+- Các họ cũ (`library.py`, `array_lib.py`, `hsi_lib.py`, `blocks.py`) vẫn chạy song song với zoo.
+
+### Sửa
+- Khối MobileNetV3 phát hiện sai khi đối chiếu với torchvision (SE phải đặt trên kênh đã mở rộng): đã sửa trước khi phát hành.
+
+### Hạn chế đã biết
+- **Chưa có bằng chứng zoo tìm được kiến trúc tổng quát hóa tốt hơn họ cũ.** Đo 12 cặp (6 bộ dữ liệu nhỏ hoặc tổng hợp, 2 seed, 100 s): validation top-1 của zoo cao hơn 8/12, nhưng test chỉ cao hơn 4/12 và kém 7/12; phần lớn lợi thế validation là thiên lệch lựa chọn. Người thắng của zoo thường đến từ đột biến hoặc ngẫu nhiên (10/12), tức tìm kiếm có tạo cấu trúc mới được chọn. Chi tiết ở `agent.md` §13.6.
+- Mọi ứng viên zoo đi qua cùng ngân sách thời gian, nên thêm nhiều ứng viên làm các rung đầu ngắn hơn cho từng ứng viên.
+- Mamba là bản quét tuần tự (độ dài tối đa 256), chưa so với `mamba_ssm`. Các khối từ paper chưa đối chiếu mã tác giả. Chưa có kiểu `graph`/`ids`, trọng số pretrained, autoencoder/GAN (cần vòng huấn luyện khác).
+- Cost model vẫn chỉ đếm tham số (chưa có FLOPs/VRAM).
+
 ## [0.9.0] - 2026-11-10
 
 Mốc M10 (xem `agent.md` §8, §13.5, §14.4): thư viện khối từ bốn repo GitHub, plugin phân loại và phân đoạn ảnh.
@@ -165,7 +191,8 @@ Bản đầu tiên: prototype chạy được từ dữ liệu đến Top-K base
 - Chưa có zero-cost proxy, cost model FLOPs/VRAM, Tensor-LoRA, deep unfolding; chưa có plugin image và timeseries.
 - Kết quả trên Indian Pines và Pavia University là một lần chạy ngắn trên CPU: với chia theo khối, mạng sâu chưa vượt rõ baseline cổ điển.
 
-[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.10.0
 [0.9.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.9.0
 [0.8.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.8.0
 [0.7.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.7.0
