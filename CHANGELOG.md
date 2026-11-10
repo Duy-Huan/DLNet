@@ -6,6 +6,20 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-10
+
+Mốc M6 (xem `agent.md` §8, §16.4): ước lượng intrinsic dimension có đo độ ổn định.
+
+### Thêm
+- `profile.json` có khối `intrinsic_dim_estimators`: hai bộ ước lượng (TwoNN và MLE của Levina–Bickel) chạy trên 5 mẫu con, kèm mean ± std, mức lệch giữa hai bộ và cờ `stable`. Có cho cả plugin tabular và HSI.
+- `profile.json` có `capacity_hint` (độ rộng tối thiểu gợi ý, số mũ scaling ≈ 4/d). Chỉ là thông tin, không loại ứng viên.
+- Plugin HSI ghi `multilinear_rank_levels`: rank Tucker ở mức năng lượng 0,90 / 0,95 / 0,99.
+- `scripts/bench_estimators.py`: đo các bộ ước lượng trên 5 bộ dữ liệu biết trước số chiều và 5 bộ dữ liệu thật của scikit-learn.
+
+### Hạn chế đã biết
+- Ước lượng ổn định qua mẫu con nhưng thiên thấp khi số chiều lớn (d=20 ra 13–16 với 1000 điểm). Trên dữ liệu thật hai bộ lệch nhau 21–34%.
+- Hai bộ ước lượng viết từ trí nhớ, chưa đối chiếu paper gốc. `capacity_hint` chưa được kiểm chứng là dự đoán đúng độ rộng tốt nhất.
+
 ## [0.4.0] - 2026-11-10
 
 Mốc M5 (xem `agent.md` §8, §16.3): zero-cost proxy có đo tương quan, cache để chạy tiếp, phép đo tiết kiệm thời gian.
@@ -87,7 +101,8 @@ Bản đầu tiên: prototype chạy được từ dữ liệu đến Top-K base
 - Chưa có zero-cost proxy, cost model FLOPs/VRAM, Tensor-LoRA, deep unfolding; chưa có plugin image và timeseries.
 - Kết quả trên Indian Pines và Pavia University là một lần chạy ngắn trên CPU: với chia theo khối, mạng sâu chưa vượt rõ baseline cổ điển.
 
-[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.5.0
 [0.4.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.4.0
 [0.3.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.3.0
 [0.2.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.2.0

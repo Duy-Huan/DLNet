@@ -10,7 +10,7 @@ import numpy as np
 
 from .. import hsi_data, hsi_lib
 from ..core import compute_metrics
-from ..profile import twonn_intrinsic_dim
+from ..profile import capacity_hint, intrinsic_dim_report, rounded, twonn_intrinsic_dim
 from . import DomainPlugin
 
 HERE = Path(__file__).parent.parent
@@ -137,6 +137,9 @@ class HSIPlugin(DomainPlugin):
             block=args.block_size,
         )
         d["info"]["multilinear_rank_99"] = hsi_data.multilinear_rank(cube)
+        d["info"]["multilinear_rank_levels"] = {
+            str(e): hsi_data.multilinear_rank(cube, energy=e) for e in (0.9, 0.95, 0.99)
+        }
         d["info"]["cube_shape"] = list(cube.shape)
         return d
 
@@ -144,6 +147,7 @@ class HSIPlugin(DomainPlugin):
         i = data["info"]
         spectra = data["Xnp"]["tr"]
         d_int = twonn_intrinsic_dim(spectra)
+        rep = intrinsic_dim_report(spectra)
         n = i["n_train"]
         p = {
             "task": "classification",
@@ -160,8 +164,11 @@ class HSIPlugin(DomainPlugin):
             "dropped_by_margin": i["n_dropped_by_margin"],
             "pca_energy_kept": round(i["pca_energy_kept"], 4),
             "multilinear_rank_99": i["multilinear_rank_99"],  # (rows, cols, bands), Tucker/HOSVD
+            "multilinear_rank_levels": i.get("multilinear_rank_levels"),  # energy -> rank
             "intrinsic_dim": round(d_int, 2),
             "scaling_exponent_hat": round(4.0 / max(d_int, 1e-6), 3),
+            "intrinsic_dim_estimators": rounded(rep),
+            "capacity_hint": capacity_hint(rep["value"], n, data["in_dim"]),
             "classes_missing_train": i["classes_missing_train"],
             "classes_missing_test": i["classes_missing_test"],
         }

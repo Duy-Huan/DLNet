@@ -231,7 +231,7 @@ Nguyên tắc: lõi **tổng quát trước**, kiểm chứng end-to-end sớm t
 | **M3** | Giao thức đánh giá đầy đủ (§12.2–12.3): nhiều seed, nhóm "chưa phân biệt được", quy tắc chấp nhận | **Xong (v0.2.0)**: báo cáo tái lập, val và test đều có ± std qua seed và lần chia |
 | **M4** | Library mở rộng + tự ghép theo grammar (§13): SSRN, Transformer, Mamba/SSM, ResNet/ConvNeXt block | **Xong phần lõi (v0.3.0)**: registry có kiểu + grammar trong `hsi_lib.py`, test sinh ≥20 ứng viên hợp lệ. Chưa có: Mamba/SSM, ViT/Swin |
 | **M5** | Cost model + tiết kiệm thời gian: zero-cost proxy (theo §16.1), successive halving, cache, resume; **hyperparameter estimate (LR range test, noise scale) đã có, §16.2** | **Xong phần đo được (v0.4.0)**, xem §16.3: successive halving giảm 50–70% thời gian (dữ liệu tổng hợp), cùng top-1 trên tabular, lệch trong mức nhiễu trên HSI; proxy chỉ ghi thông tin vì chưa hơn đếm tham số; cache cho giai đoạn nhiều seed. Chưa có: FLOPs/VRAM, resume cho successive halving |
-| **M6** | Estimator: intrinsic dim → dung lượng, rank tensor | Ước lượng ổn định trên nhiều dataset |
+| **M6** | Estimator: intrinsic dim → dung lượng, rank tensor | **Xong phần đo được (v0.5.0)**, xem §16.4: hai bộ ước lượng (TwoNN, MLE) kèm độ lệch chuẩn qua mẫu con và cờ `stable`; đo trên 5 bộ biết đáp án và 5 bộ thật. Chưa có: bằng chứng `capacity_hint` dự đoán đúng độ rộng tốt nhất (nên chỉ ghi thông tin) |
 | **M7** | Tensor: Tucker/HOSVD tiền xử lý, lớp TT/Tucker/TR, Tensor-LoRA | Nén ≥X% tham số, mất ≤Y% metric |
 | **M8** | Deep unfolding (khi có mô hình thuận) | Vượt thuật toán lặp gốc ở cùng số vòng |
 | **M9** | Plugin ảnh, chuỗi thời gian; recommender học từ kho kết quả (meta-learning) | Top-K chứa mô hình tốt nhất trong ≥80% dataset giữ lại |
@@ -496,6 +496,28 @@ Chưa làm: epochs (hiện là công thức mặc định 100 epoch, cosine, ch�
 
 - **Kết luận:** không proxy nào hơn đếm tham số một cách ổn định, dấu tương quan còn đổi giữa các seed. Vì vậy **không dùng proxy để loại ứng viên**; muốn bật phải có số đo trên dữ liệu thật trước. Tiết kiệm thời gian hiện đến từ successive halving.
 - **Cache** (`search.RunCache`, file `<out>/.dlnet_cache.json`): khóa = phiên bản DLNet + cấu hình + dấu vân tay của lần chia + seed + số epoch. Chỉ áp dụng cho các lần huấn luyện từ đầu (giai đoạn nhiều seed, kiểm chứng hyperparameter).
+
+### 16.4 Ước lượng intrinsic dimension và dung lượng (M6)
+- `dlnet/profile.py`: `twonn_intrinsic_dim` (Facco 2017, dạng maximum-likelihood `N/Σ log(r2/r1)`), `mle_intrinsic_dim` (Levina & Bickel 2004 với hiệu chỉnh MacKay & Ghahramani, `k=20`). Cả hai viết từ trí nhớ, **chưa đối chiếu** paper (chưa có trong `ref/`); test dùng dữ liệu biết trước số chiều và một trường hợp tính tay.
+- `intrinsic_dim_report`: chạy cả hai trên 5 mẫu con 80%, trả mean ± std, `rel_disagreement` và cờ `stable` (std ≤ 15% mean và hai bộ lệch nhau ≤ 30%; ngưỡng là heuristic). Ghi vào `profile.json` (`intrinsic_dim_estimators`) cho cả plugin tabular và HSI.
+- `capacity_hint`: `min_width` = lũy thừa của 2 nhỏ nhất ≥ 2·d, `scaling_exponent` ≈ 4/d (Sharma & Kaplan, arXiv:2004.10802). **Chỉ ghi thông tin**, không loại ứng viên (quy tắc 16.1 mục 5).
+- HSI: `multilinear_rank_levels` ghi rank Tucker ở ba mức năng lượng 0,90 / 0,95 / 0,99 để thấy độ nhạy theo ngưỡng.
+- **Kết quả đo (`python scripts/bench_estimators.py`):**
+
+| Dữ liệu | d thật | TwoNN | MLE | Lệch nhau | stable |
+|---|---|---|---|---|---|
+| tuyến tính d=5 trong R^50 | 5 | 4,8 ± 0,1 | 5,0 ± 0,0 | 4% | có |
+| tuyến tính d=10 | 10 | 9,3 ± 0,1 | 8,4 ± 0,0 | 10% | có |
+| tuyến tính d=20 | 20 | 15,7 ± 0,5 | 12,9 ± 0,1 | 20% | có |
+| mặt cầu S^5 trong R^20 | 5 | 5,1 ± 0,1 | 4,8 ± 0,0 | 8% | có |
+| d=10 + nhiễu 5% | 10 | 9,9 ± 0,1 | 8,6 ± 0,0 | 14% | có |
+| sklearn iris (150×4) | ? | 3,3 ± 0,3 | 2,4 ± 0,1 | 34% | không |
+| sklearn wine (178×13) | ? | 7,4 ± 0,5 | 5,6 ± 0,0 | 28% | có |
+| sklearn breast_cancer (569×30) | ? | 9,5 ± 0,3 | 7,3 ± 0,1 | 27% | có |
+| sklearn digits (1797×64) | ? | 8,8 ± 0,1 | 7,0 ± 0,0 | 22% | có |
+| sklearn diabetes (442×10) | ? | 7,1 ± 0,4 | 5,7 ± 0,0 | 21% | có |
+
+- **Kết luận:** ước lượng ổn định qua mẫu con (std ≤ 0,5) nhưng **thiên thấp khi d lớn** (d=20 ra 13–16 với 1000 điểm; đây là thiên lệch đã biết của ước lượng dựa trên láng giềng gần). Trên dữ liệu thật hai bộ lệch nhau 21–34%, MLE luôn thấp hơn. Vì vậy con số chỉ nên đọc là "thấp / vừa / cao", chưa đủ tin để cắt không gian tìm kiếm.
 
 ## Tài liệu tham khảo
 Toàn bộ PDF nằm trong `ref/` (mục lục: `ref/README.md`); thuật toán ước lượng chất lượng và hyperparameter trong `ref/optimazeDL/` (§16).
