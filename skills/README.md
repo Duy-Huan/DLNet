@@ -26,3 +26,4 @@ grep -ril "<từ khóa>" skills/*/SKILL.md      # ví dụ: plugin, split, leaka
 | [deep-unfolding](deep-unfolding/SKILL.md) | Thêm/sửa mạng unfolding cho bài toán nghịch, so với thuật toán lặp gốc | unfolding, LISTA, ISTA, inverse problem |
 | [meta-recommender](meta-recommender/SKILL.md) | Dùng, đo, sửa recommender học từ kho kết quả | meta-learning, meta store, family order |
 | [module-zoo](module-zoo/SKILL.md) | Thêm module vào kho, mở rộng ngữ pháp / đột biến, đối chiếu mã gốc, chạy tìm kiếm kiến trúc | zoo, op, grammar, mutation, evolve, backbone |
+| [seed-selection](seed-selection/SKILL.md) | Phân tích dữ liệu ảnh, ngữ cảnh, chọn kiến trúc hạt giống, Hyperband, aging evolution | seed, datacard, context, hyperband, portfolio |

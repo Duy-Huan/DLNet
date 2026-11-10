@@ -17,6 +17,12 @@ Implemented (each cites its source; "not verified" marks what was not checked ag
                (arXiv:2101.08134) from memory: not verified against their code.
   * grad_norm  Abdelfattah et al. (arXiv:2101.08134): Euclidean norm of the loss gradient on one
                minibatch (their code may sum per-layer norms instead: not verified).
+  * snip       Lee et al., "SNIP" (arXiv:1810.02340), as a network score in Abdelfattah et al.
+               (arXiv:2101.08134, eq. 1): S = sum |dL/dtheta * theta| on one minibatch.
+  * zico       Li et al., "ZiCo" (arXiv:2301.11300), following the authors' compute_zico.py
+               (ref/optimazeDL/official_code/ZiCo): gradients of every Conv2d/Linear weight on
+               several minibatches; per layer log(sum over weights with nonzero std of
+               mean|g| / std(g)); score = sum over layers. DLNet also counts Conv1d/Conv3d.
   * params     the baseline every proxy has to beat: the parameter count.
 """
 
@@ -29,7 +35,7 @@ import numpy as np
 import torch
 from torch import nn
 
-PROXIES = ("naswot", "synflow", "grad_norm", "params")
+PROXIES = ("naswot", "synflow", "grad_norm", "snip", "zico", "params")
 
 
 def naswot(model: nn.Module, X: torch.Tensor) -> float | None:
@@ -67,6 +73,52 @@ def synflow(model: nn.Module, x_shape: tuple[int, ...]) -> float:
     return math.log(s) if s > 0 and math.isfinite(s) else -math.inf
 
 
+def _loss(out, y, task):
+    if task == "reconstruction":
+        return nn.functional.mse_loss(out, y)
+    if task == "regression":
+        return nn.functional.mse_loss(out.squeeze(-1), y)
+    return nn.functional.cross_entropy(out, y)
+
+
+def snip(model: nn.Module, X, y, task: str) -> float:
+    """sum |dL/dtheta * theta| over all weights (one minibatch, train mode)."""
+    m = copy.deepcopy(model).train()
+    m.zero_grad()
+    _loss(m(X), y, task).backward()
+    return float(
+        sum(float((p.grad * p.detach()).abs().sum()) for p in m.parameters() if p.grad is not None)
+    )
+
+
+ZICO_LAYERS = (nn.Conv1d, nn.Conv2d, nn.Conv3d, nn.Linear)
+
+
+def zico(model: nn.Module, batches, task: str) -> float | None:
+    """ZiCo of the authors' compute_zico.py: sum over layers of log(sum(mean|g| / std(g)))."""
+    m = copy.deepcopy(model).train()
+    layers = [(n, mod) for n, mod in m.named_modules() if isinstance(mod, ZICO_LAYERS)]
+    grads: dict[str, list] = {n: [] for n, _ in layers}
+    for X, y in batches:
+        m.zero_grad()
+        _loss(m(X), y, task).backward()
+        for n, mod in layers:
+            if mod.weight.grad is not None:
+                grads[n].append(mod.weight.grad.detach().reshape(-1).numpy().copy())
+    total, used = 0.0, 0
+    for g in grads.values():
+        if len(g) < 2:
+            continue
+        g = np.array(g)
+        sd = g.std(0)
+        nz = np.nonzero(sd)[0]
+        s = np.sum(np.abs(g).mean(0)[nz] / sd[nz])
+        if s > 0:
+            total += float(np.log(s))
+            used += 1
+    return total if used else None
+
+
 def grad_norm(model: nn.Module, X, y, task: str) -> float:
     m = copy.deepcopy(model).train()
     out = m(X)
@@ -89,10 +141,19 @@ def score(model: nn.Module, data: dict, n: int = 64, seed: int = 0) -> dict:
     idx = torch.randperm(len(data["Xtr"]), generator=gen)[:n]
     X, y = data["Xtr"][idx], data["ytr"][idx]
     out = {"params": float(sum(p.numel() for p in model.parameters()))}
+    # ZiCo needs several minibatches (the authors use the train loader); 4 x n/2 samples here
+    idx2 = torch.randperm(len(data["Xtr"]), generator=gen)[: 2 * n]
+    half = max(n // 2, 2)
+    batches = [
+        (data["Xtr"][idx2[i : i + half]], data["ytr"][idx2[i : i + half]])
+        for i in range(0, 2 * n, half)
+    ]
     for name, fn in (
         ("naswot", lambda: naswot(model, X)),
         ("synflow", lambda: synflow(model, tuple(X.shape[1:]))),
         ("grad_norm", lambda: grad_norm(model, X, y, data["task"])),
+        ("snip", lambda: snip(model, X, y, data["task"])),
+        ("zico", lambda: zico(model, [b for b in batches if len(b[0]) > 1], data["task"])),
     ):
         try:
             out[name] = fn()
@@ -130,7 +191,8 @@ def correlation_report(scores: list[dict], vals: list[float], epochs: int) -> di
     or not finite are left out of that proxy's correlation (n says how many were used).
     """
     rep = {}
-    for name in PROXIES:
+    extra = [k for k in ("vote", "seed_prior") if any(k in sc for sc in scores)]
+    for name in (*PROXIES, *extra):
         pairs = [
             (s[name], v)
             for s, v in zip(scores, vals, strict=True)

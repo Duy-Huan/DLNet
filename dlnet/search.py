@@ -151,8 +151,11 @@ def run_search(
             log("[search] time budget reached; ranking with what is done")
             break
     finalists = alive[: max(topk * 2, topk + 2)]
+    return stage2(finalists, folds, build_fn, seeds, deadline, cache)
 
-    # --- stage 2: finalists on several seeds (and splits); run 0 reuses the stage-1 trainer
+
+def stage2(finalists, folds, build_fn, seeds, deadline, cache=None):
+    """Finalists on several seeds (and splits); run 0 reuses the stage-1 trainer."""
     results = []
     n_runs = max(seeds, len(folds))
     for a in finalists:
@@ -171,6 +174,87 @@ def run_search(
             }
         )
     return assign_groups(results)
+
+
+def hyperband_brackets(R: int, eta: int = 3, unit: int = 4) -> list[list[tuple[int, int]]]:
+    """Brackets of Hyperband (Li et al., JMLR 2018, arXiv:1603.06560, Algorithm 1).
+
+    Resource = epochs, counted in units of `unit` epochs: R_units = R / unit, s_max =
+    floor(log_eta(R_units)), B = (s_max + 1) R_units. Bracket s starts n = ceil(B / R_units *
+    eta^s / (s + 1)) configurations at r = R_units eta^-s units; rung i has n_i = floor(n eta^-i)
+    configurations trained to r_i = r eta^i units. Returns, per bracket, [(n_i, epochs_i), ...].
+
+    This is Algorithm 1 as written. Table 1 of the paper (R = 81, eta = 3) lists different bracket
+    sizes for s = 3, 2, 1 (27, 9, 6 instead of 34, 15, 8): the table matches
+    floor((s_max + 1) / (s + 1)) * eta^s, not the ceil of line 2. DLNet follows the algorithm.
+    """
+    Ru = max(R // unit, 1)
+    s_max = math.floor(math.log(Ru, eta) + 1e-9)
+    B = (s_max + 1) * Ru
+    out = []
+    for s in range(s_max, -1, -1):
+        n = math.ceil(B / Ru * eta**s / (s + 1))
+        r = Ru * eta ** (-s)
+        out.append([(int(n * eta ** (-i)), round(r * eta**i * unit)) for i in range(s + 1)])
+    return out
+
+
+def run_hyperband(
+    data, cands, deadline, topk, build_fn, R=36, eta=3, unit=4, seeds=3, log=print, folds=None,
+    cache=None, trace=None,
+):  # fmt: skip
+    """Hyperband over a FIXED, ordered candidate pool, then the multi-seed stage of `run_search`.
+
+    Hyperband samples fresh random configurations per bracket; here bracket after bracket takes
+    the next unused candidates of the pool (the seed selector's order), and the whole schedule is
+    repeated while candidates and time remain ("we recommend repeating it indefinitely", Sec. 3).
+    Only configurations that reached the full resource R compete in the final ranking (the same
+    number of epochs). `trace["rung1"]` holds (cfg, val) of the configurations of the most
+    aggressive bracket after `unit` epochs (the signal proxies and meta-learning are compared with).
+    """
+    folds = folds or [data]
+    if not cands:
+        raise ValueError("no candidates to search")
+    pool = list(cands)
+    brackets = hyperband_brackets(R, eta, unit)
+    log(f"[hyperband] {len(pool)} candidates; brackets (n, epochs): {brackets}")
+    done, first_rung, it = [], [], 0
+    while pool and (time.time() < deadline or not done):  # a spent budget still yields one result
+        it += 1
+        for b, rungs in enumerate(brackets):
+            if not pool or (time.time() > deadline and done):
+                break
+            take, pool = pool[: rungs[0][0]], pool[rungs[0][0] :]
+            alive = [{"cfg": c, "tr": _new_trainer(c, data, 0, build_fn)} for c in take]
+            for i, (n_i, ep) in enumerate(rungs):
+                if i and time.time() > deadline:  # budget spent: keep what the last rung gave
+                    break
+                finished = []
+                for a in alive[: max(n_i, 1)]:
+                    if time.time() > deadline and (done or finished):
+                        break
+                    a["tr"].fit(ep - a["tr"].epochs_done)
+                    a["val0"] = a["tr"].evaluate("va")["score"]
+                    finished.append(a)
+                if not finished:
+                    break
+                if ep == unit:
+                    first_rung += [(a["cfg"], a["val0"]) for a in finished]
+                alive = sorted(finished, key=lambda a: -a["val0"])
+                if i < len(rungs) - 1:
+                    alive = alive[: max(rungs[i + 1][0], 1)]
+            full = [a for a in alive if a["tr"].epochs_done >= R]
+            done += full or alive[:1]
+            log(f"[hyperband] iteration {it} bracket {b + 1}: {len(take)} configs -> "
+                f"{len(full)} at {R} epochs; best val={alive[0]['val0']:.4f}")  # fmt: skip
+    if trace is not None:
+        trace["rung1"], trace["rung1_epochs"] = first_rung, unit
+    best_ep = max(a["tr"].epochs_done for a in done)
+    pool_final = sorted(
+        [a for a in done if a["tr"].epochs_done == best_ep], key=lambda a: -a["val0"]
+    )
+    finalists = pool_final[: max(topk * 2, topk + 2)]
+    return stage2(finalists, folds, build_fn, seeds, deadline, cache)
 
 
 def assign_groups(results):

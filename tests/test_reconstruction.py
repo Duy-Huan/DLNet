@@ -159,3 +159,14 @@ def test_cli_design_end_to_end_and_package_runs(img_npz, tmp_path):
         check=False,
     )
     assert r.returncode == 0 and "test:" in r.stdout, r.stderr[-800:]
+
+
+def test_autoencoder_is_judged_against_pca_of_its_own_code_size():
+    """Was: the verdict compared every autoencoder with PCA-32, whatever its code size."""
+    from dlnet.plugins.arrays import ImageReconstructionPlugin
+
+    p = ImageReconstructionPlugin()
+    ref = [{"name": f"pca_{k}", "code": k, "va": {"score": -1.0 / (k + 1)}} for k in (0, 4, 8, 32)]
+    fair = p.reference_for({"code": 8}, ref)
+    assert [r["name"] for r in fair] == ["pca_8", "pca_4", "pca_0"]
+    assert p.reference_for({}, ref) is ref

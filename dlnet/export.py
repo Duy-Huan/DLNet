@@ -92,6 +92,8 @@ def mean_reference(per_fold: list[list[dict]]) -> list[dict]:
     for name in [r["name"] for r in per_fold[0]]:
         rs = [r for fold in per_fold for r in fold if r["name"] == name]
         m = {"name": name, "seconds": round(sum(r["seconds"] for r in rs), 1), "n_splits": len(rs)}
+        if "code" in rs[0]:
+            m["code"] = rs[0]["code"]
         for sp in ("va", "te"):
             m[sp] = {k: float(sum(r[sp][k] for r in rs) / len(rs)) for k in rs[0][sp]}
         out.append(m)
@@ -174,7 +176,10 @@ def export(out_dir, plugin, data, prof, chosen, reference, seed, epochs_recipe=1
     out = Path(out_dir)
     _prepare_out_dir(out)
     task = data["task"]
-    v = verdict(chosen[0], reference, len(data["yva"]), task)
+    fair = plugin.reference_for(chosen[0]["cfg"], reference)  # e.g. PCA with the same code size
+    v = verdict(chosen[0], fair, len(data["yva"]), task)
+    if fair is not reference:
+        v["reference_matched_to"] = [r["name"] for r in fair]
 
     (out / "profile.json").write_text(json.dumps(prof, indent=2))
     (out / "reference").mkdir()

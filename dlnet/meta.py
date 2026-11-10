@@ -146,3 +146,42 @@ def leave_one_out(records: list[dict], plugin: str, topk: int = 3, k: int = 5) -
         "hit_rate_all_datasets": glob / n if n else None,
         "hit_rate_chance": chance / n if n else None,
     }
+
+
+def portfolio(records: list[dict], plugin: str, feats=None, size: int = 4, k: int = 5) -> list[str]:
+    """Greedy portfolio of families (Auto-sklearn 2.0, Feurer et al., JMLR 2022, arXiv:2007.04074,
+    Algorithm 1): start empty and repeatedly add the family that most lowers the mean, over the
+    meta-datasets, of the error of the best family already in the portfolio.
+
+    Error of a family on a dataset = its normalized rank there (0 = best, 1 = worst; a family
+    not run on that dataset counts as 1). With `feats`, the meta-datasets are the k nearest past
+    datasets (z-scored meta-features, as `recommend`); otherwise every record of the plugin.
+    Ties go to the alphabetically first family (the paper breaks ties by training order).
+    """
+    recs = [r for r in records if r["plugin"] == plugin]
+    if feats is not None and len(recs) > k:
+        n = len(feats)
+        recs = [r for r in recs if len(r["features"]) == n]
+        mu = [sum(r["features"][j] for r in recs) / len(recs) for j in range(n)]
+        sd = [
+            math.sqrt(sum((r["features"][j] - mu[j]) ** 2 for r in recs) / len(recs)) or 1.0
+            for j in range(n)
+        ]
+        dist = lambda r: math.sqrt(
+            sum(((r["features"][j] - feats[j]) / sd[j]) ** 2 for j in range(n))
+        )
+        recs = sorted(recs, key=dist)[:k]
+    if not recs:
+        return []
+    ranks = [normalized_ranks(r["family_scores"]) for r in recs]
+    cands = sorted({f for r in ranks for f in r})
+    port: list[str] = []
+    while cands and len(port) < size:
+
+        def err(fams, ranks=ranks):
+            return sum(min((r.get(f, 1.0) for f in fams), default=1.0) for r in ranks) / len(ranks)
+
+        best = min(cands, key=lambda f: (err([*port, f]), f))
+        port.append(best)
+        cands.remove(best)
+    return port

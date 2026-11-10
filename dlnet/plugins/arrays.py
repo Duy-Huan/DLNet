@@ -432,10 +432,19 @@ class ImageReconstructionPlugin(ArrayPlugin):
         mu = Xtr.mean(0)
         _, _, vt = np.linalg.svd(Xtr - mu, full_matrices=False)
         out = []
-        for k in (0, 8, 32):
+        sp = SPACE["conv_ae"]
+        codes = {  # every code size a candidate can have, so each one meets a PCA of its size
+            recipes.code_size({"latent": lat, "depth": d}, data["shape"])
+            for lat in sp["latent"] for d in sp["depth"]
+        }  # fmt: skip
+        for k in sorted({0, 8, 32} | {c for c in codes if c < min(Xtr.shape)}):
             t0 = time.time()
             V = vt[:k]
-            res = {"name": "mean_image" if k == 0 else f"pca_{k}_components", "seconds": 0.0}
+            res = {
+                "name": "mean_image" if k == 0 else f"pca_{k}_components",
+                "seconds": 0.0,
+                "code": k,
+            }
             for sp in ("va", "te"):
                 X = data["Xnp"][sp]
                 rec = mu + (X - mu) @ V.T @ V if k else np.tile(mu, (len(X), 1))
@@ -444,6 +453,14 @@ class ImageReconstructionPlugin(ArrayPlugin):
             out.append(res)
         out.sort(key=lambda r: -r["va"]["score"])
         return out
+
+    def reference_for(self, cfg, reference):
+        """Judge an autoencoder against PCA with at most as many components as its code has elements."""
+        code = cfg.get("code")
+        if not code:
+            return reference
+        fair = [r for r in reference if r.get("code", 0) <= code]
+        return sorted(fair, key=lambda r: -r["va"]["score"]) or reference
 
     def data_config(self, data):
         return {"kind": "reconstruction", "shape": data["shape"], **data["keys"]}

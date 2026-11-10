@@ -6,6 +6,25 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-11-10
+
+Mốc M15 (xem `agent.md` §16.5): phân tích dữ liệu, chọn hạt giống, thuật toán tìm kiếm chuẩn.
+
+### Thêm
+- **Data card ảnh** (`dlnet/datacard.py`): kích thước, mất cân bằng lớp, độ dốc phổ công suất, năng lượng tần số cao, độ dài tương quan, mật độ cạnh, độ phụ thuộc vị trí, tương quan kênh màu, 1-NN, và hai linear probe (pixel so với đặc trưng tích chập ngẫu nhiên). In ở `[datacard]`, ghi vào `leaderboard.json`.
+- **Chọn hạt giống** (`dlnet/seeds.py`, `--seeds N`, `--context "..."`, `--goal small`): đặc tính kiến trúc đọc từ module trong spec, quy tắc theo data card và ngữ cảnh (in lý do), tổng hợp xếp hạng Borda với meta-learning (kNN + portfolio tham lam của Auto-sklearn 2.0) và, khi bật `--seed-proxies`, vote đa số của zero-cost proxy (Abdelfattah 2021). Luôn giữ một ResNet làm mốc.
+- **Hyperband** (`--scheduler hyperband`, Li et al. 2018, Algorithm 1) và **aging evolution** (Real et al. 2019, tournament `--tournament`, quần thể `--evolve-population`) thay cho chọn 6 cha mẹ tốt nhất.
+- Proxy **SNIP** và **ZiCo** (theo mã chính thức); báo cáo Spearman có thêm `vote` và `seed_prior`.
+- `scripts/bench_seeds.py`: so tất cả / ngẫu nhiên N / theo dữ liệu N / theo dữ liệu N + Hyperband cùng ngân sách.
+
+### Đo (xem `agent.md` §16.5)
+- Prior theo data card **chưa** dự đoán được thứ hạng huấn luyện (Spearman −0,18…+0,35 trên MNIST, Fashion-MNIST, hai bộ tổng hợp); vì vậy `--seeds` mặc định 0 (không loại ứng viên) và proxy vẫn không được dùng để loại.
+
+### Sửa
+- Ảnh nhiều kênh được lưu liền mạch trong bộ nhớ: trước đây stride channels-last làm torch 2.15 crash ("double free or corruption") khi backward đa luồng.
+- Bước zero-cost proxy được 10% ngân sách tính từ lúc nó bắt đầu (trước đây data card và baseline đã tiêu hết, báo cáo proxy biến mất).
+- Autoencoder được so với PCA có số thành phần không vượt kích thước mã của nó (trước đây luôn so với PCA-32).
+
 ## [0.13.0] - 2026-11-10
 
 Mốc M14 (xem `agent.md` §13.8, `THIRD_PARTY.md`): khối ảnh từ thư viện chính thống.
@@ -248,7 +267,8 @@ Bản đầu tiên: prototype chạy được từ dữ liệu đến Top-K base
 - Chưa có zero-cost proxy, cost model FLOPs/VRAM, Tensor-LoRA, deep unfolding; chưa có plugin image và timeseries.
 - Kết quả trên Indian Pines và Pavia University là một lần chạy ngắn trên CPU: với chia theo khối, mạng sâu chưa vượt rõ baseline cổ điển.
 
-[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v0.13.0...HEAD
+[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v0.14.0...HEAD
+[0.14.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.14.0
 [0.13.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.13.0
 [0.12.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.12.0
 [0.11.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.11.0
