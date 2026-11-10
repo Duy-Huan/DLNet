@@ -1,6 +1,6 @@
 # agent.md — Kiến trúc dự kiến của DLNet
 
-> Framework **tự động thiết kế mạng deep learning**: đầu vào là **dữ liệu** (ưu tiên ảnh siêu phổ HSI), đầu ra là **một baseline PyTorch hiệu quả cao trên đúng dữ liệu đó, đóng gói sẵn** (code + cấu hình + báo cáo giải thích lựa chọn), nhằm **tiết kiệm thời gian đề xuất baseline**.
+> Framework **tổng quát** tự động thiết kế mạng deep learning: đầu vào là **dữ liệu bất kỳ** (tabular, chuỗi thời gian, ảnh, ảnh siêu phổ HSI, tín hiệu, tensor…), DLNet **phân tích dữ liệu, tự ghép và so sánh nhiều kiến trúc**, rồi trả về **danh sách Top-K baseline PyTorch đã xếp hạng** (top1, top2, …) để người dùng mang đi huấn luyện đầy đủ. Mục tiêu: thay cho việc thử tay, tiết kiệm thời gian và tìm baseline cho độ chính xác cao nhất.
 > Cơ sở lý thuyết: *Modular Deep Learning* (Pfeiffer, Ruder, Vulić, Ponti — arXiv:2302.11529).
 
 ---
@@ -9,9 +9,10 @@
 
 | | Nội dung |
 |---|---|
-| **Input** | Dữ liệu + nhãn + loại tác vụ + ngân sách (thời gian GPU, VRAM, tham số). **Ưu tiên v1: ảnh siêu phổ (HSI)**, các loại khác mở rộng sau. |
-| **Output** | **Một baseline deep learning hiệu quả cao trên đúng tập dữ liệu đó**, đóng gói PyTorch: `model.py`, `config.yaml`, `train.py`, `report.md`, test. |
-| **Giá trị cốt lõi** | **Tiết kiệm thời gian đề xuất baseline**: thay vì thử tay nhiều mô hình trong nhiều ngày, một lệnh tự ghép, huấn luyện, so sánh và trả về mô hình tốt nhất kèm bằng chứng (xem §12). |
+| **Input** | Dữ liệu + nhãn (+ loại tác vụ, hoặc `auto` để DLNet tự nhận) + ngân sách (thời gian GPU, VRAM, tham số) + `K` (số baseline muốn nhận). |
+| **Output** | **Top-K baseline** xếp hạng, mỗi cái là một gói PyTorch độc lập (`model.py`, `config.yaml`, `train.py`, `report.md`, test) + `leaderboard` so sánh + công thức huấn luyện đầy đủ gợi ý (xem §12.3). |
+| **Tính tổng quát** | Lõi (spec, registry, search, đánh giá, đóng gói) không phụ thuộc loại dữ liệu; mỗi loại dữ liệu là một **domain plugin** (§14). HSI là plugin đầu tiên, không phải phạm vi duy nhất. |
+| **Giá trị cốt lõi** | **Tự động hóa việc thử tay**: một lệnh ra Top-K baseline kèm bằng chứng, tiết kiệm thời gian đề xuất baseline (§12). |
 | **Cách làm** | (1) Phân tích dữ liệu → (2) ước lượng "độ phức tạp" & cấu trúc → (3) chọn họ kiến trúc + module → (4) tìm kiếm cấu hình trong không gian có ràng buộc → (5) đóng gói. |
 | **Ngoài phạm vi** | Viết paper, đảm bảo tính mới khoa học; thu thập dữ liệu; NAS từ-đầu quy mô lớn; huấn luyện LLM. |
 
@@ -43,27 +44,30 @@ Quy tắc chọn tắt rút ra từ paper (dùng làm *prior* cho bộ gợi ý,
 ## 3. Kiến trúc tổng thể (pipeline)
 
 ```
- Data ──► [1 Ingest & Profile] ──► DataProfile
-                                        │
-                                        ▼
-                         [2 Estimator]  (ước lượng độ phức tạp & cấu trúc)
-              ┌─────────────┬──────────────┬──────────────────┐
-              ▼             ▼              ▼                  ▼
-        Capacity est.  Tensor-structure  Inverse-problem   Modularity est.
-        (scaling/MDL)  (rank, unfolding) (có model vật lý?) (domain/task/cluster)
-              └─────────────┴──────────────┴──────────────────┘
-                                        │  ProblemSpec
-                                        ▼
-                  [3 Architecture Recommender]  (rule prior + learned meta-model)
-                                        │  Top-K ArchSpec (4 trục)
-                                        ▼
-                  [4 Search & Refine]  (BO / evolutionary / zero-cost proxy → short-train)
-                                        │  Best ArchSpec + Pareto
-                                        ▼
-                  [5 Compiler]  ArchSpec ─► nn.Module PyTorch
-                                        │
-                                        ▼
-                  [6 Packager]  baseline/ + report + tests + (tuỳ chọn) khởi tạo từ phân rã
+  Data ──► [0 Plugin Router]  nhận loại dữ liệu → chọn domain plugin (§14)
+                │                 (loader, split, metric, stem, preset, prior)
+                ▼
+          [1 Ingest & Profile] ──► DataProfile
+                │
+                ▼
+          [2 Estimator]  (ước lượng độ phức tạp & cấu trúc)
+     ┌──────────┬───────────────┬────────────────┬──────────────────┐
+     ▼          ▼               ▼                ▼
+ Capacity    Tensor-structure  Inverse-problem  Modularity est.
+ (scaling)   (rank, unfolding) (có model vật lý?) (domain/task)
+     └──────────┴───────────────┴────────────────┘
+                │  ProblemSpec
+                ▼
+          [3 Candidate Generator]  prior + preset + tự ghép từ Library (§13)
+                │  hàng chục–trăm ứng viên hợp lệ (đã qua cost model)
+                ▼
+          [4 Search & Rank]  proxy → short-train → multi-seed (§12.3)
+                │  bảng xếp hạng ± std, nhóm "chưa phân biệt được"
+                ▼
+          [5 Compiler]  ArchSpec ─► nn.Module PyTorch
+                │
+                ▼
+          [6 Packager]  Top-K gói baseline + leaderboard + report
 ```
 
 ### 3.1 Ingest & Profile (`dlnet/data`)
@@ -93,27 +97,34 @@ Trích `DataProfile`: modality, shape, kích thước mẫu N, số chiều/kên
 ### 3.3 Architecture Recommender (`dlnet/recommend`)
 - **Giai đoạn 1 — Rule prior** (xác định, giải thích được): bảng luật từ §2 + modality (ảnh→CNN/ViT, chuỗi→TCN/Transformer/SSM, tabular→MLP/FT-Transformer/GBDT-like MLP...).
 - **Giai đoạn 2 — Meta-learned** (sau khi có dữ liệu thực nghiệm): regress từ `ProblemSpec` → hiệu năng của từng `ArchSpec` (kho kết quả benchmark nội bộ, như meta-learning/AutoML warm-start).
-- Trả về Top-K `ArchSpec` kèm lý do.
+- Trả về tập ứng viên `ArchSpec` kèm lý do (đầu vào của bước Search & Rank, không phải kết quả cuối).
 
 ### 3.4 Search & Refine (`dlnet/search`)
 - Không gian **có cấu trúc, nhỏ** (4 trục × siêu tham số) thay vì NAS vô hạn.
 - Thuật toán: Bayesian Optimization / Successive Halving / evolutionary; đánh giá bằng zero-cost proxy rồi short-train.
 - Đa mục tiêu: accuracy, #params, FLOPs, latency → Pareto front; luôn tôn trọng ràng buộc cứng.
 - Mọi lần chạy ghi seed, config, metric (tái lập).
+- Kết quả cuối là **bảng xếp hạng Top-K** theo §12.3.
 
 ### 3.5 Compiler (`dlnet/compile`)
 `ArchSpec` (YAML/dataclass) ⟶ `torch.nn.Module` qua registry. Mỗi module đăng ký `Computation/Router/Aggregator`. Có kiểm tra shape tĩnh và `torch.fx`/`torch.compile` smoke test.
 
 ### 3.6 Packager (`dlnet/package`)
-Xuất thư mục baseline độc lập, chỉ phụ thuộc PyTorch:
+Xuất thư mục kết quả; mỗi baseline độc lập, chỉ phụ thuộc PyTorch:
 ```
-baseline_<name>/
- ├─ model.py        # nn.Module đã sinh, đọc được, có docstring
- ├─ config.yaml     # ArchSpec + hyperparams + seed
- ├─ train.py        # vòng huấn luyện tối giản (+ eval)
- ├─ init.pt         # (tuỳ chọn) khởi tạo từ phân rã tensor / pretrained
- ├─ report.md       # DataProfile, ước lượng, vì sao chọn, Pareto, rủi ro
- └─ tests/          # test shape, forward/backward, tái lập
+dlnet_out/
+ ├─ leaderboard.md / leaderboard.json   # xếp hạng, metric ± std, params, FLOPs, thời gian
+ ├─ profile.json                        # DataProfile + ProblemSpec
+ ├─ reference/                          # kết quả bộ baseline tham chiếu (§12.2)
+ ├─ top1_<name>/
+ │   ├─ model.py        # nn.Module đã sinh, đọc được, có docstring
+ │   ├─ config.yaml     # ArchSpec + hyperparams + seed
+ │   ├─ train.py        # vòng huấn luyện (+ eval) với công thức gợi ý
+ │   ├─ init.pt         # (tuỳ chọn) khởi tạo từ phân rã tensor / pretrained
+ │   ├─ report.md       # vì sao chọn, điểm ± std, chi phí, rủi ro
+ │   └─ tests/          # test shape, forward/backward, tái lập
+ ├─ top2_<name>/ ...
+ └─ topK_<name>/
 ```
 
 ---
@@ -172,7 +183,7 @@ DLNet/
  │   ├─ data/        # ingest, profile
  │   ├─ estimate/    # capacity, intrinsic-dim, proxies, modularity
  │   ├─ tensor/      # unfolding, CP/Tucker/TT/TR, rank selection
- │   ├─ hsi/         # loader (.mat/.tif), patch/split, band reduction, datasets chuẩn
+ │   ├─ plugins/     # tabular/ hsi/ image/ timeseries/ (loader, split, metric, stem, preset, prior)
  │   ├─ library/     # registry module + preset baseline nổi tiếng (xem §13)
  │   ├─ evaluate/    # split, bộ baseline tham chiếu, metric, báo cáo (xem §12)
  │   ├─ modules/     # computation/ routing/ aggregation/ unfolding/
@@ -210,26 +221,28 @@ constraints:  {max_params: 5e6, max_latency_ms: 20}
 
 ## 8. Lộ trình triển khai
 
-Nguyên tắc: có **end-to-end chạy được trên 1 dataset HSI sớm nhất có thể** (M1), sau đó mở rộng từng lớp.
+Nguyên tắc: lõi **tổng quát trước**, kiểm chứng end-to-end sớm trên dữ liệu nhỏ rẻ (tabular), rồi thêm plugin; HSI là plugin ưu tiên cao.
 
 | Mốc | Nội dung | Tiêu chí hoàn thành |
 |---|---|---|
-| **M0** | Khung repo, `ArchSpec/ProblemSpec`, registry module, compiler cho CNN | Sinh model từ YAML, test pass |
-| **M1** | **End-to-end HSI nhỏ nhất**: loader + split chống rò rỉ + 3 preset (1D-CNN, 2D-CNN, HybridSN) + vòng huấn luyện + báo cáo OA/AA/Kappa trên Indian Pines | `dlnet design` ra baseline chạy được, so được với bộ tham chiếu |
-| **M2** | Giao thức đánh giá đầy đủ (§12): nhiều seed, bộ baseline SVM/RF, quy tắc chấp nhận | Báo cáo tái lập, mỗi số có ± std |
-| **M3** | Library mở rộng: SSRN, Transformer (SpectralFormer-style), Mamba/SSM, ResNet/ConvNeXt block; tự ghép theo grammar (§13) | Sinh được ≥20 ứng viên hợp lệ từ registry |
-| **M4** | Cost model + tiết kiệm thời gian: zero-cost proxy, successive halving, cache, resume | Giảm ≥X% thời gian so với chạy toàn bộ ứng viên, cùng chất lượng top-1 |
-| **M5** | Estimator: intrinsic dim → dung lượng, rank tensor, chọn số chiều giảm phổ | Ước lượng ổn định trên ≥4 dataset HSI |
-| **M6** | Tensor: Tucker/HOSVD tiền xử lý, lớp TT/Tucker/TR, Tensor-LoRA | Nén ≥X% tham số, mất ≤Y% OA |
-| **M7** | Deep unfolding (unmixing / fusion / khôi phục) | Vượt thuật toán lặp gốc ở cùng số vòng |
-| **M8** | Recommender học từ kho kết quả (meta-learning) + tác vụ khác (denoise, unmixing, detection) | Chọn đúng top-3 trong ≥80% dataset giữ lại |
+| **M0** | Khung repo, `ArchSpec/ProblemSpec`, registry module, compiler, giao diện plugin (§14) | Sinh model từ YAML, test pass |
+| **M1** | **End-to-end tổng quát**: plugin tabular + bộ ứng viên MLP/ResNet-MLP/FT-Transformer + proxy → short-train → **xuất Top-K + leaderboard** | `dlnet design --data x.csv --topk 3` ra 3 gói baseline chạy được |
+| **M2** | **Plugin HSI**: loader, split chống rò rỉ, preset 1D/2D/3D-CNN + HybridSN, metric OA/AA/Kappa | Top-K trên Indian Pines, so được bộ tham chiếu |
+| **M3** | Giao thức đánh giá đầy đủ (§12.2–12.3): nhiều seed, nhóm "chưa phân biệt được", quy tắc chấp nhận | Báo cáo tái lập, mỗi số có ± std |
+| **M4** | Library mở rộng + tự ghép theo grammar (§13): SSRN, Transformer, Mamba/SSM, ResNet/ConvNeXt block | Sinh được ≥20 ứng viên hợp lệ từ registry |
+| **M5** | Cost model + tiết kiệm thời gian: zero-cost proxy, successive halving, cache, resume | Giảm ≥X% thời gian, cùng chất lượng top-1 |
+| **M6** | Estimator: intrinsic dim → dung lượng, rank tensor | Ước lượng ổn định trên nhiều dataset |
+| **M7** | Tensor: Tucker/HOSVD tiền xử lý, lớp TT/Tucker/TR, Tensor-LoRA | Nén ≥X% tham số, mất ≤Y% metric |
+| **M8** | Deep unfolding (khi có mô hình thuận) | Vượt thuật toán lặp gốc ở cùng số vòng |
+| **M9** | Plugin ảnh, chuỗi thời gian; recommender học từ kho kết quả (meta-learning) | Top-K chứa mô hình tốt nhất trong ≥80% dataset giữ lại |
 
 ---
 
 ## 9. Rủi ro & quyết định cần chốt
 
-1. **Phạm vi v1: ảnh siêu phổ (HSI)**, tác vụ đầu tiên là phân loại; các modality khác (tabular, chuỗi thời gian, ảnh thường) mở rộng sau. **Cần chốt**: tác vụ HSI thực tế của bạn (phân loại / khử nhiễu / unmixing / detection) và dataset ưu tiên.
-2. **Mức tự động**: tự chạy toàn bộ pipeline trong ngân sách thời gian, người dùng duyệt báo cáo cuối (§12).
+1. **Phạm vi**: framework tổng quát theo plugin. Thứ tự plugin đề xuất: tabular (kiểm chứng lõi nhanh) → HSI (ưu tiên nghiên cứu của bạn) → ảnh → chuỗi thời gian. **Cần chốt** thứ tự này và dataset kiểm chứng.
+2. **Mức tự động**: tự chạy toàn bộ pipeline trong ngân sách; huấn luyện đầy đủ do người dùng thực hiện trên Top-K (tùy chọn `--finalize` để DLNet train đầy đủ top1).
+   - **Thứ hạng chỉ là ước lượng**: xếp hạng dựa trên huấn luyện ngân sách hạn chế; sau huấn luyện đầy đủ các hạng sát nhau có thể đổi thứ tự. Vì vậy trả Top-K chứ không chỉ một mô hình.
 3. **Độ tin cậy của ước lượng**: proxy zero-cost không luôn tương quan với hiệu năng → luôn xác thực bằng short-train.
 4. **Paper là survey**: không có thuật toán chọn kiến trúc sẵn; rule prior ở §2 là giả thuyết cần kiểm chứng bằng benchmark nội bộ.
 5. **Unfolding** chỉ hợp lý khi có mô hình thuận; nếu không, bỏ qua (không ép dùng).
@@ -272,7 +285,7 @@ Thiết lập thủ công trên GitHub (không làm được từ code): xem `.g
 6. **Resume & song song**: checkpoint từng ứng viên, chạy nhiều ứng viên cùng lúc theo VRAM.
 7. **Một báo cáo leaderboard duy nhất** thay cho việc tự gom kết quả.
 
-### 12.2 Giao thức đánh giá (bắt buộc, HSI-first)
+### 12.2 Giao thức đánh giá (bắt buộc; cấu hình theo plugin, ví dụ dưới đây là HSI)
 - **Cách chia dữ liệu**
   - Chuẩn few-shot theo pixel (vd. 10% / 5% / N mẫu mỗi lớp), nhưng **cảnh báo rò rỉ không gian**: patch của pixel train và test chồng lấn nhau làm OA bị thổi phồng. Mặc định có thêm chế độ **chia theo vùng không chồng lấn (spatial block split)** để cho con số trung thực.
   - Mọi chế độ ghi rõ trong `report.md` (seed, kích thước patch, số mẫu mỗi lớp).
@@ -281,6 +294,29 @@ Thiết lập thủ công trên GitHub (không làm được từ code): xem `.g
 - **Lặp lại**: ≥ 5 seed, báo cáo trung bình ± std.
 - **Quy tắc chấp nhận**: mô hình được đề xuất chỉ khi tốt hơn baseline tham chiếu mạnh nhất với chênh lệch lớn hơn std, và dùng cùng split. Nếu không, `report.md` nói thẳng "chưa vượt baseline" và trả về baseline tốt nhất thay vì mô hình tự ghép.
 - **Tái lập**: seed, phiên bản thư viện, commit, config đều ghi trong báo cáo.
+
+### 12.3 Xếp hạng và xuất Top-K
+**Mục tiêu tối ưu**: metric chính của plugin (accuracy, F1, RMSE, PSNR, AUC…) trên tập validation đúng giao thức; có thể thêm ràng buộc params/FLOPs/latency.
+
+**Quy trình chấm điểm theo tầng** (ngân sách tăng dần, số ứng viên giảm dần):
+1. Lọc bằng prior + cost model → ~50–200 ứng viên hợp lệ.
+2. Zero-cost proxy → giữ ~30.
+3. Short-train (Successive Halving) → giữ ~8–10.
+4. Huấn luyện vừa, nhiều seed → xếp hạng cuối theo trung bình ± std.
+
+**Chọn Top-K**:
+- Xếp theo metric trung bình; ứng viên có chênh lệch nhỏ hơn std được gom thành **nhóm "chưa phân biệt được"** và ghi rõ trong leaderboard.
+- **Đa dạng**: không để K slot bị chiếm bởi các biến thể gần giống nhau; cố gắng phủ nhiều họ kiến trúc.
+- Gắn nhãn vai trò: `top1` (chính xác nhất), `best-small` (hiệu quả/độ chính xác), `most-stable` (std thấp nhất), `most-different` (họ khác, đáng thử).
+
+**Mỗi baseline trong Top-K kèm**: điểm ± std, #params/FLOPs/VRAM, thời gian train đã dùng, **công thức huấn luyện đầy đủ gợi ý** (epochs, lr schedule, augmentation), và lưu ý rủi ro.
+
+**Chính trực**: nếu không ứng viên nào vượt bộ baseline tham chiếu (§12.2), `leaderboard` ghi rõ và đưa baseline tham chiếu tốt nhất lên đầu.
+
+**CLI**:
+```bash
+dlnet design --data data.csv --task auto --budget 2h --topk 5
+```
 
 ## 13. Module Library & tự động ghép baseline
 
@@ -319,7 +355,33 @@ Model := Stem → ( SpectralEnc ∥ SpatialEnc | JointEnc ) → Fusion → Head
 3. Loại ứng viên vi phạm ngân sách, giữ Top-K đưa vào Search (§3.4).
 4. Siêu tham số (độ sâu, độ rộng, rank, kích thước patch) do Search chọn.
 
-## 14. Chuyên biệt hóa cho ảnh siêu phổ (HSI)
+## 14. Domain plugins (HSI là plugin đầu tiên)
+
+### 14.1 Giao diện plugin
+Mỗi loại dữ liệu cung cấp cùng một giao diện; lõi không biết chi tiết từng domain:
+```python
+class DomainPlugin:
+    name: str
+    def detect(self, data) -> float            # độ tin cậy "đây là dữ liệu của tôi"
+    def load(self, path) -> Dataset            # loader
+    def split(self, ds, mode, seed) -> Splits  # chia dữ liệu chống rò rỉ đặc thù domain
+    def metrics(self, task) -> list[Metric]    # metric chuẩn của domain
+    def stems(self) -> list[Block]             # tiền xử lý / giảm chiều
+    def presets(self) -> list[ArchSpec]        # baseline nổi tiếng của domain
+    def prior(self, profile) -> Rules          # luật chọn họ kiến trúc
+```
+
+| Plugin | Dữ liệu | Preset ví dụ | Ưu tiên |
+|---|---|---|---|
+| `tabular` | bảng đặc trưng | MLP, ResNet-MLP, FT-Transformer | M1 (kiểm chứng lõi nhanh) |
+| `hsi` | khối `H×W×B` siêu phổ | 1D/2D/3D-CNN, HybridSN, SSRN, SpectralFormer | M2 |
+| `image` | ảnh RGB/xám | ResNet, ConvNeXt, ViT nhỏ | M9 |
+| `timeseries` | chuỗi thời gian | TCN, Transformer, SSM/Mamba | M9 |
+| `signal`/khác | tín hiệu, tensor đa chiều | tuỳ domain | sau |
+
+`--task auto`: Plugin Router gọi `detect` của từng plugin, chọn plugin tin cậy nhất, hỏi lại người dùng nếu nhập nhằng.
+
+### 14.2 Plugin HSI (chi tiết)
 
 **Dữ liệu**: khối `H × W × B` (B thường 100–250 băng), nhãn thưa theo pixel. Dataset benchmark chuẩn: Indian Pines, Pavia University, Salinas, Houston.
 
