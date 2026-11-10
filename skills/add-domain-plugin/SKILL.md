@@ -5,7 +5,7 @@ triggers: plugin, domain, detect, prepare, loader, new data type
 ---
 # Thêm domain plugin
 
-Tham chiếu mẫu: `dlnet/plugins/tabular.py` (đơn giản), `dlnet/plugins/hsi.py` + `dlnet/hsi_data.py` + `dlnet/hsi_lib.py` (đầy đủ). Giao diện: `dlnet/plugins/__init__.py`.
+Tham chiếu mẫu: `dlnet/plugins/tabular.py` (đơn giản), `dlnet/plugins/arrays.py` + `dlnet/array_data.py` + `dlnet/array_lib.py` (ảnh và chuỗi thời gian, hai plugin chung một lớp cơ sở), `dlnet/plugins/hsi.py` + `dlnet/hsi_data.py` + `dlnet/hsi_lib.py` (đầy đủ). Giao diện: `dlnet/plugins/__init__.py`.
 
 1. Đọc `agent.md` §14.1 và skill `evaluate-honestly` (chia dữ liệu quyết định độ tin cậy của mọi kết quả).
 2. Viết `dlnet/<x>_data.py` (loader, chia split, build data dict) và `dlnet/<x>_lib.py` (thư viện mô hình, chỉ phụ thuộc torch). Hai file này được **copy nguyên vào từng gói xuất ra**, nên không import gì từ phần còn lại của `dlnet`.
@@ -16,3 +16,5 @@ Tham chiếu mẫu: `dlnet/plugins/tabular.py` (đơn giản), `dlnet/plugins/hs
 7. `generate` phải bỏ cấu hình không build được (bắt `RuntimeError`/`ValueError`) và áp ngân sách tham số. Ghi rõ nếu ngân sách là heuristic.
 8. Test trong `tests/test_<x>.py`: loader roundtrip, kiểm tra không rò rỉ split, mọi họ mô hình forward đúng shape, một lần chạy end-to-end nhỏ. Test nặng dùng `pytest.importorskip("torch")`.
 9. Chạy `ruff check .` và `python3 -m pytest -q`, cập nhật `agent.md` §14 và `README.md`, rồi theo skill `git-dev-main`.
+10. Hai plugin cùng nhận một đuôi file (ví dụ `.npz`): `detect` phải mở file và nhìn tên mảng / số chiều, trả điểm cao hơn plugin chung chung (HSI trả 0,9 cho mọi `.npz`). Thêm test router phân biệt được các loại file (`tests/test_arrays.py::test_router_tells_images_series_and_hsi_apart`).
+11. Tùy chọn CLI trùng tên giữa các plugin gây lỗi argparse: đăng ký một lần, bắt `argparse.ArgumentError` ở plugin còn lại, và đọc bằng `getattr(args, ..., None)`.

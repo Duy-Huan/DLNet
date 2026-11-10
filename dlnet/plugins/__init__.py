@@ -50,10 +50,12 @@ class DomainPlugin:
 
 
 def _registry() -> dict[str, DomainPlugin]:
+    from .arrays import ImagePlugin, TimeSeriesPlugin
     from .hsi import HSIPlugin
     from .tabular import TabularPlugin
 
-    return {p.name: p for p in (TabularPlugin(), HSIPlugin())}
+    plugins = (TabularPlugin(), HSIPlugin(), ImagePlugin(), TimeSeriesPlugin())
+    return {p.name: p for p in plugins}
 
 
 def get_plugin(name: str) -> DomainPlugin:
