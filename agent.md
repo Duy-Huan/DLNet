@@ -227,7 +227,7 @@ Nguyên tắc: lõi **tổng quát trước**, kiểm chứng end-to-end sớm t
 |---|---|---|
 | **M0** | Khung repo, `ArchSpec/ProblemSpec`, registry module, compiler, giao diện plugin (§14) | Sinh model từ YAML, test pass |
 | **M1** | **End-to-end tổng quát**: plugin tabular + bộ ứng viên MLP/ResNet-MLP/FT-Transformer + proxy → short-train → **xuất Top-K + leaderboard** | `dlnet design --data x.csv --topk 3` ra 3 gói baseline chạy được |
-| **M2** | **Plugin HSI**: loader, split chống rò rỉ, preset 1D/2D/3D-CNN + HybridSN, metric OA/AA/Kappa | Top-K trên Indian Pines, so được bộ tham chiếu |
+| **M2** | **Plugin HSI**: loader, split chống rò rỉ, preset 1D/2D/3D-CNN + HybridSN-style + CNN phân rã Tucker-2, metric OA/AA/Kappa | **Prototype xong** (chạy thật trên Indian Pines, Pavia University). Còn thiếu: xếp hạng ổn định theo nhiều lần chia khối (xem §9 mục 7) |
 | **M3** | Giao thức đánh giá đầy đủ (§12.2–12.3): nhiều seed, nhóm "chưa phân biệt được", quy tắc chấp nhận | Báo cáo tái lập, mỗi số có ± std |
 | **M4** | Library mở rộng + tự ghép theo grammar (§13): SSRN, Transformer, Mamba/SSM, ResNet/ConvNeXt block | Sinh được ≥20 ứng viên hợp lệ từ registry |
 | **M5** | Cost model + tiết kiệm thời gian: zero-cost proxy, successive halving, cache, resume | Giảm ≥X% thời gian, cùng chất lượng top-1 |
@@ -247,6 +247,8 @@ Nguyên tắc: lõi **tổng quát trước**, kiểm chứng end-to-end sớm t
 4. **Paper là survey**: không có thuật toán chọn kiến trúc sẵn; rule prior ở §2 là giả thuyết cần kiểm chứng bằng benchmark nội bộ.
 5. **Unfolding** chỉ hợp lý khi có mô hình thuận; nếu không, bỏ qua (không ép dùng).
 6. **Tái lập & giấy phép** dataset/pretrained.
+7. **Xếp hạng nhiễu khi chia theo khối** (phát hiện từ chạy thật trên Indian Pines/Pavia University): tập validation chỉ gồm vài khối ảnh nên điểm validation lệch xa điểm test (vd. Pavia: top1 theo validation 0.963 nhưng test 0.859, thấp hơn hạng 3 ở test 0.886). Std theo seed không phản ánh nhiễu này. Cần xếp hạng bằng **nhiều lần chia khối khác nhau (cross-validation theo khối)**; chưa cài đặt.
+8. **Chia khối làm mất nhiều dữ liệu và lớp**: bỏ 41–51% pixel có nhãn ở margin, một số lớp vắng trong train hoặc test. Cần chiến lược chọn khối cân bằng lớp hơn hoặc k-fold theo khối.
 
 ---
 
