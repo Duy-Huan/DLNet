@@ -262,22 +262,54 @@ Nguyên tắc: lõi **tổng quát trước**, kiểm chứng end-to-end sớm t
 - Kết quả thực nghiệm lưu kèm seed/config để tái lập.
 - Không commit dữ liệu thô hoặc khóa/bí mật.
 - Trước khi làm, chọn skill phù hợp trong `skills/` (§15).
+- Mỗi thay đổi người dùng thấy được phải thêm một dòng vào `CHANGELOG.md` mục `[Unreleased]`; phát hành theo §11.2.
 - Mỗi lỗi sửa phải có regression test đi kèm (`tests/test_regression.py`, đỏ trước xanh sau); thay đổi chỉ xanh khi `lint`, `test`, `regression`, `e2e` đều xanh.
 
-## 11. Quy trình Git & CI/CD
+## 11. Quy trình Git, CI/CD & Release
 
 **Chỉ có đúng hai nhánh, không tạo thêm:**
 - `dev`: nơi duy nhất để phát triển; commit và push trực tiếp vào `dev`.
 - `main`: luôn ổn định, chỉ nhận code từ `dev` (tự động, sau khi CI xanh); không ai push trực tiếp.
+- Mọi nhánh khác (kể cả nhánh do công cụ tự tạo) phải bị xóa ngay; không dùng nhánh hotfix hay feature. Sửa nóng cũng đi qua `dev`.
+
+### 11.1 Luồng đầy đủ
 
 ```
-commit ──► dev ──(CI xanh, tự động)──► main
+commit ► push dev ► CI (lint · test 3.10-3.12 · regression · e2e)
+                      │ tất cả xanh
+                      ▼
+              promote: tạo PR dev→main và merge tự động
+                      │ merge xong
+                      ▼
+              release: version trong pyproject.toml đã có tag vX.Y.Z chưa?
+                 ├─ rồi  → dừng (main cập nhật nhưng không phát hành)
+                 └─ chưa → kiểm tra version·CHANGELOG, build wheel, thử cài,
+                           tạo tag vX.Y.Z và GitHub Release (ghi chú lấy từ CHANGELOG)
 ```
 
 Workflow (`.github/workflows/`):
-- `ci.yml`: chạy khi push vào `dev`/`main`, khi có PR vào `main` và hàng tuần (bắt lỗi do nâng cấp thư viện). Các job: `lint` (ruff check + format), `test (py3.10–3.12)` (unit + regression, torch CPU, **fail nếu có test bị skip**), `regression` (riêng, để thấy ngay lỗi cũ quay lại), `e2e` (CLI thật → gói xuất ra → `pytest` và `train.py` trong gói, cho tabular và HSI). PR vào `main` mà nguồn không phải `dev` bị từ chối.
-- `promote.yml`: khi push vào `dev` và **mọi job CI xanh** → tự tạo PR `dev → main` và merge.
+- `ci.yml`: chạy khi push vào `dev`/`main`, khi được `promote.yml` gọi, và hàng tuần (bắt lỗi do nâng cấp thư viện). Các job: `lint` (ruff check + format), `test (py3.10–3.12)` (unit + regression + kiểm tra release, torch CPU, **fail nếu có test bị skip**), `regression` (riêng, để thấy ngay lỗi cũ quay lại), `e2e` (CLI thật → gói xuất ra → `pytest` và `train.py` trong gói, cho tabular và HSI). Không có trigger `pull_request`: PR do `GITHUB_TOKEN` tạo chưa từng chạy được job nào (8 lần đều đỏ hoặc `action_required`, 0 job); kiểm tra thật nằm ở lần push vào `dev` trên đúng SHA đó.
+- `promote.yml`: khi push vào `dev`, gọi `ci.yml`; **mọi job xanh** và `dev` có commit mới hơn `main` → tạo PR `dev → main` và merge (nếu merge ngay không được thì bật auto-merge); xong thì gọi `release.yml`.
+- `release.yml`: tạo tag và GitHub Release từ `main` (xem 11.2). Idempotent; cũng chạy được tay (`workflow_dispatch`, dùng khi auto-merge bị trễ) và hàng tuần để bắt kịp.
 Thiết lập thủ công trên GitHub (không làm được từ code): xem `.github/README.md`.
+
+### 11.2 Release theo version tag
+
+- **Phiên bản** theo SemVer `X.Y.Z`. Trước 1.0: tăng **minor** khi thêm tính năng hoặc đổi hành vi (kể cả định dạng gói xuất ra, CLI), tăng **patch** khi sửa lỗi hoặc tài liệu. Từ 1.0: theo SemVer đầy đủ.
+- **Nguồn sự thật:** `pyproject.toml` (`version`). `dlnet/__init__.py` (`__version__`) và `CHANGELOG.md` phải khớp; `tests/test_release.py` và `python scripts/release.py check` bắt lệch.
+- **Tag:** `vX.Y.Z`, chỉ tạo trên `main` bởi `release.yml`; không tạo hay di chuyển tag bằng tay. Không đẩy lại một tag đã công bố: sai thì phát hành bản vá mới.
+- **Changelog:** `CHANGELOG.md` (Keep a Changelog). Mỗi thay đổi người dùng thấy được thêm một dòng vào `[Unreleased]` ngay trong commit gây ra nó (mục Thêm, Đổi, Sửa, Loại bỏ, Bảo mật, Hạn chế đã biết).
+
+**Cách phát hành một phiên bản (toàn bộ trên `dev`):**
+1. Đảm bảo CI trên `dev` xanh và không còn việc dở cho bản này.
+2. Quyết định số phiên bản theo quy tắc trên.
+3. Trong **một commit** `release: vX.Y.Z`: đổi `## [Unreleased]` thành `## [X.Y.Z] - YYYY-MM-DD` và thêm `## [Unreleased]` rỗng lên trên; sửa `version` trong `pyproject.toml` và `__version__` trong `dlnet/__init__.py`; cập nhật các dòng link cuối `CHANGELOG.md`.
+4. Chạy `python scripts/release.py check` và `python3 -m pytest -q -m "not e2e"`; push `dev`.
+5. Đợi `promote` rồi `release` xanh; kiểm tra có tag và Release mới (`gh`/trang Releases). Nếu `promote` chỉ bật auto-merge mà chưa merge, chạy tay workflow `Release` sau khi PR đã merge.
+6. Báo cho người dùng số phiên bản và link Release.
+
+Push lên `dev` mà **không** tăng version thì vẫn lên `main` nhưng **không** tạo bản phát hành.
+**Gỡ bản lỗi:** không xóa tag/Release đã công bố; sửa trên `dev` rồi phát hành patch kế tiếp, ghi mục "Sửa" và nêu rõ bản lỗi trong CHANGELOG.
 
 ## 12. Tiết kiệm thời gian & Giao thức đánh giá
 

@@ -46,3 +46,11 @@ jobs:
       - name: Merge
         if: steps.diff.outputs.ahead != '0'
         run: gh pr merge "$PR_NUMBER" --merge || gh pr merge "$PR_NUMBER" --merge --auto
+
+  release:
+    name: release
+    needs: promote
+    if: needs.promote.result == 'success'
+    permissions:
+      contents: write
+    uses: ./.github/workflows/release.yml

@@ -1,0 +1,71 @@
+name: Release
+
+# Tao tag vX.Y.Z va GitHub Release tu `main` khi version trong pyproject.toml chua co tag.
+# Goi tu promote.yml (ngay sau khi dev duoc merge vao main). Co the chay tay (workflow_dispatch)
+# khi auto-merge bi tre, va chay hang tuan de bat kip. Idempotent: da co tag thi bo qua.
+
+on:
+  workflow_call:
+  workflow_dispatch:
+  schedule:
+    - cron: "43 4 * * 1"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: release
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Version va CHANGELOG nhat quan
+        id: v
+        run: |
+          python scripts/release.py check
+          echo "version=$(python scripts/release.py version)" >> "$GITHUB_OUTPUT"
+      - name: Da phat hanh chua?
+        id: exists
+        env:
+          V: ${{ steps.v.outputs.version }}
+        run: |
+          if git ls-remote --exit-code --tags origin "refs/tags/v${V}" >/dev/null 2>&1; then
+            echo "released=true" >> "$GITHUB_OUTPUT"
+            echo "v${V} da co tag, khong lam gi them."
+          else
+            echo "released=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Build va thu cai wheel
+        if: steps.exists.outputs.released == 'false'
+        env:
+          V: ${{ steps.v.outputs.version }}
+        run: |
+          pip install build
+          python -m build
+          python -m venv /tmp/smoke
+          /tmp/smoke/bin/pip install dist/*.whl
+          /tmp/smoke/bin/python -c "import dlnet, os; assert dlnet.__version__ == os.environ['V'], dlnet.__version__"
+          ls -l dist
+      - name: Tao tag va GitHub Release
+        if: steps.exists.outputs.released == 'false'
+        env:
+          V: ${{ steps.v.outputs.version }}
+        run: |
+          python scripts/release.py notes "$V" > notes.md
+          gh release create "v${V}" dist/* \
+            --target "$(git rev-parse HEAD)" \
+            --title "DLNet v${V}" \
+            --notes-file notes.md
