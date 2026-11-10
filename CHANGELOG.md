@@ -6,6 +6,8 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-11-10
+
 Mốc M15 (xem `agent.md` §16.5): phân tích dữ liệu, chọn hạt giống, thuật toán tìm kiếm chuẩn.
 
 ### Thêm
@@ -265,7 +267,8 @@ Bản đầu tiên: prototype chạy được từ dữ liệu đến Top-K base
 - Chưa có zero-cost proxy, cost model FLOPs/VRAM, Tensor-LoRA, deep unfolding; chưa có plugin image và timeseries.
 - Kết quả trên Indian Pines và Pavia University là một lần chạy ngắn trên CPU: với chia theo khối, mạng sâu chưa vượt rõ baseline cổ điển.
 
-[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v0.13.0...HEAD
+[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v0.14.0...HEAD
+[0.14.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.14.0
 [0.13.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.13.0
 [0.12.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.12.0
 [0.11.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.11.0
