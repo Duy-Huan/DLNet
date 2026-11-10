@@ -113,7 +113,12 @@ class FTTransformer(nn.Module):
         self.b = nn.Parameter(torch.zeros(in_dim, width))
         self.cls = nn.Parameter(torch.zeros(1, 1, width))
         layer = nn.TransformerEncoderLayer(
-            width, nhead=4, dim_feedforward=width * 2, dropout=dropout, batch_first=True, norm_first=True
+            width,
+            nhead=4,
+            dim_feedforward=width * 2,
+            dropout=dropout,
+            batch_first=True,
+            norm_first=True,
         )
         self.enc = nn.TransformerEncoder(layer, depth, enable_nested_tensor=False)
         self.norm = nn.LayerNorm(width)

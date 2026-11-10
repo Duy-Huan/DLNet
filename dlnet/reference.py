@@ -39,7 +39,9 @@ def run_reference(data: dict) -> list[dict]:
         res = {"name": name, "seconds": round(time.time() - t0, 1)}
         for sp in ("va", "te"):
             pred = m.predict(data["Xnp"][sp])
-            res[sp] = compute_metrics(data["y_raw"][sp], np.asarray(pred), data["task"], data["primary"])
+            res[sp] = compute_metrics(
+                data["y_raw"][sp], np.asarray(pred), data["task"], data["primary"]
+            )
         out.append(res)
     out.sort(key=lambda r: -r["va"]["score"])
     return out

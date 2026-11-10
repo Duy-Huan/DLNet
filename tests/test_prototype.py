@@ -10,6 +10,7 @@ import numpy as np
 
 from dlnet import core, export, generate, profile, reference, search
 from dlnet.library import TTLinear
+from dlnet.plugins.tabular import TabularPlugin
 
 
 def _data(task="classification"):
@@ -34,11 +35,18 @@ def test_end_to_end_topk(tmp_path, task):
     cands = generate.generate(prof, n_per_family=1)
     assert cands and all(c["params"] <= prof["max_params"] for c in cands)
     res = search.run_search(
-        data, cands, time.time() + 120, topk=2, rungs=(1, 2), seeds=2, log=lambda *_: None
+        data,
+        cands,
+        time.time() + 120,
+        2,
+        TabularPlugin().build_model,
+        rungs=(1, 2),
+        seeds=2,
+        log=lambda *_: None,
     )
     chosen = search.select_topk(res, 2)
     ref = reference.run_reference(data)
-    v = export.export(tmp_path / "out", data, prof, chosen, ref, seed=0)
+    v = export.export(tmp_path / "out", TabularPlugin(), data, prof, chosen, ref, seed=0)
     assert "beats_reference" in v
     assert (tmp_path / "out" / "leaderboard.md").exists()
     assert list((tmp_path / "out").glob("top1_*"))

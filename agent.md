@@ -325,9 +325,10 @@ Mọi khối nằm trong `dlnet/library/` và đăng ký qua một giao diện c
 ```python
 @register("spectral_encoder", name="spectral_mamba")
 class SpectralMamba(Block):
-    in_spec  = TensorSpec(("B", "L", "C"))      # hợp đồng shape vào
-    out_spec = TensorSpec(("B", "L", "D"))      # hợp đồng shape ra
-    def cost(self, in_shape) -> Cost: ...       # params, FLOPs, VRAM
+    in_spec = TensorSpec(("B", "L", "C"))  # hợp đồng shape vào
+    out_spec = TensorSpec(("B", "L", "D"))  # hợp đồng shape ra
+
+    def cost(self, in_shape) -> Cost: ...  # params, FLOPs, VRAM
 ```
 Hợp đồng shape cho phép **suy luận shape tĩnh và loại ứng viên ghép sai** trước khi tạo model.
 
