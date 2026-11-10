@@ -6,6 +6,19 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+Mốc M7 (xem `agent.md` §4, §8): module tensor và phép đo nén.
+
+### Thêm
+- Họ mô hình `tr_resmlp` cho dữ liệu bảng: ResMLP có lớp ẩn dạng Tensor-Ring (`TRLinear`). `design` nay sinh ứng viên từ 6 họ.
+- `dlnet/tensor_lora.py`: `TensorLoRALinear` (lớp tuyến tính đóng băng cộng delta huấn luyện được, format `lora`, `tt`, `tr`, `kronecker`), `apply_tensor_lora` / `merge_tensor_lora` cho cả mô hình, `tt_svd` để phân rã trọng số có sẵn. Delta bằng 0 lúc khởi tạo.
+- `dlnet/tensor.py`: HOSVD cắt cụt (`hosvd`, `tucker_to_tensor`), `multilinear_rank`, cận sai số và `compress_report` cho tensor dữ liệu.
+- `scripts/bench_tensor.py`: đo nén tham số, Tensor-LoRA và HOSVD trên dữ liệu digits của scikit-learn.
+
+### Hạn chế đã biết
+- Đo trên digits (3 seed): lớp TT/TR giảm 81–89% tham số, accuracy thay đổi trong mức nhiễu seed (≤0,4 điểm). Low-rank thường cho kết quả tương đương, chưa có bằng chứng TT/TR hơn.
+- Tensor-LoRA là module thư viện, chưa được `dlnet design` dùng (chưa có backbone pretrained). Trong phép đo nhỏ, adapter kém fine-tune toàn bộ 9–30 điểm và pretrain không hơn huấn luyện từ đầu.
+- HOSVD chưa dùng làm tiền xử lý HSI (nhân tử không gian cần cả pixel test).
+
 ## [0.5.0] - 2026-11-10
 
 Mốc M6 (xem `agent.md` §8, §16.4): ước lượng intrinsic dimension có đo độ ổn định.

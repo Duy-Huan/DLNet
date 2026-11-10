@@ -15,6 +15,12 @@ SPACE = {
         "dropout": [0.0, 0.1],
         "rank": [4, 8, 16],
     },
+    "tr_resmlp": {
+        "width": [64, 128, 256],
+        "depth": [1, 2, 3],
+        "dropout": [0.0, 0.1],
+        "rank": [2, 4, 8],
+    },
     "lowrank_mlp": {
         "width": [128, 256],
         "depth": [2, 3, 4],
