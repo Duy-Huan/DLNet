@@ -1,0 +1,15 @@
+---
+name: add-model-family
+description: Thêm họ mô hình hoặc module (kể cả tensor decomposition) vào thư viện của một plugin.
+triggers: model, family, library, module, tensor, Tucker, TT, low-rank, SPACE
+---
+# Thêm họ mô hình
+
+1. Xác định module hiện thực **trục nào** của paper 2302.11529 (computation / routing / aggregation / training) và ghi vào docstring. Nếu dựa vào paper khác, kiểm tra trong `ref/` và ghi tên.
+2. Thêm lớp vào `dlnet/library.py` (tabular) hoặc `dlnet/hsi_lib.py` (HSI) hoặc `<x>_lib.py`: chỉ phụ thuộc torch, thêm tên vào `FAMILIES`, nhánh trong `build_model`.
+3. Khi dựng lại mạng nổi tiếng từ trí nhớ, ghi rõ "chưa đối chiếu code gốc" trong docstring. Không gọi là bản tái hiện chính thức.
+4. Thêm không gian tìm kiếm vào `SPACE` của plugin (rộng vừa phải, giá trị rời rạc). Hyperparameter train nằm ở `TRAIN`.
+5. Với module tensor: hai nhánh cần so sánh công bằng với bản dense (cùng width, ít tham số hơn). Biến thể đã có: `TTLinear`, `LowRankLinear`, `TuckerConv`.
+6. Cost model v0 là đếm tham số của mô hình đã khởi tạo (`count_params`). Phải bỏ các cấu hình lỗi shape thay vì làm sập vòng sinh.
+7. Test: forward đúng shape với batch 2, backward chạy được, số tham số của biến thể nén nhỏ hơn bản dense.
+8. Cập nhật `agent.md` §13 (registry / danh mục khối) và theo skill `git-dev-main`.
