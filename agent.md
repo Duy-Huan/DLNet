@@ -1,6 +1,6 @@
 # agent.md — Kiến trúc dự kiến của DLNet
 
-> Framework **tự động thiết kế mạng deep learning**: đầu vào là **dữ liệu**, đầu ra là **một baseline PyTorch đóng gói sẵn** (code + cấu hình + checkpoint khởi tạo + báo cáo giải thích lựa chọn).
+> Framework **tự động thiết kế mạng deep learning**: đầu vào là **dữ liệu** (ưu tiên ảnh siêu phổ HSI), đầu ra là **một baseline PyTorch hiệu quả cao trên đúng dữ liệu đó, đóng gói sẵn** (code + cấu hình + báo cáo giải thích lựa chọn), nhằm **tiết kiệm thời gian đề xuất baseline**.
 > Cơ sở lý thuyết: *Modular Deep Learning* (Pfeiffer, Ruder, Vulić, Ponti — arXiv:2302.11529).
 
 ---
@@ -9,10 +9,11 @@
 
 | | Nội dung |
 |---|---|
-| **Input** | Dataset (tabular / chuỗi thời gian / ảnh / văn bản / tín hiệu / tensor đa chiều), nhãn (nếu có), loại tác vụ, ràng buộc tài nguyên (tham số tối đa, FLOPs, VRAM, latency). |
-| **Output** | Gói baseline PyTorch: `model.py`, `config.yaml`, `train.py`, `report.md`, tùy chọn pre-trained/khởi tạo bằng phân rã. |
+| **Input** | Dữ liệu + nhãn + loại tác vụ + ngân sách (thời gian GPU, VRAM, tham số). **Ưu tiên v1: ảnh siêu phổ (HSI)**, các loại khác mở rộng sau. |
+| **Output** | **Một baseline deep learning hiệu quả cao trên đúng tập dữ liệu đó**, đóng gói PyTorch: `model.py`, `config.yaml`, `train.py`, `report.md`, test. |
+| **Giá trị cốt lõi** | **Tiết kiệm thời gian đề xuất baseline**: thay vì thử tay nhiều mô hình trong nhiều ngày, một lệnh tự ghép, huấn luyện, so sánh và trả về mô hình tốt nhất kèm bằng chứng (xem §12). |
 | **Cách làm** | (1) Phân tích dữ liệu → (2) ước lượng "độ phức tạp" & cấu trúc → (3) chọn họ kiến trúc + module → (4) tìm kiếm cấu hình trong không gian có ràng buộc → (5) đóng gói. |
-| **Ngoài phạm vi (v1)** | Tự thu thập dữ liệu; NAS toàn bộ kiểu từ-đầu quy mô lớn; huấn luyện LLM. |
+| **Ngoài phạm vi** | Viết paper, đảm bảo tính mới khoa học; thu thập dữ liệu; NAS từ-đầu quy mô lớn; huấn luyện LLM. |
 
 ### Lưu ý quan trọng về paper
 Paper 2302.11529 là **survey về học sâu dạng mô-đun**, *không* phải thuật toán AutoML hay tensor decomposition. Ta dùng nó làm **ngôn ngữ thiết kế chuẩn hóa**: mọi mạng được mô tả bằng bốn trục độc lập
@@ -171,6 +172,9 @@ DLNet/
  │   ├─ data/        # ingest, profile
  │   ├─ estimate/    # capacity, intrinsic-dim, proxies, modularity
  │   ├─ tensor/      # unfolding, CP/Tucker/TT/TR, rank selection
+ │   ├─ hsi/         # loader (.mat/.tif), patch/split, band reduction, datasets chuẩn
+ │   ├─ library/     # registry module + preset baseline nổi tiếng (xem §13)
+ │   ├─ evaluate/    # split, bộ baseline tham chiếu, metric, báo cáo (xem §12)
  │   ├─ modules/     # computation/ routing/ aggregation/ unfolding/
  │   ├─ spec/        # ArchSpec, ProblemSpec (pydantic/dataclass)
  │   ├─ recommend/   # rules + meta-model
@@ -206,23 +210,26 @@ constraints:  {max_params: 5e6, max_latency_ms: 20}
 
 ## 8. Lộ trình triển khai
 
+Nguyên tắc: có **end-to-end chạy được trên 1 dataset HSI sớm nhất có thể** (M1), sau đó mở rộng từng lớp.
+
 | Mốc | Nội dung | Tiêu chí hoàn thành |
 |---|---|---|
-| **M0** | Khung repo, `ArchSpec/ProblemSpec`, compiler cho MLP/CNN | Sinh được model từ YAML, test pass |
-| **M1** | Ingest/Profile + Estimator cơ bản (intrinsic-dim, learning-curve, SVD) | `ProblemSpec` ổn định trên ≥5 dataset |
-| **M2** | ModuleZoo: LoRA, adapter, prefix, sparse + Router/Aggregator | Tái hiện số liệu PEFT cơ bản |
-| **M3** | Tensor module (CP/Tucker/TT) + ước lượng rank | Nén ≥X% tham số, mất ≤Y% độ chính xác |
-| **M4** | Deep unfolding (ISTA/ADMM) | Vượt thuật toán lặp gốc ở cùng số vòng |
-| **M5** | Recommender (rule) + Search đa mục tiêu | Top-K ≥ baseline thủ công trên benchmark |
-| **M6** | Packager + report + CLI end-to-end | `dlnet design` ra baseline chạy được từ data thô |
-| **M7** | Meta-learned recommender, continual/hypernetwork | Cải thiện so với rule prior |
+| **M0** | Khung repo, `ArchSpec/ProblemSpec`, registry module, compiler cho CNN | Sinh model từ YAML, test pass |
+| **M1** | **End-to-end HSI nhỏ nhất**: loader + split chống rò rỉ + 3 preset (1D-CNN, 2D-CNN, HybridSN) + vòng huấn luyện + báo cáo OA/AA/Kappa trên Indian Pines | `dlnet design` ra baseline chạy được, so được với bộ tham chiếu |
+| **M2** | Giao thức đánh giá đầy đủ (§12): nhiều seed, bộ baseline SVM/RF, quy tắc chấp nhận | Báo cáo tái lập, mỗi số có ± std |
+| **M3** | Library mở rộng: SSRN, Transformer (SpectralFormer-style), Mamba/SSM, ResNet/ConvNeXt block; tự ghép theo grammar (§13) | Sinh được ≥20 ứng viên hợp lệ từ registry |
+| **M4** | Cost model + tiết kiệm thời gian: zero-cost proxy, successive halving, cache, resume | Giảm ≥X% thời gian so với chạy toàn bộ ứng viên, cùng chất lượng top-1 |
+| **M5** | Estimator: intrinsic dim → dung lượng, rank tensor, chọn số chiều giảm phổ | Ước lượng ổn định trên ≥4 dataset HSI |
+| **M6** | Tensor: Tucker/HOSVD tiền xử lý, lớp TT/Tucker/TR, Tensor-LoRA | Nén ≥X% tham số, mất ≤Y% OA |
+| **M7** | Deep unfolding (unmixing / fusion / khôi phục) | Vượt thuật toán lặp gốc ở cùng số vòng |
+| **M8** | Recommender học từ kho kết quả (meta-learning) + tác vụ khác (denoise, unmixing, detection) | Chọn đúng top-3 trong ≥80% dataset giữ lại |
 
 ---
 
 ## 9. Rủi ro & quyết định cần chốt
 
-1. **Phạm vi modality** cho v1 (đề xuất: tabular + chuỗi thời gian + ảnh nhỏ; mở rộng sau).
-2. **Mức tự động**: chỉ *đề xuất* (human-in-the-loop) hay tự huấn luyện hoàn chỉnh? Đề xuất: đề xuất + short-train, người dùng duyệt.
+1. **Phạm vi v1: ảnh siêu phổ (HSI)**, tác vụ đầu tiên là phân loại; các modality khác (tabular, chuỗi thời gian, ảnh thường) mở rộng sau. **Cần chốt**: tác vụ HSI thực tế của bạn (phân loại / khử nhiễu / unmixing / detection) và dataset ưu tiên.
+2. **Mức tự động**: tự chạy toàn bộ pipeline trong ngân sách thời gian, người dùng duyệt báo cáo cuối (§12).
 3. **Độ tin cậy của ước lượng**: proxy zero-cost không luôn tương quan với hiệu năng → luôn xác thực bằng short-train.
 4. **Paper là survey**: không có thuật toán chọn kiến trúc sẵn; rule prior ở §2 là giả thuyết cần kiểm chứng bằng benchmark nội bộ.
 5. **Unfolding** chỉ hợp lý khi có mô hình thuận; nếu không, bỏ qua (không ép dùng).
@@ -252,6 +259,91 @@ Workflow (`.github/workflows/`):
 - `ci.yml`: chạy khi push vào `dev`/`main` và khi có PR vào `main`: lint (ruff), test (pytest, Python 3.10–3.12); PR vào `main` mà nguồn không phải `dev` bị từ chối.
 - `promote.yml`: khi push vào `dev` và CI xanh → tự tạo PR `dev → main` và merge.
 Thiết lập thủ công trên GitHub (không làm được từ code): xem `.github/README.md`.
+
+## 12. Tiết kiệm thời gian & Giao thức đánh giá
+
+### 12.1 Mục tiêu tiết kiệm thời gian
+Đo bằng **time-to-good-baseline**: từ lúc đưa dữ liệu vào đến lúc có baseline đạt chất lượng đã kiểm chứng. Cơ chế:
+1. **Một lệnh**: `dlnet design --data cube.mat --gt gt.mat --budget 2h` (mọi bước dưới tự động).
+2. **Cache dùng chung**: tiền xử lý (PCA/Tucker, patch, split) làm một lần cho mọi ứng viên.
+3. **Cost model chặn sớm**: ước lượng params/FLOPs/VRAM của từng ứng viên, loại cái không vừa trước khi huấn luyện.
+4. **Loại sớm**: zero-cost proxy xếp hạng sơ bộ, rồi Successive Halving (huấn luyện ngắn → giữ nửa tốt nhất → huấn luyện dài hơn).
+5. **Warm-start** bằng kho kết quả benchmark trước đó (dữ liệu tương tự → bắt đầu từ ứng viên từng thắng).
+6. **Resume & song song**: checkpoint từng ứng viên, chạy nhiều ứng viên cùng lúc theo VRAM.
+7. **Một báo cáo leaderboard duy nhất** thay cho việc tự gom kết quả.
+
+### 12.2 Giao thức đánh giá (bắt buộc, HSI-first)
+- **Cách chia dữ liệu**
+  - Chuẩn few-shot theo pixel (vd. 10% / 5% / N mẫu mỗi lớp), nhưng **cảnh báo rò rỉ không gian**: patch của pixel train và test chồng lấn nhau làm OA bị thổi phồng. Mặc định có thêm chế độ **chia theo vùng không chồng lấn (spatial block split)** để cho con số trung thực.
+  - Mọi chế độ ghi rõ trong `report.md` (seed, kích thước patch, số mẫu mỗi lớp).
+- **Bộ baseline tham chiếu** chạy trên đúng cùng split: SVM-RBF, Random Forest, 1D-CNN, 2D-CNN, 3D-CNN, HybridSN (có thể thêm SSRN, SpectralFormer khi library đủ).
+- **Metric**: OA, AA, Kappa, F1 từng lớp; tác vụ khác dùng PSNR/SSIM/SAM (khôi phục), RMSE/SAD (unmixing), AUC (anomaly/target).
+- **Lặp lại**: ≥ 5 seed, báo cáo trung bình ± std.
+- **Quy tắc chấp nhận**: mô hình được đề xuất chỉ khi tốt hơn baseline tham chiếu mạnh nhất với chênh lệch lớn hơn std, và dùng cùng split. Nếu không, `report.md` nói thẳng "chưa vượt baseline" và trả về baseline tốt nhất thay vì mô hình tự ghép.
+- **Tái lập**: seed, phiên bản thư viện, commit, config đều ghi trong báo cáo.
+
+## 13. Module Library & tự động ghép baseline
+
+### 13.1 Registry
+Mọi khối nằm trong `dlnet/library/` và đăng ký qua một giao diện chung:
+```python
+@register("spectral_encoder", name="spectral_mamba")
+class SpectralMamba(Block):
+    in_spec  = TensorSpec(("B", "L", "C"))      # hợp đồng shape vào
+    out_spec = TensorSpec(("B", "L", "D"))      # hợp đồng shape ra
+    def cost(self, in_shape) -> Cost: ...       # params, FLOPs, VRAM
+```
+Hợp đồng shape cho phép **suy luận shape tĩnh và loại ứng viên ghép sai** trước khi tạo model.
+
+### 13.2 Danh mục khối (v1 → mở rộng)
+| Loại | Khối ví dụ |
+|---|---|
+| Stem / tiền xử lý | PCA, chọn băng (band selection), **Tucker/HOSVD giảm chiều**, trích patch không gian–phổ |
+| Mã hóa phổ | 1D-CNN, spectral attention, Transformer theo băng, Mamba/SSM |
+| Mã hóa không gian | Conv 2D, ResNet block, depthwise-separable, ConvNeXt, ViT/Swin nhẹ |
+| Mã hóa chung | Conv 3D, khối kiểu HybridSN (3D → 2D) |
+| Hợp nhất | concat, gated, cross-attention |
+| Lớp tensor | Linear TT/TR, Conv Tucker, Tensor-LoRA (§4) |
+| Khối unfolded | ISTA/ADMM unrolled cho unmixing, fusion, khôi phục (§5) |
+| Đầu ra | phân loại, phân vùng, tái tạo |
+
+### 13.3 Preset baseline nổi tiếng
+Mỗi mô hình kinh điển được viết lại như **một cấu hình của registry** (không phải code riêng), ví dụ: 1D-CNN, 2D-CNN, 3D-CNN, HybridSN, SSRN, SpectralFormer, SSFTT, các biến thể Mamba cho HSI. Lợi ích: vừa là bộ baseline tham chiếu (§12.2), vừa là điểm xuất phát của tìm kiếm. Danh sách này là tham chiếu; **phải kiểm tra lại nguồn gốc và tái hiện số liệu khi cài đặt**, chưa có trong `ref/`.
+
+### 13.4 Tự ghép (grammar có kiểu)
+```
+Model := Stem → ( SpectralEnc ∥ SpatialEnc | JointEnc ) → Fusion → Head
+```
+1. Chọn nhánh theo `ProblemSpec` (vd. `has_forward_model` → thêm khối unfolded; rank thấp rõ → lớp tensor).
+2. Lấy mẫu từ prior (preset trước, tổ hợp ghép sau), kiểm tra shape, tính cost.
+3. Loại ứng viên vi phạm ngân sách, giữ Top-K đưa vào Search (§3.4).
+4. Siêu tham số (độ sâu, độ rộng, rank, kích thước patch) do Search chọn.
+
+## 14. Chuyên biệt hóa cho ảnh siêu phổ (HSI)
+
+**Dữ liệu**: khối `H × W × B` (B thường 100–250 băng), nhãn thưa theo pixel. Dataset benchmark chuẩn: Indian Pines, Pavia University, Salinas, Houston.
+
+**Tác vụ hỗ trợ theo thứ tự ưu tiên**: phân loại → khôi phục/khử nhiễu → unmixing → anomaly/target detection.
+
+**Vai trò của tensor decomposition (tách bạch)**
+| Chỗ dùng | Cách làm |
+|---|---|
+| Tiền xử lý / giảm chiều | HOSVD/Tucker trên khối `H×W×B`, chọn multilinear rank bằng phổ singular từng mode (thay cho PCA chỉ theo phổ) |
+| Khử nhiễu, bù dữ liệu | Low-rank tensor (Tucker/TT/TR) làm tiền xử lý hoặc làm lớp trong mạng |
+| Nén mô hình | Lớp TT/TR cho FC, Tucker cho conv, Tensor-LoRA khi fine-tune (§4) |
+| Unfolding | Mô hình tuyến tính `y = A x + n` (trộn phổ, đo nén, fusion HSI–MSI) → ISTA/ADMM unrolled (§5) |
+
+**`ProblemSpec` bổ sung cho HSI**
+```yaml
+modality: hsi
+cube: {height: 145, width: 145, bands: 200}
+task: classification            # classification | denoise | unmixing | detection
+labels: {classes: 16, labeled_ratio: 0.1}
+split: {mode: spatial_block, seeds: 5}
+budget: {time: 2h, vram_gb: 12}
+```
+
+**Cạm bẫy đã biết**: rò rỉ do patch chồng lấn; chọn siêu tham số bằng chính tập test; số mẫu thiểu số rất ít; đánh giá một seed. Giao thức §12.2 xử lý các điểm này.
 
 ## Tài liệu tham khảo
 Toàn bộ PDF nằm trong `ref/` (mục lục: `ref/README.md`).
