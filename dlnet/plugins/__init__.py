@@ -40,6 +40,10 @@ class DomainPlugin:
     def reference(self, data: dict) -> list[dict]:
         raise NotImplementedError
 
+    def reference_for(self, cfg: dict, reference: list[dict]) -> list[dict]:
+        """The references the top-1 config is judged against (default: all of them)."""
+        return reference
+
     extra_dirs: ClassVar[dict[str, Path]] = {}  # whole packages copied into an exported baseline
     zoo_train: ClassVar[dict] = {"lr": [1e-3, 3e-3], "wd": [1e-4, 1e-2], "batch": [32, 64]}
 

@@ -54,18 +54,24 @@ def kind_of(X: np.ndarray, y: np.ndarray | None = None) -> str | None:
 
 
 def to_channels_first(X: np.ndarray, kind: str) -> np.ndarray:
+    """(N, H, W[, C]) -> (N, C, H, W) or (N, T[, C]) -> (N, C, T), C-CONTIGUOUS float32.
+
+    Contiguity matters: a transposed view kept channels-last strides through fancy indexing, and
+    torch 2.15 then crashed (double free / segfault) in multi-threaded convolution backward on
+    3-channel images. See tests/test_regression.py.
+    """
     X = X.astype(np.float32)
     if kind == "image":
         if X.ndim == 3:
             X = X[..., None]
         if X.ndim != 4:
             raise SystemExit(f"image data must be (N, H, W) or (N, H, W, C), got {X.shape}")
-        return X.transpose(0, 3, 1, 2)
+        return np.ascontiguousarray(X.transpose(0, 3, 1, 2))
     if X.ndim == 2:
         X = X[..., None]
     if X.ndim != 3:
         raise SystemExit(f"time series must be (N, T) or (N, T, C), got {X.shape}")
-    return X.transpose(0, 2, 1)
+    return np.ascontiguousarray(X.transpose(0, 2, 1))
 
 
 def build(X: np.ndarray, y: np.ndarray, kind: str, task: str, seed: int = 0) -> dict:

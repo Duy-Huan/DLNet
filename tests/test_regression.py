@@ -496,3 +496,38 @@ def test_cli_block_split_uses_three_splits_by_default(tmp_path, hsi_npz):
     board = json.loads((out / "leaderboard.json").read_text())
     assert board["top_k"][0]["n_splits"] >= 2
     assert "split-to-split" in (out / "leaderboard.md").read_text()
+
+
+def test_hyperband_with_expired_deadline_still_returns_one_result():
+    """Was: ValueError (max of an empty list) when the budget was spent before Hyperband started."""
+    res = search.run_hyperband(
+        _tab_data(), [_cfg(), _cfg(width=32)], time.time() - 1, 1, build_model,
+        R=4, unit=1, seeds=1, log=lambda *_: None,
+    )  # fmt: skip
+    assert len(res) == 1 and res[0]["epochs"] == 1
+
+
+def test_hyperband_finalists_all_reached_the_full_resource():
+    cands = [_cfg(width=w) for w in (8, 12, 16, 20, 24, 28, 32, 36, 40)]
+    trace = {}
+    res = search.run_hyperband(
+        _tab_data(), cands, time.time() + 120, 2, build_model, R=9, unit=1, seeds=1,
+        log=lambda *_: None, trace=trace,
+    )  # fmt: skip
+    assert res and {r["epochs"] for r in res} == {9}
+    assert (
+        trace["rung1_epochs"] == 1 and len(trace["rung1"]) == 9
+    )  # bracket s=2 starts 9 at 1 epoch
+
+
+def test_image_tensors_are_contiguous():
+    """Was: (N, H, W, 3) images became channels-last strided tensors (transposed view kept by fancy
+    indexing); torch 2.15 crashed with "double free or corruption" in multi-threaded conv backward."""
+    from dlnet import array_data
+
+    rng = np.random.default_rng(0)
+    X = rng.normal(size=(30, 8, 8, 3)).astype("float32")
+    d = array_data.build(X, np.repeat([0, 1, 2], 10), "image", "classification", 0)
+    assert all(d["X" + k].is_contiguous() for k in ("tr", "va", "te"))
+    s = array_data.build_segmentation(X, rng.integers(0, 2, (30, 8, 8)), 0)
+    assert all(s["X" + k].is_contiguous() for k in ("tr", "va", "te"))

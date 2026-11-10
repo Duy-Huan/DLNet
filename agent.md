@@ -283,6 +283,7 @@ Nguyên tắc: lõi **tổng quát trước**, kiểm chứng end-to-end sớm t
 | **M8** | Deep unfolding (khi có mô hình thuận) | **Xong cho bài toán thưa tuyến tính (v0.7.0)**, xem "Kết quả đo M8" ở §5: lệnh `dlnet unfold`, LISTA-CP hơn ISTA và FISTA (λ đã tune) 3,3–6,3 dB ở cùng số vòng K trên dữ liệu tổng hợp. Chưa có: ADMM/AMP, support selection, toán tử A không tường minh (ảnh), dữ liệu thật |
 | **M13** | Port nhóm còn thiếu: đồ thị, id/recommender, autoencoder/VAE, GAN, Mamba-2; cost model; hợp nhất họ cũ | **Xong (v0.11.0–v0.12.0)**, xem §13.7. Chưa có: CVAE, loss cặp (BPR), GAN có điều kiện/FID, đồ thị lớn (dense), graph cạnh học được |
 | **M14** | Khối ảnh từ thư viện chính thống (timm, smp, MONAI, torchvision); đối chiếu số học các khối viết từ trí nhớ | **Xong (v0.13.0)**, xem §13.8 |
+| **M15** | Phân tích dữ liệu ảnh (data card), ngữ cảnh, chọn hạt giống, Hyperband, aging evolution, portfolio, SNIP/ZiCo/vote | **Xong (v0.14.0)**, xem §16.5. Đo: prior **chưa** dự đoán được thứ hạng; mặc định giữ mọi ứng viên |
 | **M11** | Refactor lõi thành kho module có kiểu `dlnet/zoo/` dùng chung mọi plugin + ngữ pháp ghép + tiến hóa kiến trúc; gom module từ các repo GitHub | **Xong phần lõi (v0.10.0)**: §13.6; 54 op từ 6 repo, 14/14 khối đối chiếu torchvision khớp; kết quả đo zoo so với họ cũ ở §13.6. Chưa có: chuyển hẳn các họ cũ thành preset (vẫn song song), kiểu `graph`/`ids`, trọng số pretrained |
 | **M10** | Thư viện khối từ 4 repo GitHub (§13.5), plugin `image_classification` và `image_segmentation` | **Xong (v0.9.0)**: `dlnet/blocks.py` + `THIRD_PARTY.md`; kết quả đo ở §14.4. Chưa có: pretrained, augmentation, dữ liệu segmentation thật |
 | **M9** | Plugin ảnh, chuỗi thời gian; recommender học từ kho kết quả (meta-learning) | **Có plugin và recommender (v0.8.0), tiêu chí 80% CHƯA đạt**, xem §14.3: plugin `image` (cnn, resnet, vit) và `timeseries` (tcn, gru, ts_transformer) chạy end-to-end trên dữ liệu tổng hợp; recommender kNN đoán đúng họ tốt nhất trong top-3 ở 7/12 dataset bảng (58%, ngẫu nhiên 51%). Chưa có: Mamba/SSM, ConvNeXt cho ảnh, dữ liệu ảnh/chuỗi thật, kho kết quả đủ lớn |
@@ -689,6 +690,32 @@ Chưa làm: epochs (hiện là công thức mặc định 100 epoch, cosine, ch�
 
 - **Kết luận:** ước lượng ổn định qua mẫu con (std ≤ 0,5) nhưng **thiên thấp khi d lớn** (d=20 ra 13–16 với 1000 điểm; đây là thiên lệch đã biết của ước lượng dựa trên láng giềng gần). Trên dữ liệu thật hai bộ lệch nhau 21–34%, MLE luôn thấp hơn. Vì vậy con số chỉ nên đọc là "thấp / vừa / cao", chưa đủ tin để cắt không gian tìm kiếm.
 
+### 16.5 Data card, chọn hạt giống và thuật toán tìm kiếm chuẩn (M15)
+- **Data card** (`dlnet/datacard.py`, chỉ trên split train): kích thước, số mẫu/lớp, mất cân bằng; độ dốc phổ công suất và năng lượng tần số cao; độ dài tương quan (tuyệt đối và theo cạnh ảnh); mật độ cạnh; độ phụ thuộc vị trí (phương sai giữa các ảnh trung bình theo lớp); tương quan kênh màu; 1-NN; linear probe trên pixel so với trên đặc trưng tích chập ngẫu nhiên (`conv_bias_gain`). Test đáp án đóng: nhiễu 1/f cho slope ≈ 2, nhiễu trắng slope ≈ 0, phụ thuộc vị trí 1 khi lớp là một pixel cố định.
+- **Chọn hạt giống** (`dlnet/seeds.py`): đặc tính kiến trúc đọc từ module trong spec; quy tắc DLNet (data card + ngữ cảnh `--context`, mục tiêu `--goal`) cho điểm prior, in lý do; tổng hợp Borda với meta-learning (kNN của Feurer 2015 + **portfolio tham lam Auto-sklearn 2.0**, arXiv:2007.04074 Algorithm 1) và **vote đa số** của synflow/naswot/snip (Abdelfattah, arXiv:2101.08134 §4) khi bật `--seed-proxies`. `--seeds N` giữ N ứng viên, luôn có một ResNet làm mốc, tối đa 2 mỗi họ.
+- **Thuật toán tìm kiếm**: `--scheduler hyperband` (Li et al., arXiv:1603.06560 Algorithm 1; Table 1 của paper lệch với Algorithm 1 ở s = 1..3, DLNet theo Algorithm 1); tiến hóa thành **aging evolution** (Real et al., arXiv:1802.01548 Algorithm 1: tournament S lấy có hoàn lại, con thêm bên phải, già nhất bị loại; chạy theo lô; DLNet thêm lai ghép xác suất 0,3).
+- **Proxy mới**: SNIP (eq. 1 của 2101.08134), ZiCo (theo `compute_zico.py` chính thức), có test đáp án đóng.
+- **Đo 1: chọn hạt giống, cùng ngân sách** (`scripts/bench_seeds.py`, 120 s, N = 10, pool 104 ứng viên, 2 lần chạy; MNIST và Fashion-MNIST: 3000 ảnh con của tập train gốc; textures, shapes: tổng hợp 1600 ảnh 32×32). Giá trị: trung bình 2 lần của top-1 (val / test):
+
+| Dữ liệu | Tất cả, xếp theo prior | Ngẫu nhiên 10 | Theo dữ liệu 10 | Theo dữ liệu 10 + Hyperband |
+|---|---|---|---|---|
+| MNIST 3k | 0,930 / 0,916 | 0,944 / 0,933 | 0,928 / 0,908 | **0,955 / 0,945** |
+| Fashion 3k | 0,767 / 0,763 | 0,762 / 0,768 | **0,791 / 0,788** | 0,770 / 0,757 |
+| textures | 0,991 / 0,985 | 0,991 / 0,978 | 0,991 / 0,985 | 0,989 / 0,985 |
+| shapes | 0,991 / 0,983 | 0,989 / 0,986 | 0,991 / 0,983 | 0,978 / 0,988 |
+
+- **Đo 2: prior và proxy có dự đoán thứ hạng không** (`scripts/bench_prior.py`, 20 ứng viên ngẫu nhiên từ cùng pool, huấn luyện 4 epoch, 2 lần lấy mẫu). Spearman với validation (lần 1 / lần 2), trong ngoặc: số lần nằm trong top-3 thật trên 6:
+
+| Dữ liệu | params | synflow | snip | zico | vote | **seed_prior** |
+|---|---|---|---|---|---|---|
+| MNIST 3k | +0,52 / +0,83 (2/6) | +0,35 / +0,49 | +0,39 / +0,62 | −0,09 / +0,58 | +0,26 / +0,51 | +0,07 / −0,16 (0/6) |
+| Fashion 3k | +0,45 / +0,77 (3/6) | +0,34 / +0,36 | +0,37 / +0,41 | −0,04 / +0,47 | +0,23 / +0,34 | −0,15 / −0,18 (0/6) |
+| textures | −0,25 / −0,44 (1/6) | −0,06 / +0,07 | −0,23 / +0,06 | −0,41 / −0,04 | −0,14 / +0,08 | −0,24 / +0,35 (0/6) |
+| shapes | +0,22 / −0,20 (3/6) | +0,68 / +0,46 | +0,40 / +0,34 | −0,07 / +0,18 | +0,63 / +0,36 | +0,12 / +0,23 (0/6) |
+
+- **Kết luận (trung thực):** (1) Prior theo data card **không dự đoán được** thứ hạng sau 4 epoch (Spearman −0,18…+0,35, không lần nào trúng top-3), nên `--seeds` mặc định 0 (giữ mọi ứng viên, chỉ đổi thứ tự) và chênh lệch ở Đo 1 nằm trong nhiễu của 2 lần chạy. (2) Đếm tham số vẫn là baseline mạnh trên MNIST/Fashion; synflow và vote hơn nó trên shapes nhưng không ổn định qua dữ liệu, nên proxy vẫn **không** dùng để loại (§16.1). (3) Hyperband tốt nhất trên MNIST, kém hơn trên Fashion: chưa đủ bằng chứng để đổi mặc định. (4) Data card mô tả đúng dữ liệu (textures/shapes: phụ thuộc vị trí ≈ 0, lợi ích tích chập +0,5…0,66; MNIST/Fashion: lợi ích ≈ 0), nhưng mapping "đặc trưng → kiến trúc" bằng tay thì chưa đúng: cần học mapping đó từ meta-store khi có nhiều lần chạy thật (`--meta-store`).
+- **Phát hiện phụ khi đo**: ảnh 3 kênh bị lưu với stride channels-last; torch 2.15 crash (double free) khi backward đa luồng. Đã sửa (`array_data.to_channels_first` trả mảng liền mạch) và có regression test.
+
 ## Tài liệu tham khảo
 Toàn bộ PDF nằm trong `ref/` (mục lục: `ref/README.md`); thuật toán ước lượng chất lượng và hyperparameter trong `ref/optimazeDL/` (§16).
 
@@ -696,3 +723,4 @@ Toàn bộ PDF nằm trong `ref/` (mục lục: `ref/README.md`); thuật toán 
 - Hu et al. *LoRA*; Houlsby et al. *Adapters*; Li & Liang *Prefix-tuning*; Lester et al. *Prompt tuning*.
 - Gregor & LeCun *LISTA*; Monga et al. *Algorithm Unrolling*.
 - Kolda & Bader *Tensor Decompositions and Applications*; Oseledets *Tensor-Train*.
+- Real et al. *Regularized Evolution* (arXiv:1802.01548); Feurer et al. *Auto-Sklearn 2.0* (arXiv:2007.04074); Öztürk et al. *Zero-Shot AutoML with Pretrained Models* (arXiv:2206.08476); Achille et al. *Task2Vec* (arXiv:1902.03545, chưa dùng).

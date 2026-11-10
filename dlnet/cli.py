@@ -58,7 +58,7 @@ def design(args) -> int:
 
     import torch
 
-    from . import export, hparams, meta, plugins, proxies, search, zoo
+    from . import export, hparams, meta, plugins, proxies, search, seeds, zoo
     from .zoo import space
 
     t0 = time.time()
@@ -77,6 +77,12 @@ def design(args) -> int:
     prof = plugin.profile(data)
     shown = {k: v for k, v in prof.items() if k not in ("task",)}
     print(f"[profile] {shown}")
+    card = {"n_train": prof.get("n_train", 0)}
+    if data.get("kind") in ("image", "segmentation") and data["Xtr"].dim() == 4:
+        from . import datacard
+
+        card = datacard.image_card(data, seed=args.seed)
+        print(f"[datacard] {card}")
 
     n_cv = args.cv_splits or plugin.default_cv_splits(args)
     folds = [data]
@@ -124,36 +130,70 @@ def design(args) -> int:
         else:
             print(f"[meta] fewer than {meta.MIN_RECORDS} past {plugin.name} runs: default order")
 
-    # Zero-cost proxies of the untrained candidates: measured against real training below,
-    # never used to prune (agent.md 16.1). At most 10% of the budget.
-    zc = {}
+    # Zero-cost proxies of the untrained candidates: measured against real training below; they
+    # vote in the seed selection only with --seed-proxies (agent.md 16.1). At most 10% of the budget.
+    zc, t_px = {}, time.time()  # the proxy stage gets 10% of the budget from ITS start
     for c in cands:
-        if args.no_proxies or time.time() > t0 + 0.1 * budget:
+        if args.no_proxies or time.time() > t_px + 0.1 * budget:
             break
         torch.manual_seed(args.seed)
         zc[id(c)] = proxies.score(
             plugin.build_model(c, data["in_dim"], data["out_dim"]), data, seed=args.seed
         )
+    # Seed selection: data card + context prior, past runs, (optionally) the proxy vote
+    port = None
+    if args.meta_store:
+        port = meta.portfolio(meta.load(args.meta_store), plugin.name, meta.features(prof)) or None
+    use_px = args.seed_proxies and len(zc) == len(cands)
+    cands, seed_report = seeds.select(
+        cands, card, args.seeds, args.context or "", args.goal, meta_rec, port,
+        [zc[id(c)] for c in cands] if use_px else None, (1.0, 1.0, 1.0 if use_px else 0.0),
+        order=args.seed_order, seed=args.seed,
+    )  # fmt: skip
+    if len(zc) == len(cands) and len(cands) > 2:  # the vote and the prior are measured like proxies
+        from .seeds import proxy_vote
+
+        for c, v in zip(cands, proxy_vote([zc[id(c)] for c in cands]), strict=True):
+            zc[id(c)]["vote"] = v
+    for c in cands:  # the prior and the parameter count are measured for every candidate
+        zc.setdefault(id(c), {"params": float(c.get("params") or 0)})["seed_prior"] = c[
+            "seed_prior"
+        ]
+    for r in seed_report["rules_fired"]:
+        print(f"[seeds] {r}")
+    print(
+        f"[seeds] {seed_report['kept']}/{seed_report['pool']} candidates, rankers {seed_report['rankers']}; "
+        f"first: {[t['origin'] if t['origin'] != 'family' else t['family'] for t in seed_report['top'][:5]]}"
+    )
     trace = {}
     t_search = time.time()
     gens = args.evolve if any(c.get("spec") for c in cands) else 0
     gen0_deadline = t_search + (0.55 if gens else 1.0) * (search_deadline - t_search)
-    results = search.run_search(
+    runner = search.run_hyperband if args.scheduler == "hyperband" else search.run_search
+    results = runner(
         data, cands, gen0_deadline, args.topk, plugin.build_model, folds=folds,
         cache=cache, trace=trace,
     )  # fmt: skip
     evolution = []
-    pool, seen = (
-        list(trace.get("rung1", [])),
-        {zoo.signature(c["spec"]) for c in cands if c.get("spec")},
-    )
-    for g in range(1, gens + 1):  # evolve: children of the best zoo candidates (rung-1 validation)
-        if time.time() > search_deadline - 5:
+    seen = {zoo.signature(c["spec"]) for c in cands if c.get("spec")}
+    # aging evolution (Real et al. 2019): population = the last P evaluated models, oldest first
+    pop_size = args.evolve_population or max(len(trace.get("rung1", [])), 4)
+    population = [cv for cv in trace.get("rung1", []) if cv[0].get("spec")][-pop_size:]
+    for g in range(1, gens + 1):
+        if time.time() > search_deadline - 5 or not population:
             break
-        parents = [c for c, _ in sorted(pool, key=lambda cv: -cv[1]) if c.get("spec")][:6]
-        kids = space.offspring(
-            parents, args.evolve_pop, args.seed + g, prof["max_params"], plugin.zoo_train, seen
+        S = args.tournament or max(2, len(population) // 4)
+        kids = space.aging_children(
+            population,
+            args.evolve_pop,
+            S,
+            args.seed + g,
+            prof["max_params"],
+            plugin.zoo_train,
+            seen,
         )
+        parents = sorted(population, key=lambda cv: -cv[1])[:3]
+        parents = [p for p, _ in parents]
         kids = _apply_cost_model(
             plugin, data, kids, args
         )  # children are costed and filtered like the rest
@@ -176,7 +216,7 @@ def design(args) -> int:
             trace=sub,
         )
         results = results + res
-        pool += sub.get("rung1", [])
+        population = (population + sub.get("rung1", []))[-pop_size:]  # the oldest die
         best = max((v for _, v in sub.get("rung1", [])), default=None)
         evolution.append({"generation": g, "children": len(kids), "best_rung1_val": best})
     print("[hparams] estimating lr / batch size / weight decay for the finalists")
@@ -195,6 +235,8 @@ def design(args) -> int:
         }
     if meta_rec:
         extras["meta_recommendation"] = meta_rec
+    extras["seed_selection"] = {**seed_report, "data_card": card, "context": args.context or "",
+                                "goal": args.goal, "portfolio": port, "scheduler": args.scheduler}  # fmt: skip
     if args.meta_store:
         rec = meta.make_record(plugin.name, prof, trace.get("rung1", []), Path(args.data).name)
         if rec:
@@ -301,6 +343,33 @@ def main(argv=None) -> int:
         "--max-vram", help="drop candidates above this estimated training VRAM in MB, e.g. 4000"
     )
     d.add_argument("--no-proxies", action="store_true", help="skip the zero-cost proxy report")
+    d.add_argument(
+        "--context",
+        help='task context in words, e.g. "medical CT, small lesions" or "mobile, real-time"',
+    )
+    d.add_argument("--goal", default="accuracy", choices=["accuracy", "small"])
+    d.add_argument(
+        "--seeds", type=int, default=0,
+        help="keep only this many seed architectures (data-aware ranking); 0 = keep all, ranked",
+    )  # fmt: skip
+    d.add_argument(
+        "--seed-proxies", action="store_true",
+        help="let the zero-cost proxy vote (synflow, naswot, snip) rank the seeds too",
+    )  # fmt: skip
+    d.add_argument("--scheduler", default="sh", choices=["sh", "hyperband"])
+    d.add_argument(
+        "--seed-order", default="data", choices=["data", "random"],
+        help="random = control arm that keeps --seeds candidates at random (for measuring the selector)",
+    )  # fmt: skip
+    d.add_argument(
+        "--evolve-population",
+        type=int,
+        default=0,
+        help="aging-evolution population (0 = rung 1 size)",
+    )
+    d.add_argument(
+        "--tournament", type=int, default=0, help="tournament size S (0 = population / 4)"
+    )
     for p in plugins._registry().values():
         p.add_arguments(d)
     args = ap.parse_args(argv)
