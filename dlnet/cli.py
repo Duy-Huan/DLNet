@@ -140,12 +140,13 @@ def selfcheck() -> int:
 
 
 def main(argv=None) -> int:
-    from . import plugins
+    from . import plugins, unfold_run
 
     ap = argparse.ArgumentParser(prog="dlnet")
     ap.add_argument("--version", action="version", version=f"dlnet {__version__}")
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("selfcheck", help="verify the installation end to end (about 20 seconds)")
+    unfold_run.add_parser(sub)
     d = sub.add_parser("design", help="propose Top-K deep learning baselines for a dataset")
     d.add_argument(
         "--data", required=True, help="data file (CSV for tabular; .mat/.npz/.npy for hsi)"
@@ -167,6 +168,8 @@ def main(argv=None) -> int:
     for p in plugins._registry().values():
         p.add_arguments(d)
     args = ap.parse_args(argv)
+    if args.cmd == "unfold":
+        return unfold_run.run(args)
     return selfcheck() if args.cmd == "selfcheck" else design(args)
 
 

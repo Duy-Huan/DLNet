@@ -204,6 +204,21 @@ Kết luận trung thực: với backbone nhỏ pretrain trên 5 chữ số, pre
 - Trong khung paper: unfolding là **function composition tuần tự** (sequential aggregation); các tham số học được có thể sinh bằng hypernetwork.
 - Lợi ích: ít tham số, diễn giải được, hội tụ nhanh; kèm kiểm tra so với thuật toán lặp gốc làm baseline.
 
+### Kết quả đo M8 (`python scripts/bench_unfold.py`)
+Đã có: `dlnet/unfold.py` (`ista`, `fista`, `LISTA` dạng weight-coupled LISTA-CP theo Chen et al., arXiv:1808.10038 phương trình 10, đã đối chiếu PDF; FISTA viết từ trí nhớ), lệnh `dlnet unfold --data problem.npz --layers 4,8,16` (file `.npz` chứa `A` m×n, `Y` N×m, `X` N×n). Mạng chưa huấn luyện **bằng đúng** K vòng ISTA (có test), nên mọi cải thiện là do học.
+
+Giao thức: chia 60/20/20; ISTA và FISTA chạy **đúng K vòng** với λ tune trên validation (19 giá trị); LISTA huấn luyện end-to-end (Adam, MSE, cosine, giữ trọng số tốt nhất trên validation), 3 seed; "thắng" khi mean + std trên test thấp hơn solver cổ điển tốt hơn.
+
+Dữ liệu tổng hợp m=64, n=128, 10% phần tử khác 0, SNR 30 dB, 3000/1000/1000 mẫu, 60 epoch (NMSE dB trên test, thấp hơn là tốt hơn):
+
+| K | Tham số | LISTA | ISTA cùng K | FISTA cùng K | Lợi | Thắng cả hai |
+|---|---|---|---|---|---|---|
+| 4 | 32.772 | −9,39 | −2,79 | −3,14 | +6,25 dB | có |
+| 8 | 65.544 | −11,43 | −4,11 | −5,68 | +5,75 dB | có |
+| 16 | 131.088 | −13,39 | −5,99 | −10,05 | +3,34 dB | có |
+
+Độ lệch chuẩn qua seed < 0,01 dB vì khởi tạo là tất định (W = A/L), seed chỉ đổi thứ tự batch. Giới hạn: chỉ một bài toán tổng hợp, một mức nhiễu; lợi thế giảm khi K tăng (FISTA đuổi kịp); solver cổ điển chạy đến hội tụ (K lớn) chưa được so. Chưa có ADMM/AMP, support selection (LISTA-CPSS), lịch huấn luyện theo tầng của paper, và toán tử A dạng hàm (blur, MRI).
+
 ---
 
 ## 6. Cấu trúc repo đề xuất
@@ -265,7 +280,7 @@ Nguyên tắc: lõi **tổng quát trước**, kiểm chứng end-to-end sớm t
 | **M5** | Cost model + tiết kiệm thời gian: zero-cost proxy (theo §16.1), successive halving, cache, resume; **hyperparameter estimate (LR range test, noise scale) đã có, §16.2** | **Xong phần đo được (v0.4.0)**, xem §16.3: successive halving giảm 50–70% thời gian (dữ liệu tổng hợp), cùng top-1 trên tabular, lệch trong mức nhiễu trên HSI; proxy chỉ ghi thông tin vì chưa hơn đếm tham số; cache cho giai đoạn nhiều seed. Chưa có: FLOPs/VRAM, resume cho successive halving |
 | **M6** | Estimator: intrinsic dim → dung lượng, rank tensor | **Xong phần đo được (v0.5.0)**, xem §16.4: hai bộ ước lượng (TwoNN, MLE) kèm độ lệch chuẩn qua mẫu con và cờ `stable`; đo trên 5 bộ biết đáp án và 5 bộ thật. Chưa có: bằng chứng `capacity_hint` dự đoán đúng độ rộng tốt nhất (nên chỉ ghi thông tin) |
 | **M7** | Tensor: Tucker/HOSVD tiền xử lý, lớp TT/Tucker/TR, Tensor-LoRA | **Xong phần module và phép đo (v0.6.0)**, xem "Kết quả đo M7" ở §4: lớp TT/TR nén 81–89% tham số, mất ≤0,4 điểm accuracy (trong mức nhiễu) trên digits. Tensor-LoRA có đủ 4 format nhưng **chưa nối vào `design`** (DLNet chưa có backbone pretrained) và trong phép đo nhỏ chưa hơn huấn luyện từ đầu. HOSVD chưa dùng làm tiền xử lý HSI |
-| **M8** | Deep unfolding (khi có mô hình thuận) | Vượt thuật toán lặp gốc ở cùng số vòng |
+| **M8** | Deep unfolding (khi có mô hình thuận) | **Xong cho bài toán thưa tuyến tính (v0.7.0)**, xem "Kết quả đo M8" ở §5: lệnh `dlnet unfold`, LISTA-CP hơn ISTA và FISTA (λ đã tune) 3,3–6,3 dB ở cùng số vòng K trên dữ liệu tổng hợp. Chưa có: ADMM/AMP, support selection, toán tử A không tường minh (ảnh), dữ liệu thật |
 | **M9** | Plugin ảnh, chuỗi thời gian; recommender học từ kho kết quả (meta-learning) | Top-K chứa mô hình tốt nhất trong ≥80% dataset giữ lại |
 
 ---

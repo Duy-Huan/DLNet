@@ -19,7 +19,9 @@ Tùy chọn (làm hết các bước trên bằng một lệnh, tự tìm Python
 
 ## Trang thai
 - Plugin `tabular` (CSV) va plugin `hsi` (anh sieu pho: cube + ground truth, phan loai pixel).
-- Chua co: zero-cost proxy, cost model day du, Tensor-LoRA, deep unfolding, plugin anh / chuoi thoi gian.
+- Lenh `dlnet unfold`: deep unfolding (LISTA) cho bai toan nghich thua `y = A x + nhieu` khi biet ma tran `A`.
+- Module thu vien: Tensor-LoRA (`dlnet/tensor_lora.py`), HOSVD (`dlnet/tensor.py`); chua duoc `design` dung.
+- Chua co: cost model FLOPs/VRAM, plugin anh / chuoi thoi gian.
 
 ## Dung thu
 ```bash
@@ -30,6 +32,9 @@ python -m dlnet design --data data.csv --target label --budget 5m --topk 3
 
 # hyperspectral (.mat / .npz / .npy)
 python -m dlnet design --data cube.mat --gt gt.mat --split block --patch 9 --pca 30 --budget 10m --topk 3
+
+# bai toan nghich thua y = A x + nhieu (.npz chua A, Y, X): LISTA so voi ISTA / FISTA cung so vong
+python -m dlnet unfold --data problem.npz --layers 4,8,16 --epochs 100
 ```
 Moi baseline co kem hyperparameter (lr, weight decay, batch, epochs, schedule) o `hyperparameters` trong `config.yaml`/`leaderboard.json`, uoc luong bang LR range test + gradient noise scale va chi nhan khi tot hon ban da tim kiem.
 `--cv-splits K`: xep hang finalist tren K lan chia du lieu khac nhau (HSI chia khoi mac dinh 3), de +/- std gom ca nhieu do cach chia.
