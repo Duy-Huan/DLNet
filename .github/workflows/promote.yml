@@ -24,7 +24,16 @@ jobs:
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Kiem tra dev co gi moi so voi main
+        id: diff
+        run: |
+          ahead=$(git rev-list --count origin/main..origin/dev)
+          echo "ahead=$ahead" >> "$GITHUB_OUTPUT"
+          echo "dev truoc main $ahead commit"
       - name: Tao PR dev -> main (neu chua co)
+        if: steps.diff.outputs.ahead != '0'
         run: |
           n=$(gh pr list --base main --head dev --state open --json number --jq '.[0].number')
           if [ -z "$n" ]; then
@@ -35,4 +44,5 @@ jobs:
           fi
           echo "PR_NUMBER=$n" >> "$GITHUB_ENV"
       - name: Merge
+        if: steps.diff.outputs.ahead != '0'
         run: gh pr merge "$PR_NUMBER" --merge || gh pr merge "$PR_NUMBER" --merge --auto
