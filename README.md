@@ -2,6 +2,8 @@
 
 Tu dong de xuat Top-K baseline deep learning (PyTorch) cho mot tap du lieu. Kien truc: xem `agent.md`.
 
+**Tài liệu đầy đủ: [`doc/`](doc/README.md)** (hướng dẫn sử dụng, tham chiếu lệnh, kiến trúc, thuật toán).
+
 ## Cài đặt nhanh (môi trường Python)
 
 Môi trường ảo (`.venv`) **không** nằm trong git (nặng hàng GB, riêng từng máy, GitHub từ chối file trên 100 MB). Repo ghi lại **phiên bản Python** (`.python-version` = 3.12) và **danh sách package** (`requirements.txt`). Sau khi `git pull`, dùng Python 3.12:

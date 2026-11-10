@@ -283,6 +283,7 @@ Nguyên tắc: lõi **tổng quát trước**, kiểm chứng end-to-end sớm t
 | **M8** | Deep unfolding (khi có mô hình thuận) | **Xong cho bài toán thưa tuyến tính (v0.7.0)**, xem "Kết quả đo M8" ở §5: lệnh `dlnet unfold`, LISTA-CP hơn ISTA và FISTA (λ đã tune) 3,3–6,3 dB ở cùng số vòng K trên dữ liệu tổng hợp. Chưa có: ADMM/AMP, support selection, toán tử A không tường minh (ảnh), dữ liệu thật |
 | **M13** | Port nhóm còn thiếu: đồ thị, id/recommender, autoencoder/VAE, GAN, Mamba-2; cost model; hợp nhất họ cũ | **Xong (v0.11.0–v0.12.0)**, xem §13.7. Chưa có: CVAE, loss cặp (BPR), GAN có điều kiện/FID, đồ thị lớn (dense), graph cạnh học được |
 | **M14** | Khối ảnh từ thư viện chính thống (timm, smp, MONAI, torchvision); đối chiếu số học các khối viết từ trí nhớ | **Xong (v0.13.0)**, xem §13.8 |
+| **M16** | Hướng tối ưu (`--objective`: accuracy, params, flops, balanced, pareto); bộ tài liệu `doc/` và quy tắc cập nhật theo phiên bản | **Xong (v0.15.0)**, xem §17, `doc/` |
 | **M15** | Phân tích dữ liệu ảnh (data card), ngữ cảnh, chọn hạt giống, Hyperband, aging evolution, portfolio, SNIP/ZiCo/vote | **Xong (v0.14.0)**, xem §16.5. Đo: prior **chưa** dự đoán được thứ hạng; mặc định giữ mọi ứng viên |
 | **M11** | Refactor lõi thành kho module có kiểu `dlnet/zoo/` dùng chung mọi plugin + ngữ pháp ghép + tiến hóa kiến trúc; gom module từ các repo GitHub | **Xong phần lõi (v0.10.0)**: §13.6; 54 op từ 6 repo, 14/14 khối đối chiếu torchvision khớp; kết quả đo zoo so với họ cũ ở §13.6. Chưa có: chuyển hẳn các họ cũ thành preset (vẫn song song), kiểu `graph`/`ids`, trọng số pretrained |
 | **M10** | Thư viện khối từ 4 repo GitHub (§13.5), plugin `image_classification` và `image_segmentation` | **Xong (v0.9.0)**: `dlnet/blocks.py` + `THIRD_PARTY.md`; kết quả đo ở §14.4. Chưa có: pretrained, augmentation, dữ liệu segmentation thật |
@@ -315,6 +316,7 @@ Nguyên tắc: lõi **tổng quát trước**, kiểm chứng end-to-end sớm t
 - Không commit dữ liệu thô hoặc khóa/bí mật.
 - **Môi trường Python:** không commit `.venv` (nặng hàng GB, riêng từng máy, vượt giới hạn 100 MB/file của GitHub; `tests/test_env_setup.py` chặn). Môi trường tái lập bằng `scripts/setup_env.sh` / `scripts/setup_env.ps1` (hoặc `requirements*.txt`), kiểm bằng `dlnet selfcheck`; job CI `env-setup` chạy đúng quy trình này trên Ubuntu, macOS, Windows. Thêm phụ thuộc mới: sửa `pyproject.toml` (extras `design`/`dev`), không sửa riêng script.
 - Trước khi làm, chọn skill phù hợp trong `skills/` (§15).
+- Đổi hành vi người dùng thấy được thì cập nhật `doc/` trong cùng commit (§17).
 - **Thuật toán chuẩn:** mọi bộ ước lượng chất lượng mạng hoặc hyperparameter phải tham khảo `ref/optimazeDL/` và implement đúng công thức của paper/mã chính thức (§16); không tự chế.
 - Mỗi thay đổi người dùng thấy được phải thêm một dòng vào `CHANGELOG.md` mục `[Unreleased]`; phát hành theo §11.2.
 - Mỗi lỗi sửa phải có regression test đi kèm (`tests/test_regression.py`, đỏ trước xanh sau); thay đổi chỉ xanh khi `lint`, `test`, `regression`, `e2e` đều xanh.
@@ -715,6 +717,25 @@ Chưa làm: epochs (hiện là công thức mặc định 100 epoch, cosine, ch�
 
 - **Kết luận (trung thực):** (1) Prior theo data card **không dự đoán được** thứ hạng sau 4 epoch (Spearman −0,18…+0,35, không lần nào trúng top-3), nên `--seeds` mặc định 0 (giữ mọi ứng viên, chỉ đổi thứ tự) và chênh lệch ở Đo 1 nằm trong nhiễu của 2 lần chạy. (2) Đếm tham số vẫn là baseline mạnh trên MNIST/Fashion; synflow và vote hơn nó trên shapes nhưng không ổn định qua dữ liệu, nên proxy vẫn **không** dùng để loại (§16.1). (3) Hyperband tốt nhất trên MNIST, kém hơn trên Fashion: chưa đủ bằng chứng để đổi mặc định. (4) Data card mô tả đúng dữ liệu (textures/shapes: phụ thuộc vị trí ≈ 0, lợi ích tích chập +0,5…0,66; MNIST/Fashion: lợi ích ≈ 0), nhưng mapping "đặc trưng → kiến trúc" bằng tay thì chưa đúng: cần học mapping đó từ meta-store khi có nhiều lần chạy thật (`--meta-store`).
 - **Phát hiện phụ khi đo**: ảnh 3 kênh bị lưu với stride channels-last; torch 2.15 crash (double free) khi backward đa luồng. Đã sửa (`array_data.to_channels_first` trả mảng liền mạch) và có regression test.
+
+## 17. Tài liệu người dùng `doc/` và quy tắc cập nhật theo phiên bản
+
+`doc/` là tài liệu cho người dùng và người phát triển; `agent.md` là kế hoạch, quy tắc và số đo chi tiết. Cấu trúc:
+
+| File | Nội dung | Cách cập nhật |
+|---|---|---|
+| `doc/README.md` | mục lục, dòng **"Phiên bản tài liệu: X.Y.Z"** | dòng phiên bản do `scripts/release.py bump` sửa |
+| `doc/user-guide.md` | cài đặt, dữ liệu, chạy, hướng tối ưu, đọc kết quả, huấn luyện lại, sự cố | viết tay |
+| `doc/architecture.md` | pipeline, thư mục mã, zoo, plugin, gói đầu ra | viết tay |
+| `doc/algorithms.md` | thuật toán, nguồn, chỗ chưa đối chiếu, số đo tóm tắt | viết tay |
+| `doc/cli.md`, `doc/zoo.md` | tham chiếu lệnh, danh mục module | **sinh tự động** (`python scripts/gen_docs.py`), không sửa tay |
+
+**Quy tắc (bắt buộc cho mọi thay đổi và mọi bản phát hành):**
+1. Commit nào đổi hành vi người dùng thấy (lệnh, tùy chọn, định dạng dữ liệu, đầu ra, thuật toán, kết quả đo) thì sửa luôn trang `doc/` liên quan trong **cùng commit**, giống quy tắc CHANGELOG. Thêm tùy chọn CLI hoặc op mới: chạy `python scripts/gen_docs.py`.
+2. Tài liệu chỉ mô tả điều đã có trong mã và đã đo; điều chưa làm hoặc kết quả âm tính ghi rõ như trong `agent.md`.
+3. Commit phát hành dùng `python scripts/release.py bump X.Y.Z`: đổi phiên bản trong `pyproject.toml`, `dlnet/__init__.py`, `doc/README.md`, mở mục CHANGELOG, sinh lại `doc/cli.md`, `doc/zoo.md`.
+4. Kiểm tra tự động: `python scripts/release.py check` (phiên bản tài liệu = phiên bản gói) và `tests/test_docs.py` (tài liệu sinh tự động khớp mã, không có link hỏng, mọi hướng tối ưu và lệnh đều được nhắc tới). CI chạy cả hai, nên tài liệu lệch thì không phát hành được.
+5. Mỗi mốc mới: thêm mục vào `doc/algorithms.md` (thuật toán + nguồn + số đo) và hướng dẫn dùng vào `doc/user-guide.md`.
 
 ## Tài liệu tham khảo
 Toàn bộ PDF nằm trong `ref/` (mục lục: `ref/README.md`); thuật toán ước lượng chất lượng và hyperparameter trong `ref/optimazeDL/` (§16).

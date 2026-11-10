@@ -133,6 +133,8 @@ def trait_weights(card: dict, context: str = "", goal: str = "accuracy") -> tupl
                 add(t, v, f"context matches '{pattern.split('|')[0]}'")
     if goal == "small":
         add("light", 1.5, "goal: small / fast model")
+    elif goal == "balanced":
+        add("light", 0.75, "goal: balance accuracy and size")
     return w, why
 
 
@@ -148,8 +150,8 @@ def prior_scores(
         p = c.get("params") or 0
         if p > 100 * n:  # DLNet heuristic: over-parameterised for the data size
             s -= 0.5 * math.log10(p / (100 * n))
-        if goal == "small" and p:
-            s -= 0.5 * math.log10(max(p, 1))
+        if goal in ("small", "balanced") and p:
+            s -= (0.5 if goal == "small" else 0.25) * math.log10(max(p, 1))
         out.append(s)
     return out, why
 

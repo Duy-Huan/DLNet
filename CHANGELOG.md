@@ -6,6 +6,14 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+Mốc M16 (xem `doc/user-guide.md` §5, `doc/algorithms.md` §2, `agent.md` §17): hướng tối ưu và bộ tài liệu.
+
+### Thêm
+- **`--objective accuracy | params | flops | balanced | pareto`** (`dlnet/objectives.py`): nhỏ nhất trong `--tolerance` của mô hình tốt nhất (ε-ràng buộc); phần thưởng MnasNet `acc × (cost/T)^w` (`--target-cost`, `--cost-weight`, `--cost params|flops`); xếp hạng Pareto (sắp xếp không bị trội + crowding distance của NSGA-II). Áp dụng ở mọi bước: giữa các rung, tournament của tiến hóa, Top-K. `leaderboard.md` luôn có bảng Pareto front.
+- `--max-params`; `--goal balanced`; seed selection theo `--objective`.
+- **Thư mục `doc/`**: `README.md` (mục lục, phiên bản tài liệu), `user-guide.md`, `architecture.md`, `algorithms.md`, và `cli.md`, `zoo.md` sinh tự động bằng `scripts/gen_docs.py`.
+- `python scripts/release.py bump X.Y.Z`: sửa phiên bản ở mọi nơi, mục CHANGELOG, phiên bản tài liệu, sinh lại tài liệu; `release.py check` báo lỗi khi `doc/README.md` lệch phiên bản; `tests/test_docs.py` báo lỗi khi tài liệu sinh tự động lệch mã hoặc có link hỏng.
+
 ## [0.14.0] - 2026-11-10
 
 Mốc M15 (xem `agent.md` §16.5): phân tích dữ liệu, chọn hạt giống, thuật toán tìm kiếm chuẩn.

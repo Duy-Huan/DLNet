@@ -37,7 +37,9 @@ def _apply_cost_model(plugin, data, cands, args):
             print(f"[cost] {c['family']}: not costed ({str(e)[:60]})")
             kept.append(c)
             continue
-        if cost.within(c, max_flops, max_vram):
+        if cost.within(c, max_flops, max_vram) and (
+            not args.max_params or c.get("params", 0) <= cost.parse_size(args.max_params)
+        ):
             kept.append(c)
         else:
             dropped += 1
@@ -54,11 +56,12 @@ def _apply_cost_model(plugin, data, cands, args):
 
 
 def design(args) -> int:
+    import functools
     from pathlib import Path
 
     import torch
 
-    from . import export, hparams, meta, plugins, proxies, search, seeds, zoo
+    from . import export, hparams, meta, objectives, plugins, proxies, search, seeds, zoo
     from .zoo import space
 
     t0 = time.time()
@@ -145,8 +148,10 @@ def design(args) -> int:
     if args.meta_store:
         port = meta.portfolio(meta.load(args.meta_store), plugin.name, meta.features(prof)) or None
     use_px = args.seed_proxies and len(zc) == len(cands)
+    goal = args.goal if args.goal != "accuracy" else {
+        "params": "small", "flops": "small", "balanced": "balanced"}.get(args.objective, "accuracy")  # fmt: skip
     cands, seed_report = seeds.select(
-        cands, card, args.seeds, args.context or "", args.goal, meta_rec, port,
+        cands, card, args.seeds, args.context or "", goal, meta_rec, port,
         [zc[id(c)] for c in cands] if use_px else None, (1.0, 1.0, 1.0 if use_px else 0.0),
         order=args.seed_order, seed=args.seed,
     )  # fmt: skip
@@ -165,6 +170,10 @@ def design(args) -> int:
         f"[seeds] {seed_report['kept']}/{seed_report['pool']} candidates, rankers {seed_report['rankers']}; "
         f"first: {[t['origin'] if t['origin'] != 'family' else t['family'] for t in seed_report['top'][:5]]}"
     )
+    rank = functools.partial(
+        objectives.order, objective=args.objective, cost=args.cost, tol=args.tolerance,
+        target=objectives.parse_target(args.target_cost), weight=args.cost_weight,
+    )  # fmt: skip
     trace = {}
     t_search = time.time()
     gens = args.evolve if any(c.get("spec") for c in cands) else 0
@@ -172,7 +181,7 @@ def design(args) -> int:
     runner = search.run_hyperband if args.scheduler == "hyperband" else search.run_search
     results = runner(
         data, cands, gen0_deadline, args.topk, plugin.build_model, folds=folds,
-        cache=cache, trace=trace,
+        cache=cache, trace=trace, rank=rank,
     )  # fmt: skip
     evolution = []
     seen = {zoo.signature(c["spec"]) for c in cands if c.get("spec")}
@@ -183,8 +192,9 @@ def design(args) -> int:
         if time.time() > search_deadline - 5 or not population:
             break
         S = args.tournament or max(2, len(population) // 4)
+        pos = {i: p for p, i in enumerate(rank(population))}  # tournament fitness = objective rank
         kids = space.aging_children(
-            population,
+            [(c, -pos[i]) for i, (c, _) in enumerate(population)],
             args.evolve_pop,
             S,
             args.seed + g,
@@ -214,6 +224,7 @@ def design(args) -> int:
             folds=folds,
             cache=cache,
             trace=sub,
+            rank=rank,
         )
         results = results + res
         population = (population + sub.get("rung1", []))[-pop_size:]  # the oldest die
@@ -224,8 +235,25 @@ def design(args) -> int:
         results, data, plugin.build_model, deadline, log=print, folds=folds, cache=cache
     )
     results = search.assign_groups(results)
-    chosen = search.select_topk(results, args.topk)
+    entries = [(r["cfg"], r["val_mean"]) for r in results]
+    if args.objective != "accuracy":
+        results = [results[i] for i in rank(entries)]
+        entries = [(r["cfg"], r["val_mean"]) for r in results]
+    chosen = search.select_topk(results, args.topk, keep_order=args.objective != "accuracy")
     extras = {}
+    front = objectives.pareto_front(entries, "flops" if args.objective == "flops" else args.cost)
+    extras["objective"] = {
+        "objective": args.objective, "cost": args.cost, "tolerance": args.tolerance,
+        "target_cost": args.target_cost, "cost_weight": args.cost_weight,
+        "pareto_front": sorted(
+            ({"family": results[i]["cfg"]["family"], "val_mean": round(results[i]["val_mean"], 5),
+              "params": results[i]["cfg"].get("params"), "flops": results[i]["cfg"].get("flops")}
+             for i in front), key=lambda r: r["params"] or 0),
+    }  # fmt: skip
+    if args.objective != "accuracy":
+        print(f"[objective] {args.objective}: top-1 {chosen[0]['cfg']['family']} "
+              f"val={chosen[0]['val_mean']:.4f} params={chosen[0]['cfg'].get('params'):,}; "
+              f"Pareto front has {len(front)} models")  # fmt: skip
     if zoo_cands or evolution:
         extras["module_zoo"] = {
             "initial_candidates": len(zoo_cands),
@@ -236,7 +264,7 @@ def design(args) -> int:
     if meta_rec:
         extras["meta_recommendation"] = meta_rec
     extras["seed_selection"] = {**seed_report, "data_card": card, "context": args.context or "",
-                                "goal": args.goal, "portfolio": port, "scheduler": args.scheduler}  # fmt: skip
+                                "goal": goal, "portfolio": port, "scheduler": args.scheduler}  # fmt: skip
     if args.meta_store:
         rec = meta.make_record(plugin.name, prof, trace.get("rung1", []), Path(args.data).name)
         if rec:
@@ -309,19 +337,28 @@ def main(argv=None) -> int:
     d.add_argument(
         "--plugin",
         default="auto",
-        help="auto | tabular | hsi | image_classification | image_segmentation | timeseries",
+        help="auto | tabular | hsi | image_classification (image) | image_segmentation (segmentation) | "
+        "image_reconstruction (autoencoder) | timeseries | graph | recsys",
     )
-    d.add_argument("--budget", default="5m")
-    d.add_argument("--topk", type=int, default=3)
-    d.add_argument("--per-family", type=int, default=8)
-    d.add_argument("--seed", type=int, default=0)
+    d.add_argument(
+        "--budget", default="5m", help="wall-clock budget of the whole run: 90s, 10m, 2h"
+    )
+    d.add_argument("--topk", type=int, default=3, help="number of exported baselines")
+    d.add_argument(
+        "--per-family", type=int, default=8, help="random configurations per model family"
+    )
+    d.add_argument(
+        "--seed", type=int, default=0, help="random seed (split, sampling, initialisation)"
+    )
     d.add_argument(
         "--cv-splits",
         type=int,
         default=0,
         help="rank finalists on this many different splits (0 = plugin default; 1 = off)",
     )
-    d.add_argument("--out", default="dlnet_out")
+    d.add_argument(
+        "--out", default="dlnet_out", help="output folder (leaderboard + one package per baseline)"
+    )
     d.add_argument("--no-cache", action="store_true", help="do not reuse finished runs of --out")
     d.add_argument(
         "--meta-store",
@@ -347,7 +384,28 @@ def main(argv=None) -> int:
         "--context",
         help='task context in words, e.g. "medical CT, small lesions" or "mobile, real-time"',
     )
-    d.add_argument("--goal", default="accuracy", choices=["accuracy", "small"])
+    d.add_argument(
+        "--goal", default="accuracy", choices=["accuracy", "small", "balanced"],
+        help="seed-selection bias (default: follows --objective)",
+    )  # fmt: skip
+    d.add_argument(
+        "--objective", default="accuracy", choices=["accuracy", "params", "flops", "balanced", "pareto"],
+        help="accuracy: best validation | params/flops: smallest model within --tolerance of the best | "
+        "balanced: MnasNet reward acc*(cost/T)^w | pareto: non-dominated (accuracy, cost) first",
+    )  # fmt: skip
+    d.add_argument(
+        "--cost", default="params", choices=["params", "flops"], help="cost used by balanced/pareto"
+    )
+    d.add_argument(
+        "--tolerance", type=float, default=0.01, help="params/flops: allowed score loss vs the best"
+    )
+    d.add_argument(
+        "--target-cost", help="balanced: target cost T, e.g. 200k params (default: pool median)"
+    )
+    d.add_argument(
+        "--cost-weight", type=float, default=-0.07, help="balanced: exponent w (MnasNet: -0.07)"
+    )
+    d.add_argument("--max-params", help="drop candidates with more parameters, e.g. 500k")
     d.add_argument(
         "--seeds", type=int, default=0,
         help="keep only this many seed architectures (data-aware ranking); 0 = keep all, ranked",
@@ -356,7 +414,10 @@ def main(argv=None) -> int:
         "--seed-proxies", action="store_true",
         help="let the zero-cost proxy vote (synflow, naswot, snip) rank the seeds too",
     )  # fmt: skip
-    d.add_argument("--scheduler", default="sh", choices=["sh", "hyperband"])
+    d.add_argument(
+        "--scheduler", default="sh", choices=["sh", "hyperband"],
+        help="sh: one successive-halving bracket (4/12/30 epochs) | hyperband: Li et al. 2018",
+    )  # fmt: skip
     d.add_argument(
         "--seed-order", default="data", choices=["data", "random"],
         help="random = control arm that keeps --seeds candidates at random (for measuring the selector)",

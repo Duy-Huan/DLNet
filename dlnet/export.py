@@ -320,6 +320,18 @@ def export(out_dir, plugin, data, prof, chosen, reference, seed, epochs_recipe=1
             f"Val margin {v['val_margin']} vs noise {v['val_noise']}; test margin {v['test_margin']}. "
             "Consider the reference baseline first; the deep-learning candidates below are still valid to try."
         )
+    ob = (extras or {}).get("objective")
+    if ob:
+        md.append(f"\n## Objective: {ob['objective']}\n")
+        if ob["objective"] != "accuracy":
+            md.append(
+                "Top-K is ordered by this objective, not by validation alone (see doc/user-guide.md).\n"
+            )
+        md.append("Pareto front of (validation, parameters) among the ranked finalists:\n")
+        md.append("| family | val | params | FLOPs |\n|---|---|---|---|")
+        for r in ob["pareto_front"]:
+            fl = "-" if r["flops"] is None else f"{r['flops']:,}"
+            md.append(f"| {r['family']} | {r['val_mean']} | {r['params']:,} | {fl} |")
     zc = (extras or {}).get("zero_cost_proxies")
     if zc:
         md.append("\n## Zero-cost proxies (information only, nothing was pruned)\n")
