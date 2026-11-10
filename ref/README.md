@@ -1,0 +1,15 @@
+# ref/ — Tài liệu tham khảo cho DLNet
+
+PDF tải từ arXiv, tên file = `<nhóm>_<tên>_<arXiv id>.pdf`. Mã arXiv đã đối chiếu tiêu đề với trang đầu PDF.
+
+| Nhóm | Chủ đề | Dùng cho phần nào của `agent.md` |
+|---|---|---|
+| 01 | Paper nền tảng (Modular Deep Learning) | Khung 4 trục: computation/routing/aggregation/training |
+| 02 | AutoML & NAS (survey, DARTS, NAS-RL, Once-for-All) | Search & Refine, Recommender |
+| 03 | Ước lượng không cần/ít huấn luyện: zero-cost proxy, scaling law, intrinsic dimension | Estimator |
+| 04 | Tensor decomposition cho mạng nơ-ron (CP, Tucker, TT, TR, TensorLy) | Tensor module, ước lượng rank |
+| 05 | Deep unfolding / algorithm unrolling | Unfolded module |
+| 06 | PEFT: LoRA, adapters, prefix/prompt tuning, Compacter, MAD-X, AdapterFusion, Hyper-X, task arithmetic | Computation / Aggregation module |
+| 07 | MoE, hypernetwork, lottery ticket | Routing, sparse composition |
+
+Lưu ý: Kossaifi & Cichocki (Tensor Networks Part 1/2) là chuyên khảo dài; Elsken NAS survey là bản arXiv 1808.05377 (cùng nội dung bản JMLR).
