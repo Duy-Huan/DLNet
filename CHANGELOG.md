@@ -6,6 +6,17 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+Mốc M8 (xem `agent.md` §5, §8): deep unfolding cho bài toán nghịch có mô hình thuận.
+
+### Thêm
+- Lệnh mới `dlnet unfold --data problem.npz [--layers 4,8,16] [--epochs 100] [--seeds 3] [--shared]`: với bài toán `y = A x + nhiễu` (file `.npz` chứa `A`, `Y`, `X`), huấn luyện mạng unfolding LISTA cho từng độ sâu K, so với ISTA và FISTA chạy đúng K vòng (λ tune trên validation), ghi `leaderboard.md` / `leaderboard.json` và gói `top<i>_lista_K<k>/` (`model.py`, `weights.pt`, `train.py`, `config.yaml`, test).
+- `dlnet/unfold.py`: `ista`, `fista`, `LISTA` (dạng weight-coupled của Chen et al. 2018), `nmse_db`, `tune_lambda`. Mạng chưa huấn luyện bằng đúng K vòng ISTA.
+- `scripts/bench_unfold.py`: sinh bài toán khôi phục thưa tổng hợp và chạy phép so sánh.
+
+### Hạn chế đã biết
+- Đo trên một bài toán tổng hợp (m=64, n=128, SNR 30 dB): LISTA hơn solver cổ điển tốt nhất 3,3–6,3 dB ở cùng K = 4, 8, 16; lợi thế giảm khi K tăng. Chưa đo trên dữ liệu thật và chưa so với solver chạy đến hội tụ.
+- Chỉ hỗ trợ `A` là ma trận tường minh và nghiệm thưa. Chưa có ADMM/AMP, support selection, lịch huấn luyện theo tầng của paper.
+
 ## [0.6.0] - 2026-11-10
 
 Mốc M7 (xem `agent.md` §4, §8): module tensor và phép đo nén.
