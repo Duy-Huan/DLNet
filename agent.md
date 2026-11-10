@@ -74,6 +74,11 @@ Trích `DataProfile`: modality, shape, kích thước mẫu N, số chiều/kên
 1. **Capacity / độ khó**: 
    - Probe nhanh: huấn luyện model nhỏ ở vài mức N (learning-curve) → ngoại suy scaling law `L(N)=a·N^{-b}+c` để biết dữ liệu có "đủ cho model lớn" không.
    - Intrinsic dimension (TwoNN / MLE), PCA/SVD spectrum → độ rộng hợp lý của lớp ẩn.
+   - **Scaling exponent từ intrinsic dimension** (Sharma & Kaplan, `ref/03_scaling-law-data-manifold_2004.10802.pdf`): khi dữ liệu đủ nhiều, loss theo số tham số `L ∝ N^{-α}` với `α ≈ 4/d` (d = intrinsic dimension). Dùng như sau:
+     1. Ước lượng `d` bằng TwoNN/MLE trên (embedding của) dữ liệu → `α̂ = 4/d`.
+     2. Fit song song `α` thực nghiệm từ learning-curve; so sánh `α̂` với `α` đo được làm kiểm tra chéo.
+     3. Từ `α` suy ra **lợi suất giảm dần**: tăng tham số ×k chỉ giảm loss ×`k^{-α}`; nếu `d` lớn (α nhỏ) thì ưu tiên mô hình nhỏ/nén hơn, nếu `d` nhỏ thì mở rộng mô hình có hiệu quả. Kết quả là **dung lượng khuyến nghị** `N*` (tham số) đưa vào `ProblemSpec` làm ngân sách mặc định cho Search.
+     - Giới hạn: công thức là lý thuyết cho miền dữ liệu dồi dào và loss cross-entropy/MSE; với N nhỏ chỉ dùng làm prior, luôn xác thực bằng short-train.
    - Zero-cost proxy (grad-norm, SynFlow, NTK condition number) để xếp hạng sơ bộ.
 2. **Cấu trúc tensor** (`dlnet/tensor`):
    - Biểu diễn dữ liệu như tensor bậc-k; tính **mode-n unfolding** và phổ singular từng mode → ước lượng **multilinear rank**.
@@ -125,7 +130,24 @@ Hai chỗ dùng, tách bạch:
 | Tensor-Train / Tensor-Ring | FC lớn, embedding, attention proj. | Nén mạnh, mở rộng tốt |
 | LoRA (low-rank) | Parameter composition (paper) | Là trường hợp ma trận của phân rã |
 
-Quan hệ với paper: phân rã hạng thấp chính là một dạng **parameter composition** (`θ ⊕ Δθ` với Δθ low-rank/tensor-factorized). DLNet tổng quát hóa LoRA → **Tensor-LoRA** (TT/Tucker adapter) như một `Computation` module.
+Quan hệ với paper: phân rã hạng thấp chính là một dạng **parameter composition** (`θ ⊕ Δθ` với Δθ low-rank/tensor-factorized). DLNet tổng quát hóa LoRA → **Tensor-LoRA** như một `Computation` module.
+
+### Tensor-LoRA: cơ sở và thiết kế
+Tensor-LoRA = adapter/delta-weight được tham số hóa bằng cấu trúc tensor thay vì cặp ma trận `B·A`. Dựa trên ba nguồn trong `ref/`:
+
+| Nguồn | Đóng góp được dùng |
+|---|---|
+| **Tensorizing Neural Networks** (Novikov, 1509.06569) | Reshape ma trận `W ∈ R^{M×N}` thành tensor bậc-d (`M=∏m_k`, `N=∏n_k`) rồi biểu diễn bằng **Tensor-Train**; số tham số giảm từ `MN` xuống `∑ r_{k-1} m_k n_k r_k`. Dùng cho lớp FC/projection lớn. |
+| **Tensor Ring** (Zhao, 1606.05535) | Vòng lõi tensor, không cố định rank biên như TT → tham số hóa linh hoạt, bất biến theo hoán vị vòng; dùng khi TT bị nghẽn rank ở hai đầu. |
+| **Compacter** (Mahabadi, 2106.04647) | Adapter hạng thấp dạng **tổng tích Kronecker** `W = ∑_i A_i ⊗ (u_i v_iᵀ)`, chia sẻ `A_i` giữa các lớp → cực ít tham số; là mẫu thiết kế để chia sẻ lõi tensor giữa nhiều adapter/module. |
+
+Thiết kế module `TensorLoRA`:
+- `Δθ = TT/TR/Kronecker(cores)`, `θ_eff = θ_frozen + (α/r)·Δθ`; backbone đóng băng (training setting = parameter-efficient transfer).
+- Tham số điều khiển trong `ArchSpec`: `format ∈ {lora, tt, tr, kronecker}`, `factor_shape` (cách reshape), `rank` (hoặc danh sách rank), `share_cores` (kiểu Compacter).
+- Chọn `format` bằng ước lượng ở §3.2: nếu trọng số/ma trận biến đổi có phổ singular suy giảm nhanh theo nhiều mode → TT/TR; ngược lại giữ LoRA (ma trận).
+- Khởi tạo: phân rã trọng số pretrained (TT-SVD / TR-SVD) khi có, nếu không thì khởi tạo nhỏ để `Δθ ≈ 0`.
+- Kiểm thử bắt buộc: `Δθ` tái tạo đúng shape; số tham số theo công thức; gradient chảy qua mọi lõi; với `rank` đủ lớn tái tạo được LoRA chuẩn.
+- Rủi ro đã biết: nén CNN bằng TT/TR dễ mất độ chính xác, CP dễ bất ổn số học (xem `ref/04_stable-lowrank-cp-cnn_2008.05441.pdf`) → mặc định dùng TT/TR cho FC/projection, Tucker cho conv, CP chỉ khi có bước ổn định hóa.
 
 ---
 
@@ -216,7 +238,25 @@ constraints:  {max_params: 5e6, max_latency_ms: 20}
 - Kết quả thực nghiệm lưu kèm seed/config để tái lập.
 - Không commit dữ liệu thô hoặc khóa/bí mật.
 
+## 11. Quy trình Git & CI/CD
+
+**Hai nhánh cố định:**
+- `main`: luôn ổn định, chỉ nhận code từ `dev` (tự động, sau khi CI xanh).
+- `dev`: nhánh phát triển; mọi việc làm trên `dev` hoặc nhánh con (`feature/*`, `claude/*`) rồi merge vào `dev`.
+
+```
+feature/*  ──PR──►  dev  ──(CI xanh, tự động)──►  main
+```
+
+Workflow (`.github/workflows/`):
+- `ci.yml`: chạy khi push/PR vào `dev` hoặc `main`: lint (ruff), test (pytest, Python 3.10–3.12); PR vào `main` mà nguồn không phải `dev` bị từ chối.
+- `promote.yml`: khi push vào `dev` và CI xanh → tự tạo PR `dev → main` và merge.
+
+Thiết lập thủ công trên GitHub (không làm được từ code): xem `.github/README.md`.
+
 ## Tài liệu tham khảo
+Toàn bộ PDF nằm trong `ref/` (mục lục: `ref/README.md`).
+
 - Pfeiffer, Ruder, Vulić, Ponti. *Modular Deep Learning.* arXiv:2302.11529.
 - Hu et al. *LoRA*; Houlsby et al. *Adapters*; Li & Liang *Prefix-tuning*; Lester et al. *Prompt tuning*.
 - Gregor & LeCun *LISTA*; Monga et al. *Algorithm Unrolling*.

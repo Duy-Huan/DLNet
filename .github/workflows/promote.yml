@@ -1,0 +1,38 @@
+name: Promote dev to main
+
+on:
+  push:
+    branches: [dev]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: promote-main
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  promote:
+    name: promote
+    needs: ci
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tao PR dev -> main (neu chua co)
+        run: |
+          n=$(gh pr list --base main --head dev --state open --json number --jq '.[0].number')
+          if [ -z "$n" ]; then
+            gh pr create --base main --head dev \
+              --title "Promote dev to main" \
+              --body "Tu dong: CI xanh tren dev, dong bo dev vao main."
+            n=$(gh pr list --base main --head dev --state open --json number --jq '.[0].number')
+          fi
+          echo "PR_NUMBER=$n" >> "$GITHUB_ENV"
+      - name: Merge
+        run: gh pr merge "$PR_NUMBER" --merge || gh pr merge "$PR_NUMBER" --merge --auto
