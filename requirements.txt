@@ -1,2 +1,12 @@
-# Chay DLNet: pip install -r requirements.txt  (nen dung scripts/setup_env.sh de co torch CPU nhe)
--e .[design]
+# DLNet - thu vien can de chay. Python 3.12 (xem .python-version).
+# Cai:  python -m venv .venv  ->  activate  ->  pip install -r requirements.txt
+# Chay: python -m dlnet selfcheck   (tu thu muc goc cua repo, khong can cai them)
+#
+# Cac phien ban duoi day da duoc kiem tra tren Python 3.12 (Linux, macOS, Windows).
+numpy==2.5.4
+pandas==3.1.1
+scipy==1.18.1
+scikit-learn==1.9.1
+torch==2.15.0
+# Muon torch ban CPU (nhe, khong keo thu vien CUDA) tren Linux/Windows, cai truoc dong nay:
+#   pip install torch==2.15.0 --index-url https://download.pytorch.org/whl/cpu
