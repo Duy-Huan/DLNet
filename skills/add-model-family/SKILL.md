@@ -14,3 +14,5 @@ triggers: model, family, library, module, tensor, Tucker, TT, low-rank, SPACE
 7. Test: forward đúng shape với batch 2, backward chạy được, số tham số của biến thể nén nhỏ hơn bản dense.
 8. HSI: ưu tiên thêm **khối** vào registry thay vì viết mô hình riêng: `@register(kind, name)` trên lớp con của `Block` trong `hsi_lib.py`, hiện thực `features(...)` (suy luận shape tĩnh, `raise ValueError` khi đầu vào không hợp lệ). Khối tự xuất hiện trong họ `composed`; muốn có họ preset thì thêm một dòng vào `PRESETS` và `SPACE`. Test `test_static_shape_inference_matches_the_built_blocks` tự kiểm tra khối mới.
 9. Cập nhật `agent.md` §13 (registry / danh mục khối) và theo skill `git-dev-main`.
+10. Khối dùng chung cho nhiều plugin (backbone, decoder, attention, routing) đặt trong `dlnet/blocks.py` với decorator `@catalog(kind, name, source)`; plugin copy `blocks.py` vào gói qua `extra_files`, file thư viện import bằng `try: from . import blocks / except ImportError: import blocks`.
+11. Lấy khối từ repo ngoài: kiểm tra giấy phép trước. Không có giấy phép thì **không sao chép mã**, chỉ cài lại từ phương pháp. Ghi repo, commit, giấy phép và những gì đã đổi vào `THIRD_PARTY.md`.

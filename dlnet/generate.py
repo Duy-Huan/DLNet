@@ -28,6 +28,14 @@ SPACE = {
         "rank": [8, 16, 32],
     },
     "ft_transformer": {"width": [32, 64], "depth": [1, 2], "dropout": [0.0, 0.1]},
+    "moe_mlp": {
+        "width": [64, 128, 256],
+        "depth": [1, 2],
+        "dropout": [0.0, 0.1],
+        "experts": [2, 4, 8],
+        "routing": ["soft", "topk"],
+    },
+    "fm_mlp": {"width": [64, 128], "depth": [2, 3], "dropout": [0.0, 0.1], "rank": [4, 8, 16]},
 }
 TRAIN = {"lr": [1e-3, 3e-3], "wd": [1e-4, 1e-2], "batch": [64, 128]}
 
@@ -49,7 +57,7 @@ def generate(profile: dict, n_per_family: int = 8, seed: int = 0) -> list[dict]:
                 continue
             seen.add(key)
             # Cost model (v0): parameter count from the instantiated model.
-            if fam == "ft_transformer" and in_dim > 128:
+            if fam in ("ft_transformer", "fm_mlp") and in_dim > 128:
                 continue  # quadratic in #features
             cfg["params"] = count_params(build_model(cfg, in_dim, out_dim))
             if cfg["params"] <= profile["max_params"]:

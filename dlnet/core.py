@@ -108,6 +108,9 @@ def compute_metrics(y_true, y_pred, task: str, primary: str) -> dict:
         m = {"rmse": rmse, "r2": r2}
         m["score"] = -rmse
         return m
+    if y_true.ndim > 1:  # dense prediction: one label per pixel, negative labels are ignored
+        keep = y_true >= 0
+        y_true, y_pred = y_true[keep], y_pred[keep]
     acc = float(np.mean(y_true == y_pred))
     recalls = [np.mean(y_pred[y_true == c] == c) for c in np.unique(y_true)]
     pe = sum(
@@ -119,6 +122,15 @@ def compute_metrics(y_true, y_pred, task: str, primary: str) -> dict:
         "balanced_accuracy": float(np.mean(recalls)),
         "kappa": float((acc - pe) / (1 - pe + 1e-12)),
     }
+    if primary == "miou":  # mean over the classes present in y_true of |A and B| / |A or B|
+        m["miou"] = float(
+            np.mean(
+                [
+                    np.sum((y_true == c) & (y_pred == c)) / np.sum((y_true == c) | (y_pred == c))
+                    for c in np.unique(y_true)
+                ]
+            )
+        )
     m["score"] = m[primary]
     return m
 

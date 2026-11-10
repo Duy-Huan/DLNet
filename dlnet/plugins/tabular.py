@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import ClassVar
 
 from .. import core, generate, profile, reference
 from ..library import build_model
@@ -58,6 +59,7 @@ def test_forward_shape():
 class TabularPlugin(DomainPlugin):
     name = "tabular"
     model_file = HERE / "library.py"
+    extra_files: ClassVar[dict[str, Path]] = {"blocks.py": HERE / "blocks.py"}
     train_template = TRAIN_PY
     test_template = TEST_PY
     metric_keys = ("accuracy", "balanced_accuracy", "rmse", "r2")

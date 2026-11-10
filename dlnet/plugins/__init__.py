@@ -49,17 +49,27 @@ class DomainPlugin:
         return {}
 
 
+ALIASES = {"image": "image_classification", "segmentation": "image_segmentation"}
+
+
 def _registry() -> dict[str, DomainPlugin]:
-    from .arrays import ImagePlugin, TimeSeriesPlugin
+    from .arrays import ImageClassificationPlugin, ImageSegmentationPlugin, TimeSeriesPlugin
     from .hsi import HSIPlugin
     from .tabular import TabularPlugin
 
-    plugins = (TabularPlugin(), HSIPlugin(), ImagePlugin(), TimeSeriesPlugin())
+    plugins = (
+        TabularPlugin(),
+        HSIPlugin(),
+        ImageClassificationPlugin(),
+        ImageSegmentationPlugin(),
+        TimeSeriesPlugin(),
+    )
     return {p.name: p for p in plugins}
 
 
 def get_plugin(name: str) -> DomainPlugin:
     reg = _registry()
+    name = ALIASES.get(name, name)
     if name not in reg:
         raise SystemExit(f"unknown plugin {name!r}; available: {sorted(reg)}")
     return reg[name]

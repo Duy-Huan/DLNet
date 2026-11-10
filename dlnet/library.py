@@ -7,6 +7,11 @@ Families:
   tr_resmlp      residual MLP whose hidden linears are Tensor-Ring factorised
   lowrank_mlp    MLP whose hidden linears are low-rank factorised (U V)
   ft_transformer feature-tokenizer transformer (one token per feature)
+  moe_mlp        mixture of experts: small MLP experts combined by a learned gate (soft or top-k
+                 routing; blocks.MixtureOfExperts, method of yamsgithub/modular_deep_learning)
+  fm_mlp         factorisation-machine style: a vector per feature, all pairwise dot products
+                 (blocks.SecondOrderInteraction, ported from ylongqi/openrec) joined with the
+                 raw features and fed to an MLP
 """
 
 from __future__ import annotations
@@ -16,7 +21,14 @@ import math
 import torch
 from torch import nn
 
-FAMILIES = ("mlp", "resmlp", "tt_resmlp", "tr_resmlp", "lowrank_mlp", "ft_transformer")
+try:  # inside the dlnet package
+    from . import blocks
+except ImportError:  # inside an exported package (blocks.py sits next to model.py)
+    import blocks
+
+FAMILIES = (
+    "mlp", "resmlp", "tt_resmlp", "tr_resmlp", "lowrank_mlp", "ft_transformer", "moe_mlp", "fm_mlp",
+)  # fmt: skip
 
 
 def _factor(n: int) -> tuple[int, int]:
@@ -157,6 +169,25 @@ class FTTransformer(nn.Module):
         return self.head(self.norm(self.enc(t)[:, 0]))
 
 
+class FMMLP(nn.Module):
+    """x_i * v_i per feature -> pairwise dot products -> concat with x -> MLP."""
+
+    def __init__(self, in_dim, out_dim, width, depth, dropout, rank):
+        super().__init__()
+        self.v = nn.Parameter(torch.randn(in_dim, rank) * 0.1)
+        self.inter = blocks.SecondOrderInteraction()
+        self.mlp = MLP(in_dim + in_dim * (in_dim - 1) // 2, out_dim, width, depth, dropout)
+
+    def forward(self, x):
+        return self.mlp(torch.cat([x, self.inter(x.unsqueeze(-1) * self.v)], 1))
+
+
+def moe_mlp(in_dim, out_dim, width, depth, dropout, experts, routing):
+    """`experts` MLPs of width `width // 2`, a linear gate; routing 'soft' or 'topk' (k = 2)."""
+    exp = [MLP(in_dim, out_dim, max(width // 2, 8), depth, dropout) for _ in range(experts)]
+    return blocks.MixtureOfExperts(exp, nn.Linear(in_dim, experts), mode=routing, k=2)
+
+
 def build_model(cfg: dict, in_dim: int, out_dim: int) -> nn.Module:
     f, w, d, p, r = cfg["family"], cfg["width"], cfg["depth"], cfg["dropout"], cfg.get("rank", 8)
     if f == "mlp":
@@ -169,6 +200,10 @@ def build_model(cfg: dict, in_dim: int, out_dim: int) -> nn.Module:
         return ResMLP(in_dim, out_dim, w, d, p, kind="tt", rank=r)
     if f == "tr_resmlp":
         return ResMLP(in_dim, out_dim, w, d, p, kind="tr", rank=r)
+    if f == "moe_mlp":
+        return moe_mlp(in_dim, out_dim, w, d, p, cfg.get("experts", 4), cfg.get("routing", "soft"))
+    if f == "fm_mlp":
+        return FMMLP(in_dim, out_dim, w, d, p, r)
     if f == "ft_transformer":
         return FTTransformer(in_dim, out_dim, w, d, p)
     raise ValueError(f"unknown family {f}")

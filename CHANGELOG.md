@@ -6,6 +6,25 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-10
+
+Mốc M10 (xem `agent.md` §8, §13.5, §14.4): thư viện khối từ bốn repo GitHub, plugin phân loại và phân đoạn ảnh.
+
+### Thêm
+- `dlnet/blocks.py`: thư viện khối dùng chung (torch only): backbone (`lenet`, `allconv`, `vgg`, `resnet`, `densenet`, `mobilenetv2`), attention (`se`, `self_attention_2d`), decoder (`fcn`, `unet`, `deconv`), `MixtureOfExperts` (soft, top-k, product), `LatentFactor`, `SecondOrderInteraction`, `pairwise_log_loss`, `NeuralTree`/`SumTrunk`/`MeanPooling`. Mỗi khối ghi nguồn; liệt kê bằng `python -m dlnet blocks`. Được copy vào gói xuất ra (`blocks.py`).
+- `THIRD_PARTY.md`: repo, commit, giấy phép và phần đã dùng/chưa dùng của rasbt/deeplearning-models (MIT), prescient-design/cortex (Apache-2.0), ylongqi/openrec (Apache-2.0), yamsgithub/modular_deep_learning (không có giấy phép, nên chỉ cài lại phương pháp, không sao chép mã).
+- Plugin `image_segmentation` (`.npz` với `X` và mask `y`): họ `fcn`, `unet`, `deconvnet` với encoder `vgg`/`resnet`/`densenet`/`mobilenetv2` và tùy chọn attention; chia theo ảnh; metric mIoU; baseline pixel 5×5.
+- Plugin `image_classification` (đổi tên từ `image`, tên cũ vẫn dùng được) có thêm các họ `lenet`, `allconv`, `vgg`, `densenet`, `mobilenetv2`.
+- Dữ liệu bảng có thêm họ `moe_mlp` (mixture of experts) và `fm_mlp` (tương tác bậc hai kiểu factorisation machine). `design` sinh ứng viên từ 8 họ.
+
+### Đổi
+- Router không còn trả điểm 0,3 cho plugin ảnh/chuỗi khi hình dạng không khớp; nhập nhằng thì dùng `--plugin`.
+
+### Hạn chế đã biết
+- Không khối nào là bản tái hiện đã kiểm chứng của mô hình gốc; không có trọng số pretrained.
+- Đo: digits (dữ liệu thật nhỏ) top-1 thắng baseline; phân đoạn chỉ đo trên dữ liệu tổng hợp rất dễ và **không** thắng baseline pixel 5×5 có ý nghĩa. Chưa có augmentation, Dice/focal loss, ảnh lớn.
+- `NeuralTree`, `SumTrunk`, `MeanPooling`, `LatentFactor`, `pairwise_log_loss` có test nhưng chưa có plugin nào dùng (chưa có bài toán nhiều đầu vào hoặc gợi ý).
+
 ## [0.8.0] - 2026-11-10
 
 Mốc M9 (xem `agent.md` §8, §14.3): plugin ảnh, chuỗi thời gian và recommender meta-learning.
@@ -146,7 +165,8 @@ Bản đầu tiên: prototype chạy được từ dữ liệu đến Top-K base
 - Chưa có zero-cost proxy, cost model FLOPs/VRAM, Tensor-LoRA, deep unfolding; chưa có plugin image và timeseries.
 - Kết quả trên Indian Pines và Pavia University là một lần chạy ngắn trên CPU: với chia theo khối, mạng sâu chưa vượt rõ baseline cổ điển.
 
-[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.9.0
 [0.8.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.8.0
 [0.7.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.7.0
 [0.6.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.6.0

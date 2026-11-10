@@ -53,7 +53,8 @@ def series_npz(tmp_path):
 
 
 def test_router_tells_images_series_and_hsi_apart(image_npz, series_npz, hsi_npz, tabular_csv):
-    assert plugins.route(str(image_npz)).name == "image"
+    assert plugins.route(str(image_npz)).name == "image_classification"
+    assert plugins.get_plugin("image").name == "image_classification"  # old name still works
     assert plugins.route(str(series_npz)).name == "timeseries"
     assert plugins.route(str(hsi_npz)).name == "hsi"
     assert plugins.route(str(tabular_csv)).name == "tabular"
@@ -85,12 +86,12 @@ def test_build_shapes_and_train_only_statistics():
 
 @pytest.mark.parametrize("fam", array_lib.FAMILIES)
 def test_models_forward_and_backward(fam):
-    img = fam in array_lib.IMAGE_FAMILIES
+    img = fam in array_lib.IMAGE_FAMILIES + array_lib.SEG_FAMILIES
     shape = [3, 8, 8] if img else [2, 32]
     cfg = {"family": fam, "width": 32, "depth": 2, "dropout": 0.0, "patch": 4, "shape": shape}
     m = array_lib.build_model(cfg, shape[0], 5)
     out = m(torch.randn(4, *shape))
-    assert out.shape == (4, 5)
+    assert out.shape == ((4, 5, 8, 8) if fam in array_lib.SEG_FAMILIES else (4, 5))
     out.sum().backward()
     assert all(p.grad is not None for p in m.parameters() if p.requires_grad)
     with pytest.raises(ValueError):
@@ -107,12 +108,14 @@ def test_vit_rejects_patch_that_does_not_divide_and_sinusoid_formula():
     )
 
 
-@pytest.mark.parametrize("which", ["image", "timeseries"])
+@pytest.mark.parametrize("which", ["image_classification", "timeseries"])
 def test_generate_only_valid_candidates(which, image_npz, series_npz):
     import argparse
 
     plugin = plugins.get_plugin(which)
-    args = argparse.Namespace(data=str(image_npz if which == "image" else series_npz), seed=0)
+    args = argparse.Namespace(
+        data=str(image_npz if which == "image_classification" else series_npz), seed=0
+    )
     data = plugin.prepare(args)
     prof = plugin.profile(data)
     cands = plugin.generate(prof, 2, 0)
@@ -124,9 +127,9 @@ def test_generate_only_valid_candidates(which, image_npz, series_npz):
 
 
 @pytest.mark.e2e
-@pytest.mark.parametrize("which", ["image", "timeseries"])
+@pytest.mark.parametrize("which", ["image_classification", "timeseries"])
 def test_cli_design_end_to_end_and_package_runs(which, image_npz, series_npz, tmp_path):
-    data = image_npz if which == "image" else series_npz
+    data = image_npz if which == "image_classification" else series_npz
     out = tmp_path / "o"
     argv = ["design", "--data", str(data), "--budget", "45s", "--topk", "1", "--per-family", "1",
             "--out", str(out)]  # fmt: skip
@@ -135,7 +138,7 @@ def test_cli_design_end_to_end_and_package_runs(which, image_npz, series_npz, tm
     assert board["top_k"] and board["top_k"][0]["val_mean"] > 0.6  # the classes are separable
     pkg = next(out.glob("top1_*"))
     cfg = json.loads((pkg / "config.yaml").read_text())
-    assert cfg["plugin"] == which and cfg["data"]["kind"] == which
+    assert cfg["plugin"] == which and cfg["data"]["kind"] in ("image", "timeseries")
     r = subprocess.run([sys.executable, "-m", "pytest", "-q", "tests"], cwd=pkg, capture_output=True,
                        check=False)  # fmt: skip
     assert r.returncode == 0, r.stdout.decode()[-500:]
