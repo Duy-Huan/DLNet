@@ -5,8 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import ClassVar
 
-from .. import core, generate, profile, reference
-from ..library import build_model
+from .. import core, generate, profile, reference, zoo
 from . import DomainPlugin
 
 HERE = Path(__file__).parent.parent
@@ -58,8 +57,7 @@ def test_forward_shape():
 
 class TabularPlugin(DomainPlugin):
     name = "tabular"
-    model_file = HERE / "library.py"
-    extra_files: ClassVar[dict[str, Path]] = {"blocks.py": HERE / "blocks.py"}
+    model_file = HERE / "zoo_model.py"
     extra_dirs: ClassVar[dict[str, Path]] = {"zoo": HERE / "zoo"}
     train_template = TRAIN_PY
     test_template = TEST_PY
@@ -91,7 +89,7 @@ class TabularPlugin(DomainPlugin):
         return "vec", (data["in_dim"],), "cls"
 
     def build_model(self, cfg, in_dim, out_dim):
-        return build_model(cfg, in_dim, out_dim)
+        return zoo.build_model(cfg, in_dim, out_dim)
 
     def reference(self, data):
         return reference.run_reference(data)

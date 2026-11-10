@@ -22,7 +22,8 @@ pytest.importorskip("scipy")
 import numpy as np
 
 from dlnet import cli, core, export, hparams, hsi_data, plugins, search
-from dlnet.library import TTLinear, build_model
+from dlnet.zoo.families import tabular_model as build_model
+from dlnet.zoo.ops_vec import TTLinear
 
 
 # ----------------------------------------------------------------------------- helpers

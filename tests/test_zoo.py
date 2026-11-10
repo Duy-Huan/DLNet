@@ -64,7 +64,7 @@ def test_static_checking_catches_invalid_compositions_before_any_training():
         zoo.check({"op": "mlp", "wdith": 3}, "vec", (4,))
     with pytest.raises(ValueError):  # 5 heads do not divide 32
         zoo.check({"op": "attn_seq", "heads": 5}, "seq", (8, 32))
-    deep = {"op": "seq", "body": [{"op": "pool", "mode": "max", "k": 2, "s": 2}] * 6}
+    deep = {"op": "seq", "body": [{"op": "conv_bn_act", "out": 4, "k": 7, "pad": "valid"}] * 3}
     with pytest.raises(ValueError):  # the map shrinks to nothing
         zoo.check(deep, "map", (3, 16, 16))
     r = zoo.check(
@@ -242,11 +242,17 @@ def test_tensor_linear_layers_match_dense_formulas():
     assert zoo.count_params(tt) == 3 * (3 * 2 + 4 * 3) + 6
 
 
-def test_library_tabular_families_now_come_from_the_zoo_classes():
-    from dlnet import library
-    from dlnet.zoo import ops_vec
+def test_legacy_libraries_are_gone_and_families_are_zoo_recipes():
+    import importlib
 
-    assert library.TTLinear is ops_vec.TTLinear and library.TRLinear is ops_vec.TRLinear
+    for name in ("library", "array_lib", "hsi_lib", "blocks"):
+        with pytest.raises(ImportError):
+            importlib.import_module(f"dlnet.{name}")
+    from dlnet.zoo import families
+
+    cfg = {"family": "resnet", "width": 8, "depth": 1, "dropout": 0.0}
+    done = families.complete(dict(cfg), "image", (3, 16, 16), 4)
+    assert done["spec"]["op"] == "seq" and done["input"] == {"kind": "map", "dims": [3, 16, 16]}
 
 
 # ------------------------------------------------------------------------ presets
@@ -461,3 +467,53 @@ def test_ported_blocks_match_the_original_torchvision_blocks(spec, params, dims)
 
     m, _, d = _build(spec, "map", (64, 16, 16))
     assert zoo.count_params(m) == params and d == dims
+
+
+def test_mamba2_ssd_matches_the_sequential_recurrence_and_is_causal_under_padding():
+    from dlnet.zoo.ops_seq import ssd_minimal
+
+    torch.manual_seed(0)
+    b, ln, h, p, n, chunk = 2, 16, 3, 4, 5, 4
+    X, A = torch.randn(b, ln, h, p), -torch.rand(b, ln, h)
+    B, C = torch.randn(b, ln, h, n), torch.randn(b, ln, h, n)
+    state, ys = torch.zeros(b, h, p, n), []
+    for t in range(ln):  # h_t = exp(A_t) h_{t-1} + x_t (outer) B_t ;  y_t = C_t . h_t
+        state = (
+            torch.exp(A[:, t])[..., None, None] * state + X[:, t, :, :, None] * B[:, t, :, None, :]
+        )
+        ys.append(torch.einsum("bhpn,bhn->bhp", state, C[:, t]))
+    assert torch.allclose(ssd_minimal(X, A, B, C, chunk), torch.stack(ys, 1), atol=1e-5)
+    m = zoo.build_model(
+        _cfg(
+            {
+                "op": "mamba2_block",
+                "d_state": 16,
+                "d_conv": 4,
+                "expand": 2,
+                "headdim": 16,
+                "chunk": 8,
+            },
+            "seq",
+            (20, 32),
+        )
+    )
+    mixer = m.body.mixer if hasattr(m.body, "mixer") else m.body[0].mixer
+    mixer.eval()
+    x = torch.randn(1, 20, 32)
+    with torch.no_grad():  # length 20 is not a multiple of chunk 8: padded internally, still causal
+        y20 = mixer(x)
+        y24 = mixer(torch.cat([x, torch.randn(1, 4, 32)], 1))[:, :20]
+    assert torch.allclose(y20, y24, atol=1e-5)
+    with pytest.raises(ValueError, match="headdim"):
+        zoo.check(
+            {
+                "op": "mamba2_block",
+                "d_state": 16,
+                "d_conv": 4,
+                "expand": 1,
+                "headdim": 64,
+                "chunk": 8,
+            },
+            "seq",
+            (8, 32),
+        )

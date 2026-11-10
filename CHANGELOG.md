@@ -6,6 +6,29 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+Mốc M12 (xem `agent.md` §13.6, `THIRD_PARTY.md`): một thư viện duy nhất, cost model FLOPs/VRAM, đối chiếu số học với mã gốc.
+
+### Thêm
+- **Cost model** (`dlnet/zoo/cost.py`) cho mọi ứng viên: FLOPs mỗi mẫu (ma trận và tích chập), bộ nhớ kích hoạt và VRAM huấn luyện ước lượng, đo trên thiết bị `meta` (không tốn bộ nhớ). `--max-flops 50M` và `--max-vram 4000` loại ứng viên trước khi huấn luyện; leaderboard có cột MFLOPs và MB, `report.md` có dòng cost model.
+- **Đối chiếu số học với mã gốc** (`scripts/verify_numeric.py`): chép trọng số từ khối gốc sang khối của zoo rồi so đầu ra. 24/24 khối khớp, gồm Mamba và Mamba-2 (`selective_scan_ref` và `Mamba` của `mamba_ssm`, sai khác 0), khối transformer và conv1d residual của cortex, ViT encoder block, Swin PatchMerging, MobileNetV3, RegNet, ConvNeXt, EfficientNet, ShuffleNet, SqueezeNet, ResNet/ResNeXt.
+- Module HSI trong zoo: `center_spectrum`, `to_vol`, `vol_to_map`, `tucker_conv`, `pool_flatten`; `conv_bn_act` và `pool` nhận nhân theo từng trục (`k=[7,3,3]`) và `pad: "valid"`; `par` có `merge: "gated"`.
+- `dlnet/zoo/families.py`: 33 họ mô hình (bảng, ảnh, phân đoạn, chuỗi thời gian, HSI) viết thành công thức sinh spec zoo.
+
+- **Mamba-2** (`mamba2_block`, SSD theo khối, PyTorch thuần): khớp `Mamba2Simple` của `mamba_ssm` đến 2,4e-7 và `ssd_minimal` đến 0; không giới hạn độ dài như Mamba bản quét tuần tự.
+
+### Đổi
+- **Gỡ `library.py`, `array_lib.py`, `hsi_lib.py`, `blocks.py` và lệnh `blocks`**: mọi họ là công thức trên zoo nên chỉ còn một registry, một bộ kiểm tra tĩnh, một cost model và mọi đột biến/lai ghép áp được cho cả họ cũ. `model.py` trong gói xuất ra là shim một dòng dùng thư mục `zoo/`. 22/33 họ có số tham số trùng tuyệt đối với bản cũ, phần còn lại lệch ≤ 10%.
+- `transformer_block` theo cortex: mặc định không bias (`bias=0`), thêm `cortex_skip` để tái hiện nhánh skip của cortex.
+- `conv1d_resid` dùng đúng LayerNorm theo kênh của cortex. `pool` làm tròn lên khi kích thước lẻ.
+
+### Sửa
+- Phép đối chiếu số học phát hiện và sửa: SE của MobileNetV3 đặt trên kênh đã mở rộng; khác biệt giữa transformer của cortex và transformer chuẩn (nay có tùy chọn).
+
+### Hạn chế đã biết
+- VRAM là ước lượng, chưa đối chiếu với đo trên GPU (không có GPU ở môi trường phát triển). FLOPs không tính phép elementwise, chuẩn hóa, kích hoạt và vòng lặp quét của Mamba.
+- Chưa đối chiếu với mã gốc: `window_attn` (không có relative position bias), ASPP/FPN/FCN rút gọn, CBAM, ECA, Inception, MLP-Mixer, GLU, DCN, FT-Transformer, U-Net.
+- Các họ lệch ≤ 10% so với bản cũ (xem `THIRD_PARTY.md`), nên kết quả huấn luyện của chúng có thể khác bản trước.
+
 ## [0.10.0] - 2026-11-10
 
 Mốc M11 (xem `agent.md` §13.6, `THIRD_PARTY.md`): refactor lõi thành kho module có kiểu và tìm kiếm kiến trúc.

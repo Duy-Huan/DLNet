@@ -11,7 +11,7 @@ import torch
 from torch import nn
 
 from dlnet import core, proxies
-from dlnet.library import build_model
+from dlnet.zoo.families import tabular_model as build_model
 
 
 def test_naswot_matches_closed_form():

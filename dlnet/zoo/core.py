@@ -11,7 +11,7 @@ or a combinator:
 
     {"op": "seq", "body": [node, ...]}                       sequential composition
     {"op": "res", "body": node, "drop_path": 0.0}            x + body(x), 1x1 projection if shapes differ
-    {"op": "par", "branches": [node, ...], "merge": "concat|sum|gate"}
+    {"op": "par", "branches": [node, ...], "merge": "concat|sum|gate|gated"}  (gated: two vectors, "width")
     {"op": "rep", "n": 3, "body": node, "share": false}      n copies (fresh weights, or one shared)
     {"op": "moe", "experts": [node, ...], "mode": "soft|topk|product", "k": 2}
     {"op": "encdec", "stages": [node, ...], "dec": "unet|fcn|deconv|fpn|aspp", "width": 32}
@@ -148,15 +148,29 @@ def _projection(kind, din, dout):
     return conv(din[0], dout[0], 1, tuple(stride), bias=False)
 
 
-class Par(nn.Module):
-    def __init__(self, branches, merge, dim):
+class GatedFusion(nn.Module):
+    """Gated fusion of two vectors: g * A(a) + (1 - g) * B(b), g = sigmoid(W [a, b]) (earlier HSI `Gated`)."""
+
+    def __init__(self, da, db, d):
         super().__init__()
-        self.branches, self.merge, self.dim = nn.ModuleList(branches), merge, dim
+        self.a, self.b, self.g = nn.Linear(da, d), nn.Linear(db, d), nn.Linear(da + db, d)
+
+    def forward(self, a, b):
+        g = torch.sigmoid(self.g(torch.cat([a, b], 1)))
+        return g * self.a(a) + (1 - g) * self.b(b)
+
+
+class Par(nn.Module):
+    def __init__(self, branches, merge, dim, gated=None):
+        super().__init__()
+        self.branches, self.merge, self.dim, self.fuse = nn.ModuleList(branches), merge, dim, gated
         if merge == "gate":
             self.w = nn.Parameter(torch.zeros(len(branches)))
 
     def forward(self, x):
         ys = [b(x) for b in self.branches]
+        if self.merge == "gated":
+            return self.fuse(*ys)
         if self.merge == "concat":
             return torch.cat(ys, self.dim)
         if self.merge == "sum":
@@ -245,13 +259,18 @@ def _build(node, kind, dims):
             od = list(ds[0])
             od[axis - 1] = sum(d[axis - 1] for d in ds)
             od = tuple(od)
+        elif merge == "gated":
+            if out_kind != "vec" or len(parts) != 2:
+                raise ValueError("gated fusion needs exactly two vector branches")
+            od = (int(node["width"]),)
         elif merge in ("sum", "gate"):
             if len(set(ds)) != 1:
                 raise ValueError(f"{merge} needs identical branch shapes, got {ds}")
             od = ds[0]
         else:
             raise ValueError(f"unknown merge {merge!r}")
-        return Par([p[0] for p in parts], merge, axis), out_kind, od
+        fuse = GatedFusion(ds[0][0], ds[1][0], od[0]) if merge == "gated" else None
+        return Par([p[0] for p in parts], merge, axis, fuse), out_kind, od
     if name == "rep":
         n, share = int(node["n"]), bool(node.get("share", False))
         if n < 1:

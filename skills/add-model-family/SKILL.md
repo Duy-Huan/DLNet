@@ -6,7 +6,7 @@ triggers: model, family, library, module, tensor, Tucker, TT, low-rank, SPACE
 # Thêm họ mô hình
 
 1. Xác định module hiện thực **trục nào** của paper 2302.11529 (computation / routing / aggregation / training) và ghi vào docstring. Nếu dựa vào paper khác, kiểm tra trong `ref/` và ghi tên.
-2. Thêm lớp vào `dlnet/library.py` (tabular) hoặc `dlnet/hsi_lib.py` (HSI) hoặc `<x>_lib.py`: chỉ phụ thuộc torch, thêm tên vào `FAMILIES`, nhánh trong `build_model`.
+2. Thêm một công thức (hàm `cấu hình → spec`) vào `dlnet/zoo/families.py` và tên họ vào danh sách của miền; module mới đi vào kho (`dlnet/zoo/ops_*.py`, skill `module-zoo`). Các file `library.py`/`array_lib.py`/`hsi_lib.py`/`blocks.py` đã bị gỡ.
 3. Khi dựng lại mạng nổi tiếng từ trí nhớ, ghi rõ "chưa đối chiếu code gốc" trong docstring. Không gọi là bản tái hiện chính thức.
 4. Thêm không gian tìm kiếm vào `SPACE` của plugin (rộng vừa phải, giá trị rời rạc). Hyperparameter train nằm ở `TRAIN`.
 5. Với module tensor: hai nhánh cần so sánh công bằng với bản dense (cùng width, ít tham số hơn). Biến thể đã có: `TTLinear`, `LowRankLinear`, `TuckerConv`.

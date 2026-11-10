@@ -27,6 +27,15 @@ def _short(t: dict, task: str) -> str:
     return f"acc {t['accuracy']}, bal {t['balanced_accuracy']}{k}"
 
 
+def _cost_line(cfg: dict) -> str:
+    if cfg.get("flops") is None:
+        return "not measured"
+    return (
+        f"{cfg['flops']:,} forward FLOPs per sample (matrix multiply and convolution only), about "
+        f"{cfg['vram_mb']:.0f} MB training memory at batch {cfg['batch']} (estimate, not measured on a GPU)"
+    )
+
+
 def _hp_note(hp: dict) -> str:
     src = hp.get("source")
     if not src or src["estimated"] is None:
@@ -211,6 +220,7 @@ def export(out_dir, plugin, data, prof, chosen, reference, seed, epochs_recipe=1
         (d / "report.md").write_text(
             f"# top{i}: {cfg['family']}  {r['roles']}\n\n"
             f"- Config: `{arch}`\n- Origin: {cfg.get('origin', 'legacy family')}\n- Params: {cfg['params']:,}\n"
+            f"- Cost model: {_cost_line(cfg)}\n"
             f"- Validation ({data['primary']}): {r['val_mean']:.4f} +/- {r['val_std']:.4f} "
             f"({r['n_seeds']} runs on {r.get('n_splits', 1)} split(s), {r['epochs']} epochs)\n"
             f"- Test (mean over runs): {_fmt(r['test'], task)}, "
@@ -235,6 +245,8 @@ def export(out_dir, plugin, data, prof, chosen, reference, seed, epochs_recipe=1
                 "val_mean": round(r["val_mean"], 5),
                 "val_std": round(r["val_std"], 5),
                 "origin": cfg.get("origin"),
+                "flops": cfg.get("flops"),
+                "vram_mb": None if cfg.get("vram_mb") is None else round(cfg["vram_mb"], 1),
                 "n_runs": r["n_seeds"],
                 "n_splits": r.get("n_splits", 1),
                 "test_std": round(r.get("test_std", 0.0), 5),
@@ -265,14 +277,15 @@ def export(out_dir, plugin, data, prof, chosen, reference, seed, epochs_recipe=1
     )
     md = [f"# Leaderboard ({task}, primary metric = {data['primary']}, higher is better)\n"]
     md.append(
-        "| rank | model | roles | group | params | lr | wd | batch | val (mean+/-std) | test |"
+        "| rank | model | roles | group | params | MFLOPs | MB | lr | wd | batch | val (mean+/-std) | test |"
     )
-    md.append("|---|---|---|---|---|---|---|---|---|---|")
+    md.append("|---|---|---|---|---|---|---|---|---|---|---|---|")
     for r in rows:
         ts, h = _short(r["test"], task), r["hyperparameters"]
         md.append(
             f"| {r['rank']} | {r['name']} | {', '.join(r['roles'])} | {r['group']} | {r['params']:,} | "
-            f"{h['lr']:.2g} | {h['weight_decay']:.2g} | {h['batch_size']} | "
+            f"{'-' if r['flops'] is None else format(r['flops'] / 1e6, '.1f')} | "
+            f"{'-' if r['vram_mb'] is None else format(r['vram_mb'], '.0f')} | {h['lr']:.2g} | {h['weight_decay']:.2g} | {h['batch_size']} | "
             f"{r['val_mean']} +/- {r['val_std']} | {ts} (+/- {r['test_std']}) |"
         )
     ns = max(r["n_splits"] for r in rows)
