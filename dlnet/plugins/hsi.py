@@ -79,6 +79,13 @@ SPACE = {
     },
     "cnn3d": {"width": [8, 16], "depth": [2, 3], "dropout": [0.0, 0.2, 0.4]},
     "hybridsn": {"width": [4, 8], "dropout": [0.2, 0.4]},
+    "resnet2d": {"width": [32, 64, 128], "depth": [1, 2, 3], "dropout": [0.0, 0.2, 0.4]},
+    "dwsep2d": {"width": [32, 64, 128], "depth": [2, 3, 4], "dropout": [0.0, 0.2, 0.4]},
+    "convnext2d": {"width": [32, 64], "depth": [1, 2, 3], "dropout": [0.0, 0.2]},
+    "spec_transformer": {"width": [32, 64], "depth": [1, 2], "dropout": [0.0, 0.1]},
+    "ssrn": {"width": [8, 16, 24], "depth": [1, 2], "dropout": [0.0, 0.2, 0.4]},
+    # block choice comes from the grammar (hsi_lib.sample_composed), sizes from here
+    "composed": {"width": [32, 64], "depth": [1, 2], "dropout": [0.0, 0.2, 0.4]},
 }
 TRAIN = {"lr": [1e-3, 3e-3], "wd": [1e-4, 1e-3], "batch": [32, 64]}
 
@@ -172,11 +179,17 @@ class HSIPlugin(DomainPlugin):
                 cfg = {"family": fam, "patch": prof["patch"]}
                 for k, v in {**SPACE[fam], **TRAIN}.items():
                     cfg[k] = v[int(rng.integers(len(v)))]
+                if fam == "composed":
+                    cfg.update(hsi_lib.sample_composed(rng))
                 key = tuple(sorted(cfg.items()))
                 if key in seen:
                     continue
                 seen.add(key)
-                try:  # cost model (v0): instantiate; invalid shapes (e.g. too few bands/patch) are dropped
+                try:  # static shape check first, then cost model (v0): instantiate and count
+                    if fam == "composed" or fam in hsi_lib.PRESETS:
+                        hsi_lib.plan_composed(
+                            {**cfg, **hsi_lib.PRESETS.get(fam, {})}, prof["n_features"]
+                        )
                     cfg["params"] = hsi_lib.count_params(
                         hsi_lib.build_model(cfg, prof["n_features"], prof["n_classes"])
                     )

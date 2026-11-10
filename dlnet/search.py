@@ -17,6 +17,17 @@ def _new_trainer(cfg, data, seed, build_fn):
     return Trainer(m, data, lr=cfg["lr"], wd=cfg["wd"], batch=cfg["batch"], seed=seed)
 
 
+def interleave(cands):
+    """Round-robin by family, so a budget that ends inside rung 1 does not favour the first families."""
+    by: dict[str, list] = {}
+    for c in cands:
+        by.setdefault(c["family"], []).append(c)
+    out = []
+    for i in range(max(map(len, by.values()))):
+        out += [v[i] for v in by.values() if i < len(v)]
+    return out
+
+
 def eval_runs(cfg, folds, build_fn, epochs, n_runs, deadline, first=None):
     """Train `cfg` n_runs times: run i uses seed i on split folds[i % len(folds)].
 
@@ -57,6 +68,7 @@ def run_search(
     # --- stage 1: successive halving (resumable trainers, seed 0)
     if not cands:
         raise ValueError("no candidates to search")
+    cands = interleave(cands)
     alive = [{"cfg": c, "tr": _new_trainer(c, data, 0, build_fn)} for c in cands]
     log(f"[search] {len(alive)} candidates, rungs={rungs}")
     for r, ep in enumerate(rungs):

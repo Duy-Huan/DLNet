@@ -6,6 +6,20 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+Mốc M4 (xem `agent.md` §8, §13): thư viện mở rộng và tự ghép mô hình theo grammar có kiểu.
+
+### Thêm
+- HSI: registry khối có kiểu (`hsi_lib.BLOCKS`, `@register`): mã hóa phổ (`cnn1d`, `transformer`), không gian (`conv`, `res`, `dwsep`, `convnext`, `tucker`), chung (`conv3d`, `ssrn`), hợp nhất (`concat`, `gated`). Mỗi khối tự suy ra số đặc trưng đầu ra mà không cần tạo mô hình.
+- Grammar `Model := (Spectral ∥ Spatial | Spectral | Spatial | Joint) → Fusion → Head`: `plan_composed` loại cấu hình ghép sai trước khi tạo mô hình; họ `composed` lấy mẫu từ grammar.
+- Năm họ preset mới là cấu hình của registry: `resnet2d`, `dwsep2d`, `convnext2d`, `spec_transformer`, `ssrn`. Tổng cộng HSI có 11 họ.
+
+### Đổi
+- Tìm kiếm duyệt ứng viên xen kẽ theo họ (round-robin). Trước đây hết ngân sách giữa rung đầu thì các họ đứng sau không bao giờ được huấn luyện.
+
+### Hạn chế đã biết
+- Các khối `res`, `convnext`, `ssrn`, `transformer` viết lại từ trí nhớ, chưa đối chiếu mã của tác giả và chưa tái hiện số liệu trong paper; không phải bản tái hiện chính thức.
+- Chưa có khối Mamba/SSM, ViT/Swin, cross-attention. Registry mới chỉ có ở plugin HSI.
+
 ## [0.2.0] - 2026-11-10
 
 Mốc M2 và M3 (xem `agent.md` §8): xếp hạng ổn định trên nhiều lần chia dữ liệu, mỗi con số có ± std.
