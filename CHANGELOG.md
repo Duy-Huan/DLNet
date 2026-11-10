@@ -6,6 +6,23 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-10
+
+Mốc M5 (xem `agent.md` §8, §16.3): zero-cost proxy có đo tương quan, cache để chạy tiếp, phép đo tiết kiệm thời gian.
+
+### Thêm
+- `dlnet/proxies.py`: zero-cost proxy NASWOT (theo mã chính thức), SynFlow, grad_norm và baseline đếm tham số, có test với đáp án giải tích. Mỗi lần chạy `design` đo tương quan hạng Spearman của từng proxy với điểm validation thật sau rung 1 và ghi vào `leaderboard.json` (`zero_cost_proxies`) và `leaderboard.md`. Proxy **không** được dùng để loại ứng viên. Tắt bằng `--no-proxies`.
+- Cache để chạy tiếp: các lần huấn luyện đã xong ở giai đoạn nhiều seed và bước kiểm chứng hyperparameter được lưu trong `<out>/.dlnet_cache.json`; chạy lại đúng lệnh cũ thì dùng lại kết quả thay vì huấn luyện lại. Tắt bằng `--no-cache`.
+- `scripts/bench_search.py`: đo thời gian successive halving so với huấn luyện đầy đủ mọi ứng viên và tương quan của proxy với kết quả huấn luyện đầy đủ.
+
+### Đổi
+- `--out` trỏ vào thư mục lạ nay bị từ chối ngay khi bắt đầu, không phải sau khi đã dùng hết ngân sách.
+
+### Hạn chế đã biết
+- Đo trên dữ liệu tổng hợp (2 seed mỗi loại, 16 epoch): successive halving giảm 50–70% thời gian; chọn đúng top-1 của huấn luyện đầy đủ ở dữ liệu bảng (2/2) nhưng không ở HSI (0/2, điểm validation của top-1 thấp hơn 0,6–2,5 điểm, cùng cỡ với nhiễu của tập validation 160 mẫu). Chưa đo trên dữ liệu thật.
+- Không proxy nào hơn đếm tham số một cách ổn định (|Spearman| ≤ 0,6, SynFlow còn tương quan âm trên dữ liệu bảng), nên chưa dùng proxy để loại ứng viên. NASWOT không tính được cho mạng không có ReLU (mọi họ tabular).
+- Cache chưa bao gồm successive halving: chạy lại vẫn lặp lại giai đoạn này. Chưa có cost model FLOPs/VRAM.
+
 ## [0.3.0] - 2026-11-10
 
 Mốc M4 (xem `agent.md` §8, §13): thư viện mở rộng và tự ghép mô hình theo grammar có kiểu.
@@ -70,7 +87,8 @@ Bản đầu tiên: prototype chạy được từ dữ liệu đến Top-K base
 - Chưa có zero-cost proxy, cost model FLOPs/VRAM, Tensor-LoRA, deep unfolding; chưa có plugin image và timeseries.
 - Kết quả trên Indian Pines và Pavia University là một lần chạy ngắn trên CPU: với chia theo khối, mạng sâu chưa vượt rõ baseline cổ điển.
 
-[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.4.0
 [0.3.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.3.0
 [0.2.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.2.0
 [0.1.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.1.0

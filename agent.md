@@ -230,7 +230,7 @@ Nguyên tắc: lõi **tổng quát trước**, kiểm chứng end-to-end sớm t
 | **M2** | **Plugin HSI**: loader, split chống rò rỉ, preset 1D/2D/3D-CNN + HybridSN-style + CNN phân rã Tucker-2, metric OA/AA/Kappa | **Xong (v0.2.0)**: chạy thật trên Indian Pines, Pavia University; xếp hạng trên 3 lần chia khối (`--cv-splits`, §9 mục 7) |
 | **M3** | Giao thức đánh giá đầy đủ (§12.2–12.3): nhiều seed, nhóm "chưa phân biệt được", quy tắc chấp nhận | **Xong (v0.2.0)**: báo cáo tái lập, val và test đều có ± std qua seed và lần chia |
 | **M4** | Library mở rộng + tự ghép theo grammar (§13): SSRN, Transformer, Mamba/SSM, ResNet/ConvNeXt block | **Xong phần lõi (v0.3.0)**: registry có kiểu + grammar trong `hsi_lib.py`, test sinh ≥20 ứng viên hợp lệ. Chưa có: Mamba/SSM, ViT/Swin |
-| **M5** | Cost model + tiết kiệm thời gian: zero-cost proxy (theo §16.1), successive halving, cache, resume; **hyperparameter estimate (LR range test, noise scale) đã có, §16.2** | Giảm ≥X% thời gian, cùng chất lượng top-1 |
+| **M5** | Cost model + tiết kiệm thời gian: zero-cost proxy (theo §16.1), successive halving, cache, resume; **hyperparameter estimate (LR range test, noise scale) đã có, §16.2** | **Xong phần đo được (v0.4.0)**, xem §16.3: successive halving giảm 50–70% thời gian (dữ liệu tổng hợp), cùng top-1 trên tabular, lệch trong mức nhiễu trên HSI; proxy chỉ ghi thông tin vì chưa hơn đếm tham số; cache cho giai đoạn nhiều seed. Chưa có: FLOPs/VRAM, resume cho successive halving |
 | **M6** | Estimator: intrinsic dim → dung lượng, rank tensor | Ước lượng ổn định trên nhiều dataset |
 | **M7** | Tensor: Tucker/HOSVD tiền xử lý, lớp TT/Tucker/TR, Tensor-LoRA | Nén ≥X% tham số, mất ≤Y% metric |
 | **M8** | Deep unfolding (khi có mô hình thuận) | Vượt thuật toán lặp gốc ở cùng số vòng |
@@ -340,7 +340,7 @@ Push lên `dev` mà **không** tăng version thì vẫn lên `main` nhưng **kh�
 
 **Quy trình chấm điểm theo tầng** (ngân sách tăng dần, số ứng viên giảm dần):
 1. Lọc bằng prior + cost model → ~50–200 ứng viên hợp lệ.
-2. Zero-cost proxy → giữ ~30.
+2. Zero-cost proxy → giữ ~30. (Hiện chỉ đo và ghi tương quan, chưa loại ứng viên: xem §16.3.)
 3. Short-train (Successive Halving) → giữ ~8–10.
 4. Huấn luyện vừa, nhiều seed và nhiều lần chia (`--cv-splits`) → xếp hạng cuối theo trung bình ± std.
 
@@ -480,7 +480,22 @@ Sau khi tìm kiếm, `dlnet/hparams.py` (chạy trong 20% cuối của `--budget
 
 Output: `top<i>_*/config.yaml` và `leaderboard.json` có khối `hyperparameters` (giá trị cuối dùng cho `train.py`, kèm `source`: đã tìm/ước lượng/chấp nhận, giá trị `noise scale`, khoảng lr, điểm validation của hai bản); `leaderboard.md` có cột lr, wd, batch.
 
-Chưa làm: epochs (hiện là công thức mặc định 100 epoch, cosine, chọn checkpoint tốt nhất trên validation, chưa ước lượng), Hyperband/BOHB/ASHA (search hiện là một bracket successive halving), zero-cost proxy.
+Chưa làm: epochs (hiện là công thức mặc định 100 epoch, cosine, chọn checkpoint tốt nhất trên validation, chưa ước lượng), Hyperband/BOHB/ASHA (search hiện là một bracket successive halving).
+
+### 16.3 Zero-cost proxy, cache và phép đo tiết kiệm thời gian (M5)
+- `dlnet/proxies.py`: `naswot` (Mellor, arXiv:2006.04647, theo `score_networks.py` chính thức: `K += x xᵀ + (1-x)(1-x)ᵀ` trên mỗi ReLU, điểm `log|det K|`), `synflow` (Tanaka, arXiv:2006.05467: tham số lấy trị tuyệt đối, đầu vào toàn 1, điểm `Σ|θ·∂R/∂θ|`), `grad_norm` (Abdelfattah, arXiv:2101.08134), `params` (baseline). Phần "chưa đối chiếu" ghi trong docstring.
+- **Phép đo theo quy tắc 16.1 mục 4** chạy trong mọi lần `design`: Spearman của từng proxy với điểm validation thật sau rung 1, ghi vào leaderboard. `used_for_pruning` luôn là `false`.
+- **Kết quả đo (`scripts/bench_search.py`, dữ liệu tổng hợp, 2 seed, 16 epoch, so với huấn luyện đầy đủ mọi ứng viên):**
+
+| Dữ liệu | Ứng viên | Thời gian giảm | Cùng top-1 | Spearman: naswot / synflow / grad_norm / params |
+|---|---|---|---|---|
+| tabular seed 0 | 10 | 50,0% | có | không tính được / −0,59 / 0,51 / 0,43 |
+| tabular seed 1 | 10 | 66,5% | có | không tính được / −0,60 / 0,27 / −0,26 |
+| HSI seed 0 | 20 | 68,9% | không (0,969 so với 0,994) | 0,14 / 0,13 / −0,12 / 0,33 |
+| HSI seed 1 | 20 | 69,7% | không (0,956 so với 0,963) | 0,02 / 0,15 / −0,21 / −0,02 |
+
+- **Kết luận:** không proxy nào hơn đếm tham số một cách ổn định, dấu tương quan còn đổi giữa các seed. Vì vậy **không dùng proxy để loại ứng viên**; muốn bật phải có số đo trên dữ liệu thật trước. Tiết kiệm thời gian hiện đến từ successive halving.
+- **Cache** (`search.RunCache`, file `<out>/.dlnet_cache.json`): khóa = phiên bản DLNet + cấu hình + dấu vân tay của lần chia + seed + số epoch. Chỉ áp dụng cho các lần huấn luyện từ đầu (giai đoạn nhiều seed, kiểm chứng hyperparameter).
 
 ## Tài liệu tham khảo
 Toàn bộ PDF nằm trong `ref/` (mục lục: `ref/README.md`); thuật toán ước lượng chất lượng và hyperparameter trong `ref/optimazeDL/` (§16).

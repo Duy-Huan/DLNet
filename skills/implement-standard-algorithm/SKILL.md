@@ -12,3 +12,5 @@ triggers: zero-cost proxy, synflow, snip, grasp, zico, naswot, hyperparameter, l
 5. Ước lượng chỉ là đề xuất: kiểm chứng bằng huấn luyện cùng ngân sách và seed, chỉ chấp nhận khi tốt hơn quá nhiễu seed (`hparams.refine` là mẫu).
 6. Zero-cost proxy: trước khi loại ứng viên phải đo Spearman với kết quả huấn luyện thật trên dữ liệu của DLNet và so với "đếm tham số". Nhiều proxy chỉ áp dụng cho CNN (Zen-Score cần BN/Conv), kiểm điều kiện áp dụng trước.
 7. Cập nhật cột "Trạng thái" trong `ref/optimazeDL/README.md`, `CHANGELOG.md`, rồi theo skill `git-dev-main`.
+
+Đã có: `dlnet/hparams.py` (LR range test, gradient noise scale, normalized weight decay) và `dlnet/proxies.py` (NASWOT, SynFlow, grad_norm; chỉ đo, không loại ứng viên). Đo lại bằng `python scripts/bench_search.py --kind tabular|hsi`; kết quả hiện tại ở `agent.md` §16.3. Chỉ bật việc loại ứng viên bằng proxy khi phép đo trên dữ liệu thật cho thấy proxy hơn đếm tham số rõ rệt và ổn định qua seed.

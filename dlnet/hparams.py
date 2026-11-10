@@ -175,7 +175,7 @@ def estimate(r: dict, data: dict, build_fn, epochs_recipe: int = 100, seed: int 
     }
 
 
-def refine(results, data, build_fn, deadline, epochs_recipe=100, log=print, folds=None):
+def refine(results, data, build_fn, deadline, epochs_recipe=100, log=print, folds=None, cache=None):
     """Estimate hyperparameters per finalist; adopt them only when clearly better on validation.
 
     Same epochs, seeds and splits as the search, so the numbers are comparable. A proposal is adopted if
@@ -209,7 +209,9 @@ def refine(results, data, build_fn, deadline, epochs_recipe=100, log=print, fold
         if (est["lr"], est["batch"]) == (cfg["lr"], cfg["batch"]) or time.time() > deadline:
             continue
         cand = {**cfg, "lr": est["lr"], "batch": est["batch"], "wd": est["wd"]}
-        vals, tests, _, _ = eval_runs(cand, folds, build_fn, r["epochs"], r["n_seeds"], deadline)
+        vals, tests, _, _ = eval_runs(
+            cand, folds, build_fn, r["epochs"], r["n_seeds"], deadline, cache=cache
+        )
         new = summarize(vals, tests)
         v, sd = new["val_mean"], new["val_std"]
         r["hparams"]["val_estimated"] = v
