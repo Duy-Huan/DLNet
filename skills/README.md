@@ -27,3 +27,4 @@ grep -ril "<từ khóa>" skills/*/SKILL.md      # ví dụ: plugin, split, leaka
 | [meta-recommender](meta-recommender/SKILL.md) | Dùng, đo, sửa recommender học từ kho kết quả | meta-learning, meta store, family order |
 | [module-zoo](module-zoo/SKILL.md) | Thêm module vào kho, mở rộng ngữ pháp / đột biến, đối chiếu mã gốc, chạy tìm kiếm kiến trúc | zoo, op, grammar, mutation, evolve, backbone |
 | [seed-selection](seed-selection/SKILL.md) | Phân tích dữ liệu ảnh, ngữ cảnh, chọn kiến trúc hạt giống, Hyperband, aging evolution | seed, datacard, context, hyperband, portfolio |
+| [ai-advisor](ai-advisor/SKILL.md) | Tùy chọn AI: advisor (Claude Code, Codex, Gemini/Antigravity), MCP server `dlnet mcp` | AI, advisor, MCP, claude, codex |

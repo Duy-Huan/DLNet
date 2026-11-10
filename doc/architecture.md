@@ -13,7 +13,7 @@ flowchart TD
     D --> F[Sinh ứng viên<br/>họ mô hình + zoo presets + mẫu ngẫu nhiên]
     F --> G[Cost model: tham số, FLOPs, VRAM<br/>zoo/cost.py, --max-*]
     G --> H[Zero-cost proxy<br/>proxies.py, chỉ đo]
-    H --> I[Chọn / xếp hạng hạt giống<br/>seeds.py + meta.py]
+    H --> I[Chọn / xếp hạng hạt giống: prior, meta kNN + portfolio,<br/>surrogate ZAP, AI advisor tùy chọn; seeds.py]
     I --> J[Tìm kiếm: successive halving<br/>hoặc Hyperband, search.py]
     J --> K[Aging evolution trên zoo<br/>zoo/space.py]
     K --> L[Giai đoạn 2: nhiều seed / nhiều lần chia]
@@ -35,7 +35,8 @@ Ngân sách thời gian (`--budget`) chia: tối đa 10% cho proxy (tính từ l
 | `dlnet/zoo/` | Kho module và ngữ pháp kiến trúc (mục 3) |
 | `dlnet/search.py` | Successive halving, Hyperband, giai đoạn nhiều seed, cache lần chạy, chọn Top-K đa dạng |
 | `dlnet/objectives.py` | Hướng tối ưu: accuracy, params, flops, balanced (MnasNet), pareto (NSGA-II) |
-| `dlnet/datacard.py`, `seeds.py`, `meta.py` | Đặc trưng dữ liệu, chọn hạt giống, học từ các lần chạy trước |
+| `dlnet/datacard.py`, `seeds.py`, `meta.py`, `surrogate.py` | Đặc trưng dữ liệu, chọn hạt giống, học từ các lần chạy trước (kNN, portfolio, surrogate ZAP) |
+| `dlnet/advisor.py`, `mcp_server.py` | Tùy chọn AI: advisor gọi AI CLI; MCP server `dlnet mcp` ([ai-advisor.md](ai-advisor.md)) |
 | `dlnet/proxies.py`, `hparams.py`, `profile.py` | Zero-cost proxy; lr / batch / weight decay; intrinsic dimension |
 | `dlnet/export.py`, `reference.py` | Gói đầu ra, leaderboard, quy tắc kết luận; baseline cổ điển |
 | `dlnet/unfold*.py`, `gan_*.py` | Lệnh `unfold` (LISTA) và `gan` (DCGAN) |

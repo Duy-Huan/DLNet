@@ -143,3 +143,42 @@ def test_image_card_runs_on_tiny_data():
     d = array_data.build(X, y, "image", "classification", 0)
     card = datacard.image_card(d)
     assert card["n_classes"] == 3 and card["height"] == 8 and "conv_bias_gain" in card
+
+
+def test_zap_surrogate_learns_a_data_dependent_preference():
+    """Synthetic meta-dataset: on datasets with phi > 0 configs with x0 = 1 win, with phi < 0 those
+    with x0 = 0 win. Only a surrogate that sees the meta-features can rank a new dataset right."""
+    from dlnet import surrogate
+
+    rng = np.random.default_rng(0)
+
+    def dataset(phi):
+        cands = []
+        for _ in range(12):
+            x0, x1 = float(rng.integers(2)), float(rng.normal())
+            val = (x0 if phi > 0 else 1 - x0) + 0.1 * rng.normal()
+            cands.append({"x": [x0, x1], "val": val})
+        return {"phi": [phi], "candidates": cands}
+
+    train = [dataset(p) for p in (-2, -1.5, -1, 1, 1.5, 2)]
+    xs = [[1.0, 0.0], [0.0, 0.0]]
+    zap = surrogate.Surrogate(steps=300).fit(train)
+    a, b = zap.score([1.2], xs)
+    c, d = zap.score([-1.2], xs)
+    assert a > b and d > c  # the preference flips with the meta-feature
+    flat = surrogate.Surrogate(steps=300, use_meta=False).fit(train)
+    a, b = flat.score([1.2], xs)
+    c, d = flat.score([-1.2], xs)
+    assert (a > b) == (c > d)  # without meta-features the ranking cannot depend on the dataset
+
+
+def test_meta_record_keeps_per_candidate_results(tmp_path):
+    from dlnet import surrogate
+
+    c = _cands()[:4]
+    rec = meta.make_record("image_classification", {"n_train": 100, "n_features": 64}, [(x, 0.1 * i) for i, x in enumerate(c)],
+                           "d", card={"n_train": 100, "channels": 1}, epochs=4)  # fmt: skip
+    assert len(rec["candidates"]) == 4 and rec["card"]["channels"] == 1
+    meta.append(tmp_path / "s.jsonl", rec)
+    ds = surrogate.datasets_from_records(meta.load(tmp_path / "s.jsonl"), "image_classification")
+    assert len(ds) == 1 and len(ds[0]["phi"]) == len(surrogate.CARD_KEYS)

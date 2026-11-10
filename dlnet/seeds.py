@@ -9,6 +9,9 @@ Three independent rankers, aggregated by a weighted Borda count:
 2. `meta`    past runs (dlnet/meta.py): the k nearest datasets vote on the family order, and the
              greedy portfolio of Auto-sklearn 2.0 (Feurer et al., JMLR 2022, arXiv:2007.04074,
              Algorithm 1) is built on those neighbours.
+2b. `zap`    zero-shot surrogate meta-learned with a pairwise ranking loss (ZAP, arXiv:2206.08476;
+             dlnet/surrogate.py) on per-candidate results of past runs.
+2c. `ai`     optional AI advisor (dlnet/advisor.py), e.g. Claude Code / Codex CLI.
 3. `proxies` zero-cost proxies on the real data, combined by the majority vote of Abdelfattah et
              al. (arXiv:2101.08134, Sec. 4: "majority vote between synflow, jacob_cov and snip";
              DLNet uses NASWOT, the later form of jacob_cov). Off by default: agent.md 16.1 item 4
@@ -219,7 +222,8 @@ def _anchor(c: dict) -> bool:
 
 
 def select(cands, card, n=0, context="", goal="accuracy", meta=None, portfolio=None,
-           proxy_scores=None, weights=(1.0, 1.0, 0.0), max_per_family=2, order="data", seed=0):  # fmt: skip
+           proxy_scores=None, weights=(1.0, 1.0, 0.0), max_per_family=2, order="data", seed=0,
+           surrogate_scores=None, surrogate_weight=1.0, advice=None, advice_weight=1.0):  # fmt: skip
     """Order the candidates by the aggregated rank; with n > 0 keep only n of them.
 
     Returns (candidates, report). `weights` = (prior, meta, proxies); proxies are off by default.
@@ -231,6 +235,10 @@ def select(cands, card, n=0, context="", goal="accuracy", meta=None, portfolio=N
         lists.append((ms, weights[1]))
     if proxy_scores is not None and weights[2]:
         lists.append((proxy_vote(proxy_scores), weights[2]))
+    if surrogate_scores is not None and surrogate_weight:
+        lists.append((surrogate_scores, surrogate_weight))
+    if advice is not None and advice_weight:  # AI advisor (dlnet/advisor.py)
+        lists.append((advice, advice_weight))
     total = borda(lists)
     if order == "random":  # control arm for scripts/bench_seeds.py: same n, no information
         total = np.random.default_rng(seed).permutation(len(cands)).astype(float)
@@ -266,7 +274,9 @@ def select(cands, card, n=0, context="", goal="accuracy", meta=None, portfolio=N
     report = {
         "rules_fired": why,
         "rankers": ["prior"] + (["meta"] if ms is not None else []) + (
-            ["proxy_vote"] if proxy_scores is not None and weights[2] else []),
+            ["proxy_vote"] if proxy_scores is not None and weights[2] else []) + (
+            ["zap_surrogate"] if surrogate_scores is not None and surrogate_weight else []) + (
+            ["ai_advisor"] if advice is not None and advice_weight else []),
         "weights": dict(zip(("prior", "meta", "proxies"), weights, strict=True)),
         "kept": len(out), "pool": len(cands),
         "top": [{"family": c["family"], "origin": c.get("origin", "family"), "traits": c["seed_traits"],

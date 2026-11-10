@@ -59,9 +59,10 @@ def design(args) -> int:
     import functools
     from pathlib import Path
 
+    import numpy as np
     import torch
 
-    from . import export, hparams, meta, objectives, plugins, proxies, search, seeds, zoo
+    from . import advisor, export, hparams, meta, objectives, plugins, proxies, search, seeds, zoo
     from .zoo import space
 
     t0 = time.time()
@@ -143,6 +144,41 @@ def design(args) -> int:
         zc[id(c)] = proxies.score(
             plugin.build_model(c, data["in_dim"], data["out_dim"]), data, seed=args.seed
         )
+    zinp = plugin.zoo_input(data)
+    if args.extra_specs and zinp:  # user- or AI-written architectures (JSON list of zoo specs)
+        import json as _json
+
+        rng_x = np.random.default_rng(args.seed)
+        extra = [space._candidate(sp, zinp[0], zinp[1], data["out_dim"], zinp[2], plugin.zoo_train,
+                                  rng_x, prof["max_params"], "user_spec")
+                 for sp in _json.loads(Path(args.extra_specs).read_text())]  # fmt: skip
+        extra = _apply_cost_model(plugin, data, [c for c in extra if c], args)
+        print(f"[extra] {len(extra)} valid architectures from {args.extra_specs}")
+        cands += extra
+    adv_cmd, adv = advisor.command(args.advisor, args.advisor_cmd), None
+    if adv_cmd and zinp:
+        adv = advisor.advise(
+            adv_cmd, card, args.context, args.objective, cands, zinp[0], zinp[1], data["out_dim"],
+            zinp[2], plugin.zoo_train, prof["max_params"], np.random.default_rng(args.seed),
+            args.advisor_proposals, timeout=args.advisor_timeout,
+        )  # fmt: skip
+        if adv:
+            n0 = len(cands)
+            cands += _apply_cost_model(plugin, data, adv["proposals"], args)
+            adv["scores"] = advisor.scores_from_ranking(
+                len(cands), adv["ranking"] + list(range(n0, len(cands)))
+            )
+    sur = None
+    if len(card) > 1 and args.surrogate_weight:  # zero-shot surrogate (ZAP) learned from past runs
+        from . import surrogate
+
+        past = (meta.load(args.meta_store) if args.meta_store else []) + (
+            [] if args.no_builtin_meta else surrogate.builtin_records(plugin.name)
+        )
+        sur = surrogate.rank_candidates(past, plugin.name, card, cands)
+        n_ds = len(surrogate.datasets_from_records(past, plugin.name))
+        print(f"[surrogate] ZAP ranking learned from {n_ds} past datasets" if sur
+              else "[surrogate] not enough past datasets")  # fmt: skip
     # Seed selection: data card + context prior, past runs, (optionally) the proxy vote
     port = None
     if args.meta_store:
@@ -154,6 +190,8 @@ def design(args) -> int:
         cands, card, args.seeds, args.context or "", goal, meta_rec, port,
         [zc[id(c)] for c in cands] if use_px else None, (1.0, 1.0, 1.0 if use_px else 0.0),
         order=args.seed_order, seed=args.seed,
+        surrogate_scores=sur, surrogate_weight=args.surrogate_weight,
+        advice=adv["scores"] if adv else None, advice_weight=args.advisor_weight,
     )  # fmt: skip
     if len(zc) == len(cands) and len(cands) > 2:  # the vote and the prior are measured like proxies
         from .seeds import proxy_vote
@@ -204,6 +242,18 @@ def design(args) -> int:
         )
         parents = sorted(population, key=lambda cv: -cv[1])[:3]
         parents = [p for p, _ in parents]
+        if adv_cmd and zinp:  # the advisor sees the results so far and may propose children
+            res_tab = [{"id": f"c{i}", "val": round(v, 4)} for i, (_, v) in enumerate(population)]
+            a2 = advisor.advise(
+                adv_cmd, card, args.context, args.objective, [c for c, _ in population], zinp[0],
+                zinp[1], data["out_dim"], zinp[2], plugin.zoo_train, prof["max_params"],
+                np.random.default_rng(args.seed + g), args.advisor_proposals, results=res_tab,
+                timeout=args.advisor_timeout,
+            )  # fmt: skip
+            if a2:
+                kids += a2["proposals"]
+                adv.setdefault("evolution", []).append({"generation": g, "rationale": a2["rationale"],
+                                                        "proposals": len(a2["proposals"])})  # fmt: skip
         kids = _apply_cost_model(
             plugin, data, kids, args
         )  # children are costed and filtered like the rest
@@ -263,10 +313,19 @@ def design(args) -> int:
         }
     if meta_rec:
         extras["meta_recommendation"] = meta_rec
+    if adv:
+        extras["ai_advisor"] = {k: adv[k] for k in ("rationale", "dropped_ids", "invalid_proposals")} | {
+            "command": adv_cmd.split()[0], "proposals": len(adv["proposals"]),
+            "evolution": adv.get("evolution", []),
+            "top1_from_advisor": chosen[0]["cfg"].get("origin") == "ai_advisor",
+        }  # fmt: skip
     extras["seed_selection"] = {**seed_report, "data_card": card, "context": args.context or "",
                                 "goal": goal, "portfolio": port, "scheduler": args.scheduler}  # fmt: skip
     if args.meta_store:
-        rec = meta.make_record(plugin.name, prof, trace.get("rung1", []), Path(args.data).name)
+        rec = meta.make_record(
+            plugin.name, prof, trace.get("rung1", []), Path(args.data).name,
+            card=card if len(card) > 1 else None, epochs=trace.get("rung1_epochs"),
+        )  # fmt: skip
         if rec:
             meta.append(args.meta_store, rec)
             print(f"[meta] stored this run in {args.meta_store}")
@@ -318,6 +377,12 @@ def selfcheck() -> int:
     return 0 if ok else 1
 
 
+def advisor_presets():
+    from .advisor import PRESETS
+
+    return PRESETS
+
+
 def main(argv=None) -> int:
     from . import gan_run, plugins, unfold_run
 
@@ -328,6 +393,10 @@ def main(argv=None) -> int:
     unfold_run.add_parser(sub)
     gan_run.add_parser(sub)
     sub.add_parser("zoo", help="list every module of the zoo with kinds, tags and sources")
+    sub.add_parser(
+        "mcp",
+        help="run DLNet as an MCP server on stdio for AI clients (Claude Code, Codex, Antigravity)",
+    )
     d = sub.add_parser("design", help="propose Top-K deep learning baselines for a dataset")
     d.add_argument(
         "--data",
@@ -407,6 +476,31 @@ def main(argv=None) -> int:
     )
     d.add_argument("--max-params", help="drop candidates with more parameters, e.g. 500k")
     d.add_argument(
+        "--extra-specs", help="JSON file with a list of zoo specs to add to the candidates"
+    )
+    d.add_argument(
+        "--surrogate-weight", type=float, default=1.0,
+        help="weight of the zero-shot ZAP surrogate in the seed ranking (0 = off)",
+    )  # fmt: skip
+    d.add_argument(
+        "--no-builtin-meta", action="store_true",
+        help="do not use the meta-dataset shipped with DLNet for the surrogate (image classification)",
+    )  # fmt: skip
+    d.add_argument(
+        "--advisor", choices=sorted(advisor_presets()),
+        help="optional AI advisor CLI that ranks seeds and proposes architectures (doc/ai-advisor.md)",
+    )  # fmt: skip
+    d.add_argument(
+        "--advisor-cmd", help='custom advisor command; prompt on stdin or "{prompt_file}"'
+    )
+    d.add_argument(
+        "--advisor-weight", type=float, default=1.0, help="weight of the advisor ranking"
+    )
+    d.add_argument(
+        "--advisor-proposals", type=int, default=3, help="new architectures asked per call"
+    )
+    d.add_argument("--advisor-timeout", type=float, default=120.0, help="seconds per advisor call")
+    d.add_argument(
         "--seeds", type=int, default=0,
         help="keep only this many seed architectures (data-aware ranking); 0 = keep all, ranked",
     )  # fmt: skip
@@ -439,6 +533,10 @@ def main(argv=None) -> int:
 
         print(zoo.describe())
         return 0
+    if args.cmd == "mcp":
+        from .mcp_server import serve
+
+        return serve()
     if args.cmd == "unfold":
         return unfold_run.run(args)
     if args.cmd == "gan":

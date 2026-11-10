@@ -6,6 +6,17 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+Mốc M17 và M18 (xem `agent.md` §16.6, `doc/algorithms.md` §3, `doc/ai-advisor.md`).
+
+### Thêm
+- **Surrogate zero-shot ZAP** (`dlnet/surrogate.py`, Öztürk et al. 2022): học ánh xạ (data card, đặc tính kiến trúc) → thứ hạng bằng loss xếp hạng cặp; tham gia xếp hạng hạt giống (`--surrogate-weight`).
+- **Meta-dataset có sẵn** `dlnet/data/meta_image.jsonl`: 14 bộ ảnh (CIFAR-10/100, hoa, MNIST, Fashion-MNIST, ...) × 24 kiến trúc; tắt bằng `--no-builtin-meta`. `--meta-store` nay ghi data card và kết quả từng ứng viên.
+- `scripts/build_meta.py`, `scripts/bench_surrogate.py` (leave-one-dataset-out): Borda(ZAP) Spearman +0,67 so với +0,19 của quy tắc tay và +0,33 của đếm tham số.
+- **AI advisor tùy chọn** (`--advisor claude|codex|gemini`, `--advisor-cmd`): AI CLI xếp hạng hạt giống và đề xuất kiến trúc trước khi tìm kiếm và ở mỗi thế hệ tiến hóa; câu trả lời được kiểm tra như dữ liệu. `leaderboard.json` có khối `ai_advisor`.
+- **MCP server** `dlnet mcp` (stdio, JSON-RPC): tool `dlnet_profile`, `dlnet_candidates`, `dlnet_zoo`, `dlnet_check_spec`, `dlnet_design`, `dlnet_leaderboard`; cấu hình cho Claude Code, Codex CLI, Antigravity, Gemini CLI trong `doc/ai-advisor.md`.
+- `--extra-specs file.json`: thêm kiến trúc viết tay (hoặc do AI viết) vào pool.
+- Skill `ai-advisor`.
+
 ## [0.15.0] - 2026-11-10
 
 Mốc M16 (xem `doc/user-guide.md` §5, `doc/algorithms.md` §2, `agent.md` §17): hướng tối ưu và bộ tài liệu.

@@ -19,6 +19,9 @@ dlnet = "dlnet.cli:main"
 [tool.setuptools.packages.find]
 include = ["dlnet*"]
 
+[tool.setuptools.package-data]
+dlnet = ["data/*.jsonl"]
+
 [tool.ruff]
 line-length = 100
 target-version = "py310"
