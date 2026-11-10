@@ -6,6 +6,8 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-10
+
 Mốc M4 (xem `agent.md` §8, §13): thư viện mở rộng và tự ghép mô hình theo grammar có kiểu.
 
 ### Thêm
@@ -68,6 +70,7 @@ Bản đầu tiên: prototype chạy được từ dữ liệu đến Top-K base
 - Chưa có zero-cost proxy, cost model FLOPs/VRAM, Tensor-LoRA, deep unfolding; chưa có plugin image và timeseries.
 - Kết quả trên Indian Pines và Pavia University là một lần chạy ngắn trên CPU: với chia theo khối, mạng sâu chưa vượt rõ baseline cổ điển.
 
-[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.3.0
 [0.2.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.2.0
 [0.1.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.1.0
