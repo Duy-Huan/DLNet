@@ -20,6 +20,14 @@ def _new_trainer(cfg, data, seed, build_fn):
     return Trainer(m, data, lr=cfg["lr"], wd=cfg["wd"], batch=cfg["batch"], seed=seed)
 
 
+def _ranked(items, rank=None):
+    """Order trained candidates best first: by validation score, or by `rank` (an objective, see
+    dlnet/objectives.py) applied to [(cfg, val), ...]."""
+    if rank is None:
+        return sorted(items, key=lambda a: -a["val0"])
+    return [items[i] for i in rank([(a["cfg"], a["val0"]) for a in items])]
+
+
 def interleave(cands):
     """Round-robin by family, so a budget that ends inside rung 1 does not favour the first families."""
     by: dict[str, list] = {}
@@ -113,7 +121,7 @@ def summarize(vals, tests) -> dict:
 
 def run_search(
     data, cands, deadline, topk, build_fn, rungs=(4, 12, 30), eta=3, seeds=3, log=print, folds=None,
-    cache=None, trace=None,
+    cache=None, trace=None, rank=None,
 ):  # fmt: skip
     """`folds`: optional list of data dicts (repeated splits, folds[0] is `data`) for stage 2.
 
@@ -142,7 +150,7 @@ def run_search(
         if r == 0 and trace is not None:
             trace["rung1"], trace["rung1_epochs"] = [(a["cfg"], a["val0"]) for a in finished], ep
         # Only candidates that completed THIS rung compete: never rank different epoch counts.
-        alive = sorted(finished, key=lambda a: -a["val0"])
+        alive = _ranked(finished, rank)
         keep = max(math.ceil(len(alive) / eta), min(len(alive), topk * 2))
         if r < len(rungs) - 1:
             alive = alive[:keep]
@@ -201,7 +209,7 @@ def hyperband_brackets(R: int, eta: int = 3, unit: int = 4) -> list[list[tuple[i
 
 def run_hyperband(
     data, cands, deadline, topk, build_fn, R=36, eta=3, unit=4, seeds=3, log=print, folds=None,
-    cache=None, trace=None,
+    cache=None, trace=None, rank=None,
 ):  # fmt: skip
     """Hyperband over a FIXED, ordered candidate pool, then the multi-seed stage of `run_search`.
 
@@ -240,7 +248,7 @@ def run_hyperband(
                     break
                 if ep == unit:
                     first_rung += [(a["cfg"], a["val0"]) for a in finished]
-                alive = sorted(finished, key=lambda a: -a["val0"])
+                alive = _ranked(finished, rank)
                 if i < len(rungs) - 1:
                     alive = alive[: max(rungs[i + 1][0], 1)]
             full = [a for a in alive if a["tr"].epochs_done >= R]
@@ -250,9 +258,7 @@ def run_hyperband(
     if trace is not None:
         trace["rung1"], trace["rung1_epochs"] = first_rung, unit
     best_ep = max(a["tr"].epochs_done for a in done)
-    pool_final = sorted(
-        [a for a in done if a["tr"].epochs_done == best_ep], key=lambda a: -a["val0"]
-    )
+    pool_final = _ranked([a for a in done if a["tr"].epochs_done == best_ep], rank)
     finalists = pool_final[: max(topk * 2, topk + 2)]
     return stage2(finalists, folds, build_fn, seeds, deadline, cache)
 
@@ -271,7 +277,7 @@ def assign_groups(results):
     return results
 
 
-def select_topk(results, k):
+def select_topk(results, k, keep_order=False):
     """Diversity-aware selection: best per family first, then fill by rank."""
     chosen, fams = [], set()
     for r in results:
@@ -281,7 +287,11 @@ def select_topk(results, k):
     for r in results:
         if r not in chosen and len(chosen) < k:
             chosen.append(r)
-    chosen.sort(key=lambda r: -r["val_mean"])
+    if keep_order:  # results were already ordered by an objective: keep that order
+        pos = {id(r): i for i, r in enumerate(results)}
+        chosen.sort(key=lambda r: pos[id(r)])
+    else:
+        chosen.sort(key=lambda r: -r["val_mean"])
     top1 = chosen[0]
     roles = {id(top1): ["top1"]}
     rest = chosen[1:]

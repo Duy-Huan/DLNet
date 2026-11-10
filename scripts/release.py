@@ -3,6 +3,7 @@
 python scripts/release.py check          # version and CHANGELOG are consistent
 python scripts/release.py version        # print the version from pyproject.toml
 python scripts/release.py notes 0.1.0    # print the CHANGELOG section of that version
+python scripts/release.py bump 0.2.0     # release commit edits: versions, CHANGELOG, doc/ (agent.md sec. 17)
 """
 
 from __future__ import annotations
@@ -83,7 +84,39 @@ def check(root: Path = ROOT) -> list[str]:
             errors.append(f"CHANGELOG.md [{s['name']}] is empty")
     if v and (not names or names[0] != v):
         errors.append(f"newest CHANGELOG.md section is {names[:1]}, but version is {v!r}")
+    doc = root / "doc" / "README.md"
+    if doc.exists():  # agent.md sec. 17: the docs state the version they describe
+        dv = _first(DOC_VERSION, doc)
+        if dv != v:
+            errors.append(f"doc/README.md describes version {dv!r}, but version is {v!r}")
     return errors
+
+
+DOC_VERSION = r"Phiên bản tài liệu: \*\*([^*]+)\*\*"
+
+
+def bump(new: str, today: str, root: Path = ROOT) -> None:
+    """Release commit edits: version in pyproject / __init__ / doc/README.md, CHANGELOG section and
+    links, regenerated doc/cli.md and doc/zoo.md."""
+    old = pyproject_version(root)
+    pp = root / "pyproject.toml"
+    pp.write_text(pp.read_text().replace(f'version = "{old}"', f'version = "{new}"', 1))
+    ip = root / "dlnet" / "__init__.py"
+    ip.write_text(ip.read_text().replace(old, new))
+    cp = root / "CHANGELOG.md"
+    c = cp.read_text()
+    c = c.replace("## [Unreleased]\n", f"## [Unreleased]\n\n## [{new}] - {today}\n", 1)
+    c = c.replace(
+        f"compare/v{old}...HEAD",
+        f"compare/v{new}...HEAD\n[{new}]: https://github.com/Duy-Huan/DLNet/releases/tag/v{new}",
+    )
+    cp.write_text(c)
+    doc = root / "doc" / "README.md"
+    if doc.exists():
+        doc.write_text(re.sub(DOC_VERSION, f"Phiên bản tài liệu: **{new}**", doc.read_text()))
+        import subprocess
+
+        subprocess.run([sys.executable, str(root / "scripts" / "gen_docs.py")], check=True)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -96,6 +129,11 @@ def main(argv: list[str] | None = None) -> int:
         return 1 if errs else 0
     if a[:1] == ["version"]:
         print(pyproject_version())
+        return 0
+    if a[:1] == ["bump"] and len(a) == 2:
+        import datetime
+
+        bump(a[1], datetime.datetime.now(datetime.UTC).date().isoformat())
         return 0
     if a[:1] == ["notes"] and len(a) == 2:
         print(notes(a[1]))
