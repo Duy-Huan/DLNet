@@ -110,6 +110,21 @@ Từ khóa hiểu được (tiếng Anh và tiếng Việt): y tế / medical / 
 - `--seed-proxies`: thêm phiếu bầu của zero-cost proxy vào xếp hạng hạt giống.
 - `--scheduler hyperband`: thay một bracket successive halving bằng Hyperband (nhiều mức cắt sớm).
 
+### Học ánh xạ dữ liệu → hạt giống từ các lần chạy (surrogate ZAP)
+
+Với ảnh phân loại, DLNet có sẵn một meta-dataset (14 bộ ảnh × 24 kiến trúc) và các lần chạy của bạn với `--meta-store` được cộng thêm vào (mỗi lần `design` tự ghi kết quả từng ứng viên). Từ đó DLNet huấn luyện một **surrogate zero-shot** (thuật toán ZAP, xem [algorithms.md](algorithms.md#3-chọn-hạt-giống-và-học-từ-lần-chạy-trước)) dự đoán kiến trúc nào hợp với data card của bộ dữ liệu mới, và đưa nó vào xếp hạng hạt giống (`--surrogate-weight`, mặc định 1; `0` để tắt; `--no-builtin-meta` để chỉ dùng dữ liệu của bạn). Đo leave-one-dataset-out: Spearman +0,67 so với +0,19 của quy tắc tay. Dựng sẵn một meta-dataset từ nhiều bộ ảnh:
+
+```bash
+python scripts/build_meta.py --data a.npz b.npz c.npz --n 24 --epochs 4 --out meta_image.jsonl
+python -m dlnet design --data new.npz --meta-store meta_image.jsonl
+```
+
+### AI tham gia chọn hạt giống (tùy chọn)
+
+`--advisor claude | codex | gemini` hoặc `--advisor-cmd "..."`: một AI CLI xếp hạng hạt giống và đề xuất kiến trúc mới; DLNet kiểm tra mọi đề xuất trước khi dùng. Hướng dẫn đầy đủ, kèm MCP server `dlnet mcp` cho Claude Code / Codex / Antigravity: [ai-advisor.md](ai-advisor.md).
+
+`--extra-specs my_specs.json`: thêm kiến trúc do bạn (hoặc AI) viết dạng spec zoo vào pool.
+
 ## 7. Ngân sách và giới hạn chi phí
 
 | Tùy chọn | Ý nghĩa |
@@ -159,6 +174,7 @@ Mỗi lần chạy thêm một dòng vào `runs.jsonl`. Từ 3 lần chạy cùn
 python -m dlnet zoo                                               # liệt kê module
 python -m dlnet unfold --data problem.npz --layers 4,8,16         # LISTA cho y = A x + nhiễu
 python -m dlnet gan --data images.npz --budget-s 300              # DCGAN, xếp hạng theo MMD²
+python -m dlnet mcp                                               # MCP server cho AI client (doc/ai-advisor.md)
 ```
 
 ## 12. Xử lý sự cố

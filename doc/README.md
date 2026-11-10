@@ -1,6 +1,6 @@
 # Tài liệu DLNet
 
-Phiên bản tài liệu: **0.15.0** (phải trùng `version` trong `pyproject.toml`; `python scripts/release.py check` kiểm tra điều này).
+Phiên bản tài liệu: **0.16.0** (phải trùng `version` trong `pyproject.toml`; `python scripts/release.py check` kiểm tra điều này).
 
 DLNet nhận một bộ dữ liệu (bảng, ảnh, mask phân đoạn, chuỗi thời gian, ảnh siêu phổ, đồ thị, tương tác người dùng–mục) và trả về **Top-K mạng PyTorch** đã được huấn luyện thử, xếp hạng trung thực so với baseline cổ điển, mỗi mạng là một gói Python tự chạy (`model.py`, `train.py`, `config.yaml`, test).
 
@@ -11,6 +11,7 @@ DLNet nhận một bộ dữ liệu (bảng, ảnh, mask phân đoạn, chuỗi 
 | [architecture.md](architecture.md) | Kiến trúc: pipeline, plugin, kho module (zoo), tìm kiếm, xuất gói | người phát triển |
 | [algorithms.md](algorithms.md) | Thuật toán chuẩn đã dùng (tìm kiếm, hướng tối ưu, chọn hạt giống, proxy, hyperparameter), nguồn và kết quả đo | người dùng nâng cao, người phát triển |
 | [zoo.md](zoo.md) | Danh mục mọi module của zoo (sinh tự động) | người thiết kế kiến trúc |
+| [ai-advisor.md](ai-advisor.md) | Tùy chọn kết nối AI: advisor (Claude Code, Codex, Gemini/Antigravity) và MCP server `dlnet mcp` | người dùng muốn AI tham gia |
 
 Tài liệu liên quan ở gốc repo: [`CHANGELOG.md`](../CHANGELOG.md) (thay đổi theo phiên bản), [`THIRD_PARTY.md`](../THIRD_PARTY.md) (nguồn module và kết quả đối chiếu với mã gốc), [`agent.md`](../agent.md) (kế hoạch, quy tắc phát triển, số đo chi tiết), [`skills/`](../skills/README.md) (quy trình cho người/AI phát triển).
 

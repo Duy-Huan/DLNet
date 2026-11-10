@@ -6,6 +6,19 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-11-10
+
+Mốc M17 và M18 (xem `agent.md` §16.6, `doc/algorithms.md` §3, `doc/ai-advisor.md`).
+
+### Thêm
+- **Surrogate zero-shot ZAP** (`dlnet/surrogate.py`, Öztürk et al. 2022): học ánh xạ (data card, đặc tính kiến trúc) → thứ hạng bằng loss xếp hạng cặp; tham gia xếp hạng hạt giống (`--surrogate-weight`).
+- **Meta-dataset có sẵn** `dlnet/data/meta_image.jsonl`: 14 bộ ảnh (CIFAR-10/100, hoa, MNIST, Fashion-MNIST, ...) × 24 kiến trúc; tắt bằng `--no-builtin-meta`. `--meta-store` nay ghi data card và kết quả từng ứng viên.
+- `scripts/build_meta.py`, `scripts/bench_surrogate.py` (leave-one-dataset-out): Borda(ZAP) Spearman +0,67 so với +0,19 của quy tắc tay và +0,33 của đếm tham số.
+- **AI advisor tùy chọn** (`--advisor claude|codex|gemini`, `--advisor-cmd`): AI CLI xếp hạng hạt giống và đề xuất kiến trúc trước khi tìm kiếm và ở mỗi thế hệ tiến hóa; câu trả lời được kiểm tra như dữ liệu. `leaderboard.json` có khối `ai_advisor`.
+- **MCP server** `dlnet mcp` (stdio, JSON-RPC): tool `dlnet_profile`, `dlnet_candidates`, `dlnet_zoo`, `dlnet_check_spec`, `dlnet_design`, `dlnet_leaderboard`; cấu hình cho Claude Code, Codex CLI, Antigravity, Gemini CLI trong `doc/ai-advisor.md`.
+- `--extra-specs file.json`: thêm kiến trúc viết tay (hoặc do AI viết) vào pool.
+- Skill `ai-advisor`.
+
 ## [0.15.0] - 2026-11-10
 
 Mốc M16 (xem `doc/user-guide.md` §5, `doc/algorithms.md` §2, `agent.md` §17): hướng tối ưu và bộ tài liệu.
@@ -277,7 +290,8 @@ Bản đầu tiên: prototype chạy được từ dữ liệu đến Top-K base
 - Chưa có zero-cost proxy, cost model FLOPs/VRAM, Tensor-LoRA, deep unfolding; chưa có plugin image và timeseries.
 - Kết quả trên Indian Pines và Pavia University là một lần chạy ngắn trên CPU: với chia theo khối, mạng sâu chưa vượt rõ baseline cổ điển.
 
-[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v0.15.0...HEAD
+[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v0.16.0...HEAD
+[0.16.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.16.0
 [0.15.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.15.0
 [0.14.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.14.0
 [0.13.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.13.0

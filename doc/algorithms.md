@@ -31,8 +31,28 @@ Cùng một hàm `objectives.order` được dùng giữa các rung, trong tourn
 | k bộ dữ liệu gần nhất bỏ phiếu thứ tự họ | Feurer et al. AAAI 2015 (viết từ trí nhớ) | `meta.recommend` |
 | Portfolio tham lam | Auto-sklearn 2.0, arXiv:2007.04074, Algorithm 1 | `meta.portfolio` |
 | Vote đa số của proxy | Abdelfattah et al., arXiv:2101.08134 §4 (synflow, jacob_cov → naswot, snip) | `seeds.proxy_vote` (đọc thành so sánh từng cặp, chưa đối chiếu mã) |
+| **Surrogate zero-shot ZAP** | Öztürk et al., ICML 2022, arXiv:2206.08476, §3.2, phương trình 3–4: `f(x, φ)` học bằng loss xếp hạng cặp `−log σ(f_j − f_k)` trên meta-dataset | `surrogate.py`; `x` = đặc tính kiến trúc + log tham số + log FLOPs + số module, `φ` = data card; MLP 2×32, 3 thành viên (không chép kích thước mạng của paper) |
+| Meta-dataset có sẵn | `scripts/build_meta.py` trên 14 bộ ảnh (CIFAR-10, CIFAR-10 xám, CIFAR mèo/chó, CIFAR-100 20 lớp, hoa 5 lớp, MNIST/Fashion các cỡ, MNIST màu, digits, 2 bộ tổng hợp), 24 kiến trúc ngẫu nhiên mỗi bộ, 4 epoch | `dlnet/data/meta_image.jsonl` (tắt bằng `--no-builtin-meta`) |
 
-**Kết quả đo** (`scripts/bench_prior.py`, 20 ứng viên ngẫu nhiên, 4 epoch, MNIST/Fashion-MNIST con 3000 ảnh và hai bộ tổng hợp): điểm prior theo data card có Spearman −0,18…+0,35 với validation thật và không lần nào trúng top-3; đếm tham số đạt +0,45…+0,83 trên MNIST/Fashion. Vì vậy `--seeds` mặc định không loại ứng viên.
+**Đo leave-one-dataset-out** (`scripts/bench_surrogate.py`, 14 bộ × 24 kiến trúc): học trên 13 bộ, xếp hạng bộ còn lại.
+
+| Bộ xếp hạng | Spearman TB | regret@1 TB | best trong top-3 |
+|---|---|---|---|
+| Borda(ZAP, ZAP không φ, kNN) | +0,67 | **0,061** | 4/14 |
+| ZAP (có data card) | +0,54 | **0,061** | 3/14 |
+| ZAP không data card | **+0,69** | 0,075 | 5/14 |
+| kNN theo họ | +0,55 | 0,096 | **9/14** |
+| prior (quy tắc tay) | +0,19 | 0,104 | 3/14 |
+| đếm tham số | +0,33 | 0,108 | 8/14 |
+| ngẫu nhiên | 0 | 0,175 | 1,8/14 |
+
+Kết luận: học từ các lần chạy trước tốt hơn hẳn quy tắc tay và đếm tham số; nhưng với 14 bộ, thêm data card **chưa** làm Spearman tốt hơn (chỉ giảm regret@1). `design` dùng Borda của ZAP có và không có data card cho thứ tự hạt giống.
+
+**Kết quả đo cũ của prior** (`scripts/bench_prior.py`, 20 ứng viên ngẫu nhiên, 4 epoch, MNIST/Fashion-MNIST con 3000 ảnh và hai bộ tổng hợp): điểm prior theo data card có Spearman −0,18…+0,35 với validation thật và không lần nào trúng top-3; đếm tham số đạt +0,45…+0,83 trên MNIST/Fashion. Vì vậy `--seeds` mặc định không loại ứng viên.
+
+## 3b. AI advisor (tùy chọn)
+
+AI CLI ngoài xếp hạng ứng viên và đề xuất spec; câu trả lời được coi là dữ liệu, kiểm tĩnh, rồi vào Borda như một bộ xếp hạng. **Chưa đo** hiệu quả trên dữ liệu thật. Chi tiết: [ai-advisor.md](ai-advisor.md).
 
 ## 4. Zero-cost proxy (chỉ đo, không loại)
 

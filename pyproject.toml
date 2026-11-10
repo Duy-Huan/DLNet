@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dlnet"
-version = "0.15.0"
+version = "0.16.0"
 description = "Framework tu dong thiet ke mang deep learning tu du lieu, dong goi baseline PyTorch"
 requires-python = ">=3.10"
 dependencies = []
@@ -18,6 +18,9 @@ dlnet = "dlnet.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["dlnet*"]
+
+[tool.setuptools.package-data]
+dlnet = ["data/*.jsonl"]
 
 [tool.ruff]
 line-length = 100

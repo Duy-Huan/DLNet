@@ -44,15 +44,27 @@ def normalized_ranks(scores: dict[str, float]) -> dict[str, float]:
     return out
 
 
-def make_record(plugin: str, prof: dict, rung1: list, name: str = "") -> dict | None:
-    """One store record from the rung-1 trace [(candidate cfg, validation score), ...]."""
+def make_record(
+    plugin: str, prof: dict, rung1: list, name: str = "", card=None, epochs=None
+) -> dict | None:
+    """One store record from the rung-1 trace [(candidate cfg, validation score), ...].
+
+    With `card` (data card) the record also keeps every candidate's features and score, the
+    meta-dataset of the zero-shot surrogate (dlnet/surrogate.py)."""
     best: dict[str, float] = {}
     for cfg, val in rung1:
         if math.isfinite(val):
             best[cfg["family"]] = max(val, best.get(cfg["family"], -math.inf))
     if len(best) < 2:
         return None  # nothing to learn from a single family
-    return {"plugin": plugin, "name": name, "features": features(prof), "family_scores": best}
+    rec = {"plugin": plugin, "name": name, "features": features(prof), "family_scores": best}
+    if card is not None:
+        from .surrogate import candidate_record
+
+        rec["card"] = card
+        rec["epochs"] = epochs
+        rec["candidates"] = [candidate_record(c, v) for c, v in rung1 if math.isfinite(v)]
+    return rec
 
 
 def load(path) -> list[dict]:
