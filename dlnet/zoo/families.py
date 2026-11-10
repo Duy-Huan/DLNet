@@ -32,7 +32,10 @@ TABULAR = (
     "fm_mlp",
 )
 IMAGE = ("cnn", "resnet", "vit", "lenet", "allconv", "vgg", "densenet", "mobilenetv2")
-SEGMENTATION = ("fcn", "unet", "deconvnet")
+SEGMENTATION = (
+    "fcn", "unet", "deconvnet", "unetpp", "fpn", "deeplabv3", "deeplabv3plus", "pspnet", "linknet",
+    "upernet", "segformer",
+)  # fmt: skip
 TIMESERIES = ("tcn", "gru", "ts_transformer")
 HSI = (
     "cnn1d",
@@ -239,8 +242,8 @@ def image(cfg, dims):
 
 def segmentation(cfg, dims):
     f = cfg["family"]
-    dec = {"fcn": "fcn", "unet": "unet", "deconvnet": "deconv"}.get(f)
-    if dec is None:
+    dec = {"deconvnet": "deconv"}.get(f, f)
+    if dec not in SEGMENTATION and dec != "deconv":
         raise ValueError(f"unknown segmentation family {f!r}")
     stages = encoder_stages(
         cfg.get("encoder", "resnet"),
@@ -249,7 +252,10 @@ def segmentation(cfg, dims):
         min(dims[1:]),
         cfg.get("attention", "none"),
     )
-    return {"op": "encdec", "stages": stages, "dec": dec, "width": cfg["width"]}
+    spec = {"op": "encdec", "stages": stages, "dec": dec, "width": cfg["width"]}
+    if dec in ("unet", "unetpp") and cfg.get("dec_attention", "none") != "none":
+        spec["attention"] = cfg["dec_attention"]
+    return spec
 
 
 def timeseries(cfg, dims):

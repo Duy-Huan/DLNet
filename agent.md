@@ -282,6 +282,7 @@ Nguyên tắc: lõi **tổng quát trước**, kiểm chứng end-to-end sớm t
 | **M7** | Tensor: Tucker/HOSVD tiền xử lý, lớp TT/Tucker/TR, Tensor-LoRA | **Xong phần module và phép đo (v0.6.0)**, xem "Kết quả đo M7" ở §4: lớp TT/TR nén 81–89% tham số, mất ≤0,4 điểm accuracy (trong mức nhiễu) trên digits. Tensor-LoRA có đủ 4 format nhưng **chưa nối vào `design`** (DLNet chưa có backbone pretrained) và trong phép đo nhỏ chưa hơn huấn luyện từ đầu. HOSVD chưa dùng làm tiền xử lý HSI |
 | **M8** | Deep unfolding (khi có mô hình thuận) | **Xong cho bài toán thưa tuyến tính (v0.7.0)**, xem "Kết quả đo M8" ở §5: lệnh `dlnet unfold`, LISTA-CP hơn ISTA và FISTA (λ đã tune) 3,3–6,3 dB ở cùng số vòng K trên dữ liệu tổng hợp. Chưa có: ADMM/AMP, support selection, toán tử A không tường minh (ảnh), dữ liệu thật |
 | **M13** | Port nhóm còn thiếu: đồ thị, id/recommender, autoencoder/VAE, GAN, Mamba-2; cost model; hợp nhất họ cũ | **Xong (v0.11.0–v0.12.0)**, xem §13.7. Chưa có: CVAE, loss cặp (BPR), GAN có điều kiện/FID, đồ thị lớn (dense), graph cạnh học được |
+| **M14** | Khối ảnh từ thư viện chính thống (timm, smp, MONAI, torchvision); đối chiếu số học các khối viết từ trí nhớ | **Xong (v0.13.0)**, xem §13.8 |
 | **M11** | Refactor lõi thành kho module có kiểu `dlnet/zoo/` dùng chung mọi plugin + ngữ pháp ghép + tiến hóa kiến trúc; gom module từ các repo GitHub | **Xong phần lõi (v0.10.0)**: §13.6; 54 op từ 6 repo, 14/14 khối đối chiếu torchvision khớp; kết quả đo zoo so với họ cũ ở §13.6. Chưa có: chuyển hẳn các họ cũ thành preset (vẫn song song), kiểu `graph`/`ids`, trọng số pretrained |
 | **M10** | Thư viện khối từ 4 repo GitHub (§13.5), plugin `image_classification` và `image_segmentation` | **Xong (v0.9.0)**: `dlnet/blocks.py` + `THIRD_PARTY.md`; kết quả đo ở §14.4. Chưa có: pretrained, augmentation, dữ liệu segmentation thật |
 | **M9** | Plugin ảnh, chuỗi thời gian; recommender học từ kho kết quả (meta-learning) | **Có plugin và recommender (v0.8.0), tiêu chí 80% CHƯA đạt**, xem §14.3: plugin `image` (cnn, resnet, vit) và `timeseries` (tcn, gru, ts_transformer) chạy end-to-end trên dữ liệu tổng hợp; recommender kNN đoán đúng họ tốt nhất trong top-3 ở 7/12 dataset bảng (58%, ngẫu nhiên 51%). Chưa có: Mamba/SSM, ConvNeXt cho ảnh, dữ liệu ảnh/chuỗi thật, kho kết quả đủ lớn |
@@ -528,6 +529,13 @@ Mục đích của platform là **tìm kiến trúc mới cho từng ứng dụn
 | autoencoder | digits 8×8 (thật) | `conv_ae` MSE 0,039 (mã 8–32 phần tử) | PCA 32 thành phần: MSE 0,019 | **PCA thắng** trên ảnh nhỏ gần tuyến tính |
 
 - **Cost model áp cho cả ứng viên con** của vòng tiến hóa.
+
+### 13.8 Khối ảnh từ thư viện chính thống (M14)
+- **Nguồn**: timm 1.0.31 (thư viện khối ảnh lớn nhất của PyTorch), segmentation_models_pytorch 0.6.0 (decoder phân đoạn), MONAI 1.6.1 (ảnh y tế 2-D/3-D), torchvision 0.29.2. Port bằng PyTorch thuần (`dlnet/zoo/ops_img.py`, `dlnet/zoo/dense.py`), không thành phụ thuộc lúc chạy.
+- **Mới**: 9 decoder smp (`unet`, `unetpp`, `fpn`, `deeplabv3`, `deeplabv3plus`, `pspnet`, `linknet`, `upernet`, `segformer`) + `attention: scse`; 13 op (`scse`, `coord_attn`, `gc_block`, `grn`, `sk_conv`, `split_attn`, `ghost_bottleneck`, `res2net_block`, `convmixer_block`, `repvgg_block` có `fuse()`, `poolformer_block`, `segres_block`, `unet_res_block`); preset `ghostnet`, `repvgg`, `poolformer`, `convmixer`, `segresnet`, `nnunet_res`, `res2net`, `sknet`, `resnest`, `resnet_cbam/eca/coord/gc` và 8 preset phân đoạn; phép đột biến `decoder`; 8 họ phân đoạn mới. Zoo có 85 op.
+- **Sửa theo mã gốc**: `cbam`, `eca`, `inception`, `window_attn` (relative bias + mask), `mixer_block`; decoder `unet`/`fpn`/`aspp` cũ thay bằng bản smp (`aspp` thành tên khác của `deeplabv3`).
+- **Đối chiếu**: `scripts/verify_vision_libs.py` 39/39 khớp (THIRD_PARTY.md). Cùng với `verify_numeric.py` (24/24), tổng 63 khối/decoder đã đối chiếu số học với mã gốc.
+- **Chưa đo** khối mới có giúp độ chính xác trên dữ liệu thật hay không: phép đo nằm trong M15 (chọn hạt giống theo dữ liệu).
 
 ## 14. Domain plugins (HSI là plugin đầu tiên)
 

@@ -7,14 +7,17 @@ Ported to be shape-generic and parameterised. Sources (see THIRD_PARTY.md):
                               FusedMBConv (EfficientNet), MobileNetV3 block, ConvNeXt block,
                               RegNet block, ShuffleNetV2 unit, SqueezeNet Fire, PatchMerging (Swin),
                               SqueezeExcitation
-  papers, from memory         CBAM (Woo et al., arXiv:1807.06521), ECA (Wang et al., arXiv:1910.03151),
-                              Inception module (Szegedy et al., arXiv:1409.4842), window attention
-                              (Swin, arXiv:2103.14030; no relative position bias)
+  pytorch/vision              GoogLeNet Inception, Swin ShiftedWindowAttention (with relative bias and mask)
+  huggingface/timm            CbamModule, EcaModule
+  papers, from memory         PreAct block is checked against timm resnetv2.PreActBasic
 """
 
 from __future__ import annotations
 
+import math
+
 import torch
+import torch.nn.functional as F
 from torch import nn
 
 from .core import ND, op
@@ -57,37 +60,53 @@ def _se(dims, kind, ratio):
 
 
 class ECA(nn.Module):
-    def __init__(self, k):
+    """timm layers.EcaModule (Wang et al., ECA-Net, arXiv:1910.03151), use_mlp=False.
+
+    k = 0 picks the kernel from the channel count as timm does (gamma 2, beta 1)."""
+
+    def __init__(self, c, k=0, gamma=2, beta=1):
         super().__init__()
-        self.conv = nn.Conv1d(1, 1, k, padding=k // 2, bias=False)
+        if not k:
+            t = int(abs(math.log2(c) + beta) / gamma)
+            k = max(t if t % 2 else t + 1, 3)
+        self.conv = nn.Conv1d(1, 1, k, padding=(k - 1) // 2, bias=False)
 
     def forward(self, x):
-        s = x.mean(spatial(x)).unsqueeze(1)  # (B, 1, C)
-        w = torch.sigmoid(self.conv(s)).squeeze(1)
-        return x * w.view(*w.shape, *[1] * (x.dim() - 2))
+        y = self.conv(x.mean(spatial(x)).view(x.shape[0], 1, -1))
+        return x * torch.sigmoid(y).view(x.shape[0], -1, *[1] * (x.dim() - 2))
 
 
 @op(
     "eca",
     SP,
-    space={"k": [3, 5, 7]},
+    space={"k": [0, 3, 5, 7]},
     tags={"attn"},
-    source="ECA-Net (arXiv:1910.03151), from memory",
+    source="huggingface/pytorch-image-models layers.EcaModule (k = 0: adaptive kernel)",
 )
 def _eca(dims, kind, k):
-    return ECA(k)
+    return ECA(dims[0], k)
 
 
 class CBAM(nn.Module):
-    def __init__(self, c, ratio):
+    """timm layers.CbamModule (Woo et al., arXiv:1807.06521): channel attention (shared MLP without
+    bias on avg and max pooling), then spatial attention (7x7 conv + BN on [mean, max])."""
+
+    def __init__(self, c, ratio, k=7):
         super().__init__()
-        h = max(c // ratio, 4)
-        self.mlp = nn.Sequential(nn.Conv2d(c, h, 1), nn.ReLU(), nn.Conv2d(h, c, 1))
-        self.spatial = nn.Conv2d(2, 1, 7, padding=3)
+        rd = max(1, int(c / ratio + 0.5))  # timm make_divisible(c / ratio, 1, round_limit=0)
+        self.fc1, self.act, self.fc2 = (
+            nn.Conv2d(c, rd, 1, bias=False),
+            nn.ReLU(),
+            nn.Conv2d(rd, c, 1, bias=False),
+        )
+        self.spatial = nn.Sequential(
+            nn.Conv2d(2, 1, k, padding=k // 2, bias=False), nn.BatchNorm2d(1)
+        )
 
     def forward(self, x):
-        a = self.mlp(x.mean((2, 3), keepdim=True)) + self.mlp(x.amax((2, 3), keepdim=True))
-        x = x * torch.sigmoid(a)
+        a = self.fc2(self.act(self.fc1(x.mean((2, 3), keepdim=True))))
+        m = self.fc2(self.act(self.fc1(x.amax((2, 3), keepdim=True))))
+        x = x * torch.sigmoid(a + m)
         s = torch.cat([x.mean(1, keepdim=True), x.amax(1, keepdim=True)], 1)
         return x * torch.sigmoid(self.spatial(s))
 
@@ -95,9 +114,9 @@ class CBAM(nn.Module):
 @op(
     "cbam",
     "map",
-    space={"ratio": [4, 8, 16]},
+    space={"ratio": [16, 8, 4]},
     tags={"attn"},
-    source="CBAM (arXiv:1807.06521), from memory",
+    source="huggingface/pytorch-image-models layers.CbamModule",
 )
 def _cbam(dims, kind, ratio):
     return CBAM(dims[0], ratio)
@@ -441,31 +460,44 @@ def _fire(dims, kind, out, squeeze_ratio):
 
 
 class Inception(nn.Module):
-    """Inception module with 1x1, 3x3, 5x5 and pooling branches (GoogLeNet, from memory)."""
+    """pytorch/vision googlenet.Inception (Szegedy et al., arXiv:1409.4842): 1x1, 1x1-3x3, 1x1-k5 and
+    maxpool-1x1 branches, BasicConv2d = conv (no bias) + BN(eps 1e-3) + ReLU.
 
-    def __init__(self, nd, i, o):
+    The output channels are split like GoogLeNet inception 3a (64/128/32/32 of 256, reductions
+    96 and 16). torchvision uses 3x3 in the "5x5" branch (k5 = 3, its default); k5 = 5 follows the paper.
+    """
+
+    def __init__(self, nd, i, o, k5=3):
         super().__init__()
-        q, c = o // 4, CONV[nd]
-        cbr = lambda a, b, k: ConvBNAct(nd, a, b, k, 1, 1, 1, "relu", "batch")
-        self.b1 = cbr(i, q, 1)
-        self.b2 = nn.Sequential(cbr(i, max(q // 2, 4), 1), cbr(max(q // 2, 4), q, 3))
-        self.b3 = nn.Sequential(cbr(i, max(q // 2, 4), 1), cbr(max(q // 2, 4), q, 5))
-        self.b4 = nn.Sequential(MAXP[nd](3, 1, 1), cbr(i, o - 3 * q, 1))
-        del c
+        c1, c3, c5 = o // 4, o // 2, o // 8
+        cp = o - c1 - c3 - c5
+        r3, r5 = max(c3 * 3 // 4, 4), max(c5 // 2, 4)
+
+        def bc(a, b, k):
+            return nn.Sequential(
+                CONV[nd](a, b, k, padding=k // 2, bias=False), BN[nd](b, eps=0.001), nn.ReLU()
+            )
+
+        self.branch1 = bc(i, c1, 1)
+        self.branch2 = nn.Sequential(bc(i, r3, 1), bc(r3, c3, 3))
+        self.branch3 = nn.Sequential(bc(i, r5, 1), bc(r5, c5, k5))
+        self.branch4 = nn.Sequential(MAXP[nd](3, 1, 1, ceil_mode=True), bc(i, cp, 1))
 
     def forward(self, x):
-        return torch.cat([self.b1(x), self.b2(x), self.b3(x), self.b4(x)], 1)
+        return torch.cat([self.branch1(x), self.branch2(x), self.branch3(x), self.branch4(x)], 1)
 
 
 @op(
     "inception",
     SP,
-    space={"out": [32, 64, 128]},
+    space={"out": [32, 64, 128, 256], "k5": [3, 5]},
     tags={"block"},
-    source="GoogLeNet inception module (arXiv:1409.4842), from memory",
+    source="pytorch/vision googlenet.Inception",
 )
-def _inception(dims, kind, out):
-    return Inception(ND[kind], dims[0], out)
+def _inception(dims, kind, out, k5):
+    if out < 32:
+        raise ValueError("inception needs out >= 32")
+    return Inception(ND[kind], dims[0], out, k5)
 
 
 class PatchMerging(nn.Module):
@@ -520,39 +552,85 @@ def _self_attn(dims, kind, heads):
     return SelfAttn(dims[0], heads)
 
 
+def shifted_window_attention(x, qkv, proj, bias_table, index, w, heads, shift):
+    """pytorch/vision swin_transformer.shifted_window_attention (no dropout), x: (B, H, W, C)."""
+    b, h, wd, c = x.shape
+    pad_r, pad_b = (w - wd % w) % w, (w - h % w) % w
+    x = F.pad(x, (0, 0, 0, pad_r, 0, pad_b))
+    _, ph, pw, _ = x.shape
+    sh = [0 if w >= ph else shift, 0 if w >= pw else shift]
+    if sum(sh) > 0:
+        x = torch.roll(x, shifts=(-sh[0], -sh[1]), dims=(1, 2))
+    nw = (ph // w) * (pw // w)
+    x = x.view(b, ph // w, w, pw // w, w, c).permute(0, 1, 3, 2, 4, 5).reshape(b * nw, w * w, c)
+    q, k, v = qkv(x).reshape(x.size(0), x.size(1), 3, heads, c // heads).permute(2, 0, 3, 1, 4)
+    attn = (q * (c // heads) ** -0.5).matmul(k.transpose(-2, -1))
+    attn = attn + bias_table[index].view(w * w, w * w, -1).permute(2, 0, 1).unsqueeze(0)
+    if sum(sh) > 0:
+        mask = x.new_zeros((ph, pw))
+        hs = ((0, -w), (-w, -sh[0]), (-sh[0], None))
+        ws = ((0, -w), (-w, -sh[1]), (-sh[1], None))
+        cnt = 0
+        for hh in hs:
+            for ww in ws:
+                mask[hh[0] : hh[1], ww[0] : ww[1]] = cnt
+                cnt += 1
+        mask = mask.view(ph // w, w, pw // w, w).permute(0, 2, 1, 3).reshape(nw, w * w)
+        mask = mask.unsqueeze(1) - mask.unsqueeze(2)
+        mask = mask.masked_fill(mask != 0, -100.0).masked_fill(mask == 0, 0.0)
+        attn = attn.view(x.size(0) // nw, nw, heads, x.size(1), x.size(1))
+        attn = (attn + mask.unsqueeze(1).unsqueeze(0)).view(-1, heads, x.size(1), x.size(1))
+    x = F.softmax(attn, -1).matmul(v).transpose(1, 2).reshape(x.size(0), x.size(1), c)
+    x = proj(x)
+    x = x.view(b, ph // w, pw // w, w, w, c).permute(0, 1, 3, 2, 4, 5).reshape(b, ph, pw, c)
+    if sum(sh) > 0:
+        x = torch.roll(x, shifts=(sh[0], sh[1]), dims=(1, 2))
+    return x[:, :h, :wd, :].contiguous()
+
+
+class ShiftedWindowAttention(nn.Module):
+    """pytorch/vision swin_transformer.ShiftedWindowAttention (Liu et al., Swin, arXiv:2103.14030):
+    window attention with the learned relative position bias and the shifted-window mask."""
+
+    def __init__(self, c, w, shift, heads):
+        super().__init__()
+        self.w, self.shift, self.heads = w, shift, heads
+        self.qkv, self.proj = nn.Linear(c, 3 * c), nn.Linear(c, c)
+        self.relative_position_bias_table = nn.Parameter(torch.zeros((2 * w - 1) ** 2, heads))
+        nn.init.trunc_normal_(self.relative_position_bias_table, std=0.02)
+        coords = torch.stack(
+            torch.meshgrid(torch.arange(w), torch.arange(w), indexing="ij")
+        ).flatten(1)
+        rel = (coords[:, :, None] - coords[:, None, :]).permute(1, 2, 0).contiguous()
+        rel[:, :, 0] += w - 1
+        rel[:, :, 1] += w - 1
+        rel[:, :, 0] *= 2 * w - 1
+        self.register_buffer("relative_position_index", rel.sum(-1).flatten())
+
+    def forward(self, x):
+        return shifted_window_attention(
+            x, self.qkv, self.proj, self.relative_position_bias_table,
+            self.relative_position_index, self.w, self.heads, self.shift,
+        )  # fmt: skip
+
+
 class WindowAttn(nn.Module):
-    """Window multi-head self-attention with optional cyclic shift (Swin, arXiv:2103.14030), no relative bias."""
+    """Pre-norm residual around torchvision's ShiftedWindowAttention (the attention half of a Swin block)."""
 
     def __init__(self, c, heads, w, shift):
         super().__init__()
         if c % heads:
             raise ValueError("heads must divide channels")
-        self.w, self.shift = w, shift
-        self.ln, self.attn = nn.LayerNorm(c), nn.MultiheadAttention(c, heads, batch_first=True)
+        self.ln, self.attn = nn.LayerNorm(c), ShiftedWindowAttention(c, w, shift, heads)
 
     def forward(self, x):
-        b, c, h, w = x.shape
-        z = torch.roll(x, (-self.shift, -self.shift), (2, 3)) if self.shift else x
-        z = (
-            z.view(b, c, h // self.w, self.w, w // self.w, self.w)
-            .permute(0, 2, 4, 3, 5, 1)
-            .reshape(-1, self.w * self.w, c)
-        )
-        z = self.ln(z)
-        z = self.attn(z, z, z, need_weights=False)[0]
-        z = (
-            z.view(b, h // self.w, w // self.w, self.w, self.w, c)
-            .permute(0, 5, 1, 3, 2, 4)
-            .reshape(b, c, h, w)
-        )
-        return x + (torch.roll(z, (self.shift, self.shift), (2, 3)) if self.shift else z)
+        z = x.permute(0, 2, 3, 1)
+        return x + self.attn(self.ln(z)).permute(0, 3, 1, 2)
 
 
 @op("window_attn", "map", space={"heads": [1, 2, 4], "window": [2, 4, 7, 8], "shift": [0, 1]}, tags={"attn", "block"},
-    source="Swin window attention (arXiv:2103.14030), from memory; torchvision swin_transformer for the layout")  # fmt: skip
+    source="pytorch/vision swin_transformer.ShiftedWindowAttention, inside a pre-LayerNorm residual")  # fmt: skip
 def _window_attn(dims, kind, heads, window, shift):
-    if dims[1] % window or dims[2] % window:
-        raise ValueError("window must divide height and width")
     return WindowAttn(dims[0], heads, window, window // 2 if shift else 0)
 
 

@@ -213,7 +213,9 @@ def test_dense_prediction_encdec_every_decoder_returns_input_resolution():
         {"op": "conv_bn_act", "out": 16, "s": 2},
         {"op": "conv_bn_act", "out": 32, "s": 2},
     ]
-    for dec in ("unet", "fcn", "deconv", "fpn", "aspp"):
+    from dlnet.zoo.dense import DECODERS
+
+    for dec in (*DECODERS, "aspp"):
         spec = {"op": "encdec", "stages": stages, "dec": dec, "width": 8}
         m = zoo.build_model(_cfg(spec, "map", (3, 13, 20), head="dense", out=4))
         y = m(torch.randn(2, 3, 13, 20))
@@ -340,10 +342,11 @@ def test_population_and_offspring_are_valid_deterministic_and_trainable(kind, di
 def test_every_mutation_operator_changes_the_spec_and_keeps_it_checkable():
     rng = np.random.default_rng(0)
     base = presets.presets("map", (3, 16, 16), "cls", 16)["resnet"]
+    dense = presets.presets("map", (3, 16, 16), "dense", 16)["unet_res"]
     seen = set()
     for op in space.MUTATIONS:
         for _ in range(30):
-            res = space.mutate(base, "map", (3, 16, 16), rng, op)
+            res = space.mutate(dense if op == "decoder" else base, "map", (3, 16, 16), rng, op)
             if res and res[0] != base:
                 try:
                     zoo.check(res[0], "map", (3, 16, 16))

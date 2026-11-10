@@ -123,8 +123,11 @@ class MixerBlock(nn.Module):
 
     def __init__(self, t, d, tok_hidden, ch_hidden):
         super().__init__()
-        self.ln1, self.ln2 = nn.LayerNorm(d), nn.LayerNorm(d)
+        self.ln1 = nn.LayerNorm(
+            d, eps=1e-6
+        )  # timm: eps 1e-6, definition order norm1, tokens, norm2, channels
         self.tok = nn.Sequential(nn.Linear(t, tok_hidden), nn.GELU(), nn.Linear(tok_hidden, t))
+        self.ln2 = nn.LayerNorm(d, eps=1e-6)
         self.ch = nn.Sequential(nn.Linear(d, ch_hidden), nn.GELU(), nn.Linear(ch_hidden, d))
 
     def forward(self, x):
@@ -133,10 +136,10 @@ class MixerBlock(nn.Module):
 
 
 @op("mixer_block", "seq", space={"token_ratio": [0.5, 1.0, 2.0], "channel_ratio": [2, 4]}, tags={"block"},
-    source="MLP-Mixer (arXiv:2105.01601), from memory")  # fmt: skip
+    source="huggingface/pytorch-image-models mlp_mixer.MixerBlock (hidden sizes = ratio x width, as timm)")  # fmt: skip
 def _mixer(dims, kind, token_ratio, channel_ratio):
     t, d = dims
-    return MixerBlock(t, d, max(int(t * token_ratio), 4), channel_ratio * d)
+    return MixerBlock(t, d, max(int(d * token_ratio), 4), channel_ratio * d)
 
 
 class RMSNorm(nn.Module):

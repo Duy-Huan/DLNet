@@ -167,6 +167,7 @@ SPACE = {
             "dropout": [0.0, 0.1],
             "encoder": ["vgg", "resnet", "densenet", "mobilenetv2"],
             "attention": ["none", "none", "se"],
+            **({"dec_attention": ["none", "scse"]} if f in ("unet", "unetpp") else {}),
         }
         for f in recipes.SEGMENTATION
     },

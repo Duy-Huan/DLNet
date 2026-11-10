@@ -24,7 +24,9 @@ from .core import OPS, ops_with
 from .presets import N, S, n_stages, presets
 
 WIDTH_KEYS = ("out", "dim", "hidden", "width", "filters")
-MUTATIONS = ("param", "swap", "insert", "delete", "wrap_res", "repeat", "widen", "to_moe")
+MUTATIONS = (
+    "param", "swap", "insert", "delete", "wrap_res", "repeat", "widen", "to_moe", "decoder",
+)  # fmt: skip
 MIN_PARAMS = 1_000
 
 
@@ -173,12 +175,12 @@ def _sample_dense(dims, rng, w):
         )
     ]
     stages += [_stage("map", rng, w * 2**i, False, True) for i in range(1, n)]
-    return {
-        "op": "encdec",
-        "stages": stages,
-        "dec": _pick(rng, ["unet", "fcn", "fpn", "aspp", "deconv"]),
-        "width": w,
-    }
+    from .dense import DECODERS
+
+    spec = {"op": "encdec", "stages": stages, "dec": _pick(rng, list(DECODERS)), "width": w}
+    if spec["dec"] in ("unet", "unetpp") and rng.random() < 0.3:
+        spec["attention"] = "scse"
+    return spec
 
 
 # ----------------------------------------------------------------------- tree helpers
@@ -272,6 +274,21 @@ def _swap_candidates(name, kind_hint):
 def mutate(spec, kind, dims, rng, op=None):
     """One random structural or parametric change. Returns (new_spec, op_name) or None if inapplicable."""
     op = op or _pick(rng, MUTATIONS)
+    if op == "decoder":  # another decoder (or decoder attention) for an encoder-decoder
+        from .dense import DECODERS
+
+        cand = [(p, n) for p, n in walk(spec) if n.get("op") == "encdec"]
+        if not cand:
+            return None
+        path, node = cand[int(rng.integers(len(cand)))]
+        new = copy.deepcopy(node)
+        if new.get("dec") in ("unet", "unetpp") and rng.random() < 0.3:
+            new["attention"] = "none" if new.get("attention", "none") == "scse" else "scse"
+        else:
+            new["dec"] = _pick(rng, [d for d in DECODERS if d != new.get("dec")])
+            if new["dec"] not in ("unet", "unetpp"):
+                new.pop("attention", None)
+        return (_set(spec, path, new) if path else new), op
     leaves = _leaves(spec)
     if op == "param":
         cand = [(p, n) for p, n in leaves if OPS[n["op"]].space]
@@ -460,4 +477,34 @@ def offspring(parents, n, seed, max_params, train=None, exclude=()):
             )  # children keep the parent's recipe
             seen.add(core.signature(res[0]))
             out.append(c)
+    return out
+
+
+def tournament(population, S: int, rng):
+    """Parent selection of aging evolution (Real et al., AAAI 2019, arXiv:1802.01548, Algorithm 1):
+    S members drawn uniformly WITH replacement; the one with the highest validation score wins."""
+    sample = [population[int(rng.integers(len(population)))] for _ in range(max(S, 1))]
+    return max(sample, key=lambda cv: cv[1])[0]
+
+
+def aging_children(population, n, S, seed, max_params, train=None, exclude=()):
+    """`n` children for one cycle of (batched) aging evolution.
+
+    `population` = [(candidate, validation score)] oldest first. Each child mutates a tournament
+    winner (Algorithm 1); with probability 0.3 a second winner is drawn and `offspring` may cross
+    the two (DLNet addition: the paper uses mutation only). The caller appends the evaluated
+    children to the right and removes the oldest from the left ("aging").
+    """
+    rng = np.random.default_rng(seed)
+    pop = [(c, v) for c, v in population if c.get("spec")]
+    out, seen, tries = [], set(exclude), 0
+    while pop and len(out) < n and tries < 10 * n:
+        tries += 1
+        parents = [tournament(pop, S, rng)]
+        if rng.random() < 0.3:
+            parents.append(tournament(pop, S, rng))
+        kids = offspring(parents, 1, int(rng.integers(1 << 30)), max_params, train, seen)
+        for k in kids:
+            seen.add(core.signature(k["spec"]))
+            out.append(k)
     return out
