@@ -40,6 +40,36 @@ class DomainPlugin:
     def reference(self, data: dict) -> list[dict]:
         raise NotImplementedError
 
+    extra_dirs: ClassVar[dict[str, Path]] = {}  # whole packages copied into an exported baseline
+    zoo_train: ClassVar[dict] = {"lr": [1e-3, 3e-3], "wd": [1e-4, 1e-2], "batch": [32, 64]}
+
+    def zoo_input(self, data: dict):
+        """(tensor kind, per-sample shape, head) the module zoo should build for, or None."""
+        return
+
+    def generate_zoo(
+        self, data: dict, prof: dict, n: int, seed: int, presets=True, width=16
+    ) -> list[dict]:
+        """Candidates from the module zoo: presets and random grammar samples, statically checked."""
+        spec = self.zoo_input(data)
+        if spec is None or n <= 0:
+            return []
+        from ..zoo import space
+
+        kind, dims, head = spec
+        return space.population(
+            kind,
+            dims,
+            data["out_dim"],
+            n,
+            seed,
+            prof["max_params"],
+            head,
+            self.zoo_train,
+            presets,
+            width,
+        )
+
     def default_cv_splits(self, args) -> int:
         """How many different splits rank the finalists when --cv-splits is not given."""
         return 1

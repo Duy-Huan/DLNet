@@ -22,7 +22,8 @@ Tùy chọn (làm hết các bước trên bằng một lệnh, tự tìm Python
 - Lenh `dlnet unfold`: deep unfolding (LISTA) cho bai toan nghich thua `y = A x + nhieu` khi biet ma tran `A`.
 - Module thu vien: Tensor-LoRA (`dlnet/tensor_lora.py`), HOSVD (`dlnet/tensor.py`); chua duoc `design` dung.
 - Plugin `image_classification`, `image_segmentation` (mask `y` (N,H,W), metric mIoU) va `timeseries` (file `.npz` co `X` va `y`).
-- Thu vien khoi `dlnet/blocks.py` (backbone, decoder, attention, mixture of experts; nguon va giay phep o `THIRD_PARTY.md`): `python -m dlnet blocks`.
+- **Kho module `dlnet/zoo/` (54 module, ghep va tien hoa kien truc)**: moi `design` them cac kien truc tu zoo (`--zoo`, `--evolve`); `python -m dlnet zoo` liet ke module; nguon o `THIRD_PARTY.md`.
+- Thu vien khoi cu `dlnet/blocks.py` (backbone, decoder, attention, mixture of experts; nguon va giay phep o `THIRD_PARTY.md`): `python -m dlnet blocks`.
 - `--meta-store file.jsonl`: hoc thu tu ho mo hinh tu cac lan chay truoc (chi sap thu tu; do duoc 58% top-3, chua dat muc tieu 80%).
 - Chua co: cost model FLOPs/VRAM, Mamba/SSM, so lieu tren du lieu anh / chuoi thoi gian that.
 

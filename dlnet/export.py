@@ -176,6 +176,9 @@ def export(out_dir, plugin, data, prof, chosen, reference, seed, epochs_recipe=1
         shutil.copy(HERE / "core.py", d / "core.py")
         for name, src in plugin.extra_files.items():
             shutil.copy(src, d / name)
+        if cfg.get("spec"):  # a zoo architecture needs the zoo next to model.py
+            for name, src in plugin.extra_dirs.items():
+                shutil.copytree(src, d / name, ignore=shutil.ignore_patterns("__pycache__"))
         arch = {k: v for k, v in cfg.items() if k != "params"}
         hp = hyperparameters(r, epochs_recipe)
         config = {
@@ -207,7 +210,7 @@ def export(out_dir, plugin, data, prof, chosen, reference, seed, epochs_recipe=1
         (d / "tests" / "test_model.py").write_text(plugin.test_template)
         (d / "report.md").write_text(
             f"# top{i}: {cfg['family']}  {r['roles']}\n\n"
-            f"- Config: `{arch}`\n- Params: {cfg['params']:,}\n"
+            f"- Config: `{arch}`\n- Origin: {cfg.get('origin', 'legacy family')}\n- Params: {cfg['params']:,}\n"
             f"- Validation ({data['primary']}): {r['val_mean']:.4f} +/- {r['val_std']:.4f} "
             f"({r['n_seeds']} runs on {r.get('n_splits', 1)} split(s), {r['epochs']} epochs)\n"
             f"- Test (mean over runs): {_fmt(r['test'], task)}, "
@@ -231,6 +234,7 @@ def export(out_dir, plugin, data, prof, chosen, reference, seed, epochs_recipe=1
                 "hyperparameters": hp,
                 "val_mean": round(r["val_mean"], 5),
                 "val_std": round(r["val_std"], 5),
+                "origin": cfg.get("origin"),
                 "n_runs": r["n_seeds"],
                 "n_splits": r.get("n_splits", 1),
                 "test_std": round(r.get("test_std", 0.0), 5),

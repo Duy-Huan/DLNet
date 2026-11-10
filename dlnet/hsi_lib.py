@@ -469,6 +469,12 @@ class Composed(nn.Module):
 
 
 def build_model(cfg: dict, in_dim: int, out_dim: int) -> nn.Module:
+    if cfg.get("spec"):  # an architecture of the module zoo (dlnet/zoo)
+        try:
+            from . import zoo
+        except ImportError:  # exported package: zoo/ sits next to model.py
+            import zoo
+        return zoo.build_model(cfg, in_dim, out_dim)
     f, w, d, p, patch = (
         cfg["family"],
         cfg["width"],

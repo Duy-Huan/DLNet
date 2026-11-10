@@ -1,0 +1,31 @@
+"""DLNet module zoo: typed building blocks, architecture specs, grammar search (torch only).
+
+Importing this package registers every op. Layout:
+  core         registry, kinds, combinators, static checking, head, `build_model`
+  ops_basic    primitives and adapters between kinds          ops_cnn   1-D/2-D/3-D convolutional blocks
+  ops_seq      attention, transformer, RNN, Mamba, TextCNN     ops_vec   factorised linear, interaction
+  dense        encoder-decoder composition                     space     sampling, mutation, crossover
+  presets      well-known architectures written as specs
+Sources and what was and was not ported: THIRD_PARTY.md.
+"""
+
+from . import dense, ops_basic, ops_cnn, ops_seq, ops_vec  # noqa: F401  (registers the ops)
+from .core import (
+    COMBINATORS,
+    KINDS,
+    OPS,
+    build_model,
+    check,
+    count_params,
+    describe,
+    label,
+    leaf_ops,
+    op,
+    ops_with,
+    signature,
+)
+
+__all__ = [
+    "COMBINATORS", "KINDS", "OPS", "build_model", "check", "count_params", "describe", "label",
+    "leaf_ops", "op", "ops_with", "signature",
+]  # fmt: skip

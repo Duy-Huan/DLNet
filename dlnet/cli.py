@@ -22,7 +22,8 @@ def design(args) -> int:
 
     import torch
 
-    from . import export, hparams, meta, plugins, proxies, search
+    from . import export, hparams, meta, plugins, proxies, search, zoo
+    from .zoo import space
 
     t0 = time.time()
     budget = parse_budget(args.budget)
@@ -64,6 +65,13 @@ def design(args) -> int:
         print(f"[reference] {r['name']:<26} val={r['va']['score']:.4f}")
 
     cands = plugin.generate(prof, args.per_family, args.seed)
+    zoo_cands = plugin.generate_zoo(
+        data, prof, args.zoo, args.seed, not args.no_zoo_presets, args.zoo_width
+    )
+    if zoo_cands:
+        origins = sorted({c["origin"].split(":")[0] for c in zoo_cands})
+        print(f"[zoo] {len(zoo_cands)} architectures from the module zoo ({', '.join(origins)})")
+    cands += zoo_cands
     if not cands:
         raise SystemExit("no valid candidate was generated (check --per-family and the budget)")
     fams = sorted({c["family"] for c in cands})
@@ -90,10 +98,47 @@ def design(args) -> int:
             plugin.build_model(c, data["in_dim"], data["out_dim"]), data, seed=args.seed
         )
     trace = {}
+    t_search = time.time()
+    gens = args.evolve if any(c.get("spec") for c in cands) else 0
+    gen0_deadline = t_search + (0.55 if gens else 1.0) * (search_deadline - t_search)
     results = search.run_search(
-        data, cands, search_deadline, args.topk, plugin.build_model, folds=folds,
+        data, cands, gen0_deadline, args.topk, plugin.build_model, folds=folds,
         cache=cache, trace=trace,
     )  # fmt: skip
+    evolution = []
+    pool, seen = (
+        list(trace.get("rung1", [])),
+        {zoo.signature(c["spec"]) for c in cands if c.get("spec")},
+    )
+    for g in range(1, gens + 1):  # evolve: children of the best zoo candidates (rung-1 validation)
+        if time.time() > search_deadline - 5:
+            break
+        parents = [c for c, _ in sorted(pool, key=lambda cv: -cv[1]) if c.get("spec")][:6]
+        kids = space.offspring(
+            parents, args.evolve_pop, args.seed + g, prof["max_params"], plugin.zoo_train, seen
+        )
+        if not kids:
+            break
+        seen |= {zoo.signature(k["spec"]) for k in kids}
+        gen_deadline = time.time() + (search_deadline - time.time()) / (gens - g + 1)
+        sub = {}
+        print(
+            f"[evolve] generation {g}: {len(kids)} children of {[p['family'] for p in parents[:3]]}"
+        )
+        res = search.run_search(
+            data,
+            kids,
+            gen_deadline,
+            args.topk,
+            plugin.build_model,
+            folds=folds,
+            cache=cache,
+            trace=sub,
+        )
+        results = results + res
+        pool += sub.get("rung1", [])
+        best = max((v for _, v in sub.get("rung1", [])), default=None)
+        evolution.append({"generation": g, "children": len(kids), "best_rung1_val": best})
     print("[hparams] estimating lr / batch size / weight decay for the finalists")
     results = hparams.refine(
         results, data, plugin.build_model, deadline, log=print, folds=folds, cache=cache
@@ -101,6 +146,13 @@ def design(args) -> int:
     results = search.assign_groups(results)
     chosen = search.select_topk(results, args.topk)
     extras = {}
+    if zoo_cands or evolution:
+        extras["module_zoo"] = {
+            "initial_candidates": len(zoo_cands),
+            "evolution": evolution,
+            "top_origins": [c["cfg"].get("origin", "legacy family") for c in chosen],
+            "ops_registered": len(zoo.OPS),
+        }
     if meta_rec:
         extras["meta_recommendation"] = meta_rec
     if args.meta_store:
@@ -144,7 +196,7 @@ def selfcheck() -> int:
         csv, out = Path(tmp) / "selfcheck.csv", Path(tmp) / "out"
         df.to_csv(csv, index=False)
         argv = ["design", "--data", str(csv), "--target", "y", "--budget", "30s", "--topk", "1"]
-        rc = main([*argv, "--per-family", "1", "--out", str(out)])
+        rc = main([*argv, "--per-family", "1", "--zoo", "4", "--evolve", "0", "--out", str(out)])
         board = json.loads((out / "leaderboard.json").read_text())
         pkg = next(out.glob("top1_*"))
         ok = (
@@ -165,6 +217,7 @@ def main(argv=None) -> int:
     sub.add_parser("selfcheck", help="verify the installation end to end (about 20 seconds)")
     unfold_run.add_parser(sub)
     sub.add_parser("blocks", help="list the block library (backbones, decoders, attention, ...)")
+    sub.add_parser("zoo", help="list every module of the zoo with kinds, tags and sources")
     d = sub.add_parser("design", help="propose Top-K deep learning baselines for a dataset")
     d.add_argument(
         "--data",
@@ -192,10 +245,24 @@ def main(argv=None) -> int:
         "--meta-store",
         help="JSONL file of past runs: used to order the families, and this run is appended",
     )
+    d.add_argument(
+        "--zoo", type=int, default=12, help="architectures from the module zoo (presets + random)"
+    )
+    d.add_argument("--no-zoo-presets", action="store_true", help="random zoo architectures only")
+    d.add_argument("--zoo-width", type=int, default=16, help="base width of the zoo presets")
+    d.add_argument(
+        "--evolve", type=int, default=1, help="generations of mutation/crossover (0 = off)"
+    )
+    d.add_argument("--evolve-pop", type=int, default=8, help="children per generation")
     d.add_argument("--no-proxies", action="store_true", help="skip the zero-cost proxy report")
     for p in plugins._registry().values():
         p.add_arguments(d)
     args = ap.parse_args(argv)
+    if args.cmd == "zoo":
+        from . import zoo
+
+        print(zoo.describe())
+        return 0
     if args.cmd == "blocks":
         from . import blocks
 

@@ -323,7 +323,7 @@ def test_router_picks_plugin_by_extension():
 
 def test_cli_without_candidates_fails_with_a_clear_message(tabular_csv, tmp_path):
     """Was: IndexError inside the search when no candidate was generated (--per-family 0)."""
-    argv = ["design", "--data", str(tabular_csv), "--target", "y", "--per-family", "0",
+    argv = ["design", "--data", str(tabular_csv), "--target", "y", "--per-family", "0", "--zoo", "0",
             "--out", str(tmp_path / "o")]  # fmt: skip
     with pytest.raises(SystemExit, match="candidate"):
         cli.main(argv)
@@ -490,7 +490,7 @@ def test_cli_block_split_uses_three_splits_by_default(tmp_path, hsi_npz):
     out = tmp_path / "o"
     argv = ["design", "--data", str(hsi_npz), "--split", "block", "--block-size", "8", "--patch",
             "3", "--pca", "8", "--frac", "0.4,0.2,0.4", "--budget", "40s", "--topk", "1",
-            "--per-family", "1", "--out", str(out)]  # fmt: skip
+            "--per-family", "1", "--zoo", "0", "--evolve", "0", "--out", str(out)]  # fmt: skip
     assert cli.main(argv) == 0
     board = json.loads((out / "leaderboard.json").read_text())
     assert board["top_k"][0]["n_splits"] >= 2

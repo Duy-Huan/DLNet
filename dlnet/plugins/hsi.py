@@ -206,6 +206,11 @@ class HSIPlugin(DomainPlugin):
                     cands.append(cfg)
         return cands
 
+    extra_dirs: ClassVar[dict[str, Path]] = {"zoo": HERE / "zoo"}
+
+    def zoo_input(self, data):
+        return "map", (data["in_dim"], data["patch"], data["patch"]), "cls"
+
     def build_model(self, cfg, in_dim, out_dim):
         return hsi_lib.build_model(cfg, in_dim, out_dim)
 
