@@ -13,6 +13,8 @@ def _fmt(m: dict, task: str) -> str:
     if task == "regression":
         return f"{m['rmse']:.4f} (R2 {m['r2']:.3f})"
     extra = f", kappa {m['kappa']:.4f}" if "kappa" in m else ""
+    if "miou" in m:
+        return f"mIoU {m['miou']:.4f} (pixel acc {m['accuracy']:.4f}{extra})"
     return f"{m['accuracy']:.4f} (bal {m['balanced_accuracy']:.4f}{extra})"
 
 
@@ -20,6 +22,8 @@ def _short(t: dict, task: str) -> str:
     if task == "regression":
         return f"rmse {t['rmse']}"
     k = f", kappa {t['kappa']}" if "kappa" in t else ""
+    if "miou" in t:
+        return f"mIoU {t['miou']}, pixel acc {t['accuracy']}{k}"
     return f"acc {t['accuracy']}, bal {t['balanced_accuracy']}{k}"
 
 
@@ -94,7 +98,20 @@ def hyperparameters(r: dict, recipe_epochs: int) -> dict:
         "lr_schedule": "cosine",
         "grad_clip_norm": 5.0,
         "dropout": cfg["dropout"],
-        **{k: cfg[k] for k in ("width", "depth", "rank", "rank_ratio", "patch") if k in cfg},
+        **{
+            k: cfg[k]
+            for k in (
+                "width",
+                "depth",
+                "rank",
+                "rank_ratio",
+                "patch",
+                "encoder",
+                "attention",
+                "experts",
+            )
+            if k in cfg
+        },
     }
     est = r.get("hparams")
     if est:

@@ -281,6 +281,7 @@ Nguyên tắc: lõi **tổng quát trước**, kiểm chứng end-to-end sớm t
 | **M6** | Estimator: intrinsic dim → dung lượng, rank tensor | **Xong phần đo được (v0.5.0)**, xem §16.4: hai bộ ước lượng (TwoNN, MLE) kèm độ lệch chuẩn qua mẫu con và cờ `stable`; đo trên 5 bộ biết đáp án và 5 bộ thật. Chưa có: bằng chứng `capacity_hint` dự đoán đúng độ rộng tốt nhất (nên chỉ ghi thông tin) |
 | **M7** | Tensor: Tucker/HOSVD tiền xử lý, lớp TT/Tucker/TR, Tensor-LoRA | **Xong phần module và phép đo (v0.6.0)**, xem "Kết quả đo M7" ở §4: lớp TT/TR nén 81–89% tham số, mất ≤0,4 điểm accuracy (trong mức nhiễu) trên digits. Tensor-LoRA có đủ 4 format nhưng **chưa nối vào `design`** (DLNet chưa có backbone pretrained) và trong phép đo nhỏ chưa hơn huấn luyện từ đầu. HOSVD chưa dùng làm tiền xử lý HSI |
 | **M8** | Deep unfolding (khi có mô hình thuận) | **Xong cho bài toán thưa tuyến tính (v0.7.0)**, xem "Kết quả đo M8" ở §5: lệnh `dlnet unfold`, LISTA-CP hơn ISTA và FISTA (λ đã tune) 3,3–6,3 dB ở cùng số vòng K trên dữ liệu tổng hợp. Chưa có: ADMM/AMP, support selection, toán tử A không tường minh (ảnh), dữ liệu thật |
+| **M10** | Thư viện khối từ 4 repo GitHub (§13.5), plugin `image_classification` và `image_segmentation` | **Xong (v0.9.0)**: `dlnet/blocks.py` + `THIRD_PARTY.md`; kết quả đo ở §14.4. Chưa có: pretrained, augmentation, dữ liệu segmentation thật |
 | **M9** | Plugin ảnh, chuỗi thời gian; recommender học từ kho kết quả (meta-learning) | **Có plugin và recommender (v0.8.0), tiêu chí 80% CHƯA đạt**, xem §14.3: plugin `image` (cnn, resnet, vit) và `timeseries` (tcn, gru, ts_transformer) chạy end-to-end trên dữ liệu tổng hợp; recommender kNN đoán đúng họ tốt nhất trong top-3 ở 7/12 dataset bảng (58%, ngẫu nhiên 51%). Chưa có: Mamba/SSM, ConvNeXt cho ảnh, dữ liệu ảnh/chuỗi thật, kho kết quả đủ lớn |
 
 ---
@@ -445,6 +446,27 @@ Model := Stem → ( SpectralEnc ∥ SpatialEnc | JointEnc ) → Fusion → Head
 3. Loại ứng viên vi phạm ngân sách, giữ Top-K đưa vào Search (§3.4).
 4. Siêu tham số (độ sâu, độ rộng, rank, kích thước patch) do Search chọn.
 
+### 13.5 Thư viện khối dùng chung `dlnet/blocks.py` (M10)
+Thư viện khối torch-only, được copy vào gói xuất ra (`blocks.py`). Nguồn, commit và giấy phép: `THIRD_PARTY.md`. Liệt kê: `python -m dlnet blocks`.
+
+| Loại (`kind`) | Khối | Nguồn | Trục của paper 2302.11529 |
+|---|---|---|---|
+| stage (backbone) | `lenet`, `allconv`, `vgg`, `resnet`, `densenet` | rasbt/deeplearning-models (MIT), viết lại | computation |
+| stage (backbone) | `mobilenetv2` | paper, từ trí nhớ | computation |
+| backbone | `Encoder` (stem + các stage, trả feature mỗi mức stride) | DLNet | function composition tuần tự |
+| attention | `se`, `self_attention_2d` | paper / `torch.nn.MultiheadAttention` | computation |
+| decoder | `fcn`, `unet` (paper, từ trí nhớ), `deconv` (rasbt) | | aggregation ở mức representation (skip) |
+| head | `Classifier`, `Segmenter` | DLNet | |
+| routing | `MixtureOfExperts` (soft, top-k, product) | phương pháp của yamsgithub/modular_deep_learning, **cài lại, không sao chép** (repo không có giấy phép) | routing học được + aggregation |
+| interaction / loss | `LatentFactor`, `SecondOrderInteraction`, `pairwise_log_loss` | ylongqi/openrec (Apache-2.0), chuyển từ TensorFlow | computation |
+| composition | `NeuralTree`, `SumTrunk`, `MeanPooling` | prescient-design/cortex (Apache-2.0), viết lại | aggregation (nhiều đầu vào, nhiều tác vụ) |
+
+Dùng ở đâu:
+- **Xây mạng:** họ ảnh `lenet`, `allconv`, `vgg`, `densenet`, `mobilenetv2` (tùy chọn `attention`), họ segmentation `fcn`, `unet`, `deconvnet` (tùy chọn `encoder`, `attention`), họ bảng `moe_mlp`, `fm_mlp`.
+- **Ước lượng:** mọi ứng viên dựng từ thư viện đều đi qua cùng pipeline (đếm tham số làm cost model, zero-cost proxy, successive halving, LR range test, noise scale).
+- Chưa được plugin nào dùng: `NeuralTree`, `SumTrunk`, `MeanPooling`, `LatentFactor`, `pairwise_log_loss`, `self_attention_2d` chỉ khi chọn `attention: self`. Có test nhưng chưa có bài toán nhiều đầu vào / recommendation.
+- Không có trọng số pretrained; không khối nào là bản tái hiện đã kiểm chứng của mô hình gốc.
+
 ## 14. Domain plugins (HSI là plugin đầu tiên)
 
 ### 14.1 Giao diện plugin
@@ -465,7 +487,8 @@ class DomainPlugin:
 |---|---|---|---|
 | `tabular` | bảng đặc trưng | MLP, ResNet-MLP, FT-Transformer | M1 (kiểm chứng lõi nhanh) |
 | `hsi` | khối `H×W×B` siêu phổ | 1D/2D/3D-CNN, HybridSN, SSRN, SpectralFormer | M2 |
-| `image` | ảnh RGB/xám, `.npz` có `X` (N,H,W[,C]) và `y` | **đã có:** `cnn`, `resnet`, `vit` | M9 (v0.8.0) |
+| `image_classification` (tên cũ `image` vẫn dùng được) | ảnh RGB/xám, `.npz` có `X` (N,H,W[,C]) và `y` (N) | **đã có:** `cnn`, `resnet`, `vit`, `lenet`, `allconv`, `vgg`, `densenet`, `mobilenetv2` | M9, M10 |
+| `image_segmentation` | ảnh + mask, `.npz` có `X` (N,H,W[,C]) và `y` (N,H,W) | **đã có:** `fcn`, `unet`, `deconvnet` × encoder `vgg`/`resnet`/`densenet`/`mobilenetv2`; metric mIoU | M10 (v0.9.0) |
 | `timeseries` | chuỗi thời gian, `.npz` có `X` (N,T[,C]) và `y` | **đã có:** `tcn`, `gru`, `ts_transformer` | M9 (v0.8.0) |
 | `signal`/khác | tín hiệu, tensor đa chiều | tuỳ domain | sau |
 
@@ -510,6 +533,19 @@ budget: {time: 2h, vram_gb: 12}
 | 3 | 7/12 = 58% | 8/12 = 67% | 51% |
 
 - **Kết luận:** tiêu chí M9 "Top-K chứa mô hình tốt nhất trong ≥80% dataset giữ lại" **chưa đạt** (58%). Với 12 dataset, chênh lệch so với ngẫu nhiên (1 dataset) không có ý nghĩa thống kê, và meta-feature chưa hơn thứ tự toàn cục. Nhãn "họ tốt nhất" lấy từ rung 1 (4 epoch) nên nhiễu: bốn họ khác nhau chia nhau vị trí đầu. Cần kho lớn hơn nhiều (hàng chục đến hàng trăm dataset) và nhãn từ huấn luyện đầy đủ trước khi dùng recommender cho việc gì hơn sắp thứ tự.
+
+### 14.4 Plugin ảnh phân loại và phân đoạn (M10)
+- **Segmentation** (`image_segmentation`): `.npz` có `X` (N,H,W[,C]) và `y` (N,H,W); pixel nhãn âm bị bỏ qua khi tính loss và metric. Chia 60/20/20 theo **ảnh** (không chia theo pixel, tránh rò rỉ giữa các pixel cùng ảnh). Metric chính: mIoU (trung bình IoU trên các lớp có trong nhãn thật); có thêm pixel accuracy và kappa. Baseline tham chiếu: logistic regression và random forest trên lân cận 5×5 của từng pixel (tối đa 20.000 pixel train).
+- Router nhận dạng theo `y`: `y` 3 chiều khớp `X` là segmentation; `y` 1 chiều là phân loại ảnh hoặc chuỗi.
+- **Kết quả đo (`dlnet design`, ngân sách 4 phút, 2 ứng viên mỗi họ):**
+
+| Bài toán | Dữ liệu | Top-1 (val) | Test | Baseline tốt nhất | Kết luận của verdict |
+|---|---|---|---|---|---|
+| phân loại ảnh | sklearn digits 8×8, 1797 ảnh, 10 lớp (dữ liệu thật, nhỏ) | `cnn` 0,9925 ± 0,0027; top-2 `vgg` 0,9925; top-3 `mobilenetv2` 0,9916 (89k tham số) | accuracy 0,9991 | random forest: val 0,9775, test 0,9891 | **thắng** (val +0,015 > nhiễu 0,005; test +0,010) |
+| phân đoạn | tổng hợp: 300 ảnh 24×24, hai hình vuông sáng/tối trên nền nhiễu | `fcn` (4.797 tham số) mIoU 0,985 ± 0,006; `deconvnet` 0,951; `unet` 0,871 ± 0,172 | mIoU 0,989 | random forest 5×5: val 0,971, test 0,989 | **không thắng có ý nghĩa** (margin 0,0145 < nhiễu 0,0156; test +0,0004) |
+
+- Giới hạn: digits rất dễ (mọi mô hình ≥ 0,97), 16 ứng viên và một lần chia, nên chưa nói được họ nào tốt hơn họ nào; hai ứng viên top đứng cùng nhóm "chưa phân biệt được". Segmentation chỉ có dữ liệu tổng hợp rất dễ (một baseline 5×5 đã gần tối đa), chưa có ảnh y tế / ảnh vệ tinh / Pascal thật; `unet` có độ lệch chuẩn lớn (0,17) nghĩa là huấn luyện chưa ổn định trong ngân sách ngắn. Sinh được 5 ứng viên hợp lệ cho segmentation (một số cấu hình bị loại vì shape hoặc ngân sách tham số).
+- Chưa có: augmentation (lật, cắt), loss cho lớp mất cân bằng (Dice, focal), mô hình pretrained, đầu vào lớn (ảnh > 128×128 chưa kiểm tra tốc độ và bộ nhớ).
 
 ## 15. Skills (bắt buộc đọc trước khi làm)
 

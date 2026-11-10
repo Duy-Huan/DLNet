@@ -164,13 +164,18 @@ def main(argv=None) -> int:
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("selfcheck", help="verify the installation end to end (about 20 seconds)")
     unfold_run.add_parser(sub)
+    sub.add_parser("blocks", help="list the block library (backbones, decoders, attention, ...)")
     d = sub.add_parser("design", help="propose Top-K deep learning baselines for a dataset")
     d.add_argument(
         "--data",
         required=True,
-        help="data file (CSV: tabular; .mat/.npz/.npy: hsi; .npz with X, y: image / timeseries)",
+        help="data file (CSV: tabular; .mat/.npz/.npy: hsi; .npz with X, y: images, masks, series)",
     )
-    d.add_argument("--plugin", default="auto", help="auto | tabular | hsi | image | timeseries")
+    d.add_argument(
+        "--plugin",
+        default="auto",
+        help="auto | tabular | hsi | image_classification | image_segmentation | timeseries",
+    )
     d.add_argument("--budget", default="5m")
     d.add_argument("--topk", type=int, default=3)
     d.add_argument("--per-family", type=int, default=8)
@@ -191,6 +196,11 @@ def main(argv=None) -> int:
     for p in plugins._registry().values():
         p.add_arguments(d)
     args = ap.parse_args(argv)
+    if args.cmd == "blocks":
+        from . import blocks
+
+        print(blocks.describe())
+        return 0
     if args.cmd == "unfold":
         return unfold_run.run(args)
     return selfcheck() if args.cmd == "selfcheck" else design(args)

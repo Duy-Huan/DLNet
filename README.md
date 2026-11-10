@@ -21,7 +21,8 @@ Tùy chọn (làm hết các bước trên bằng một lệnh, tự tìm Python
 - Plugin `tabular` (CSV) va plugin `hsi` (anh sieu pho: cube + ground truth, phan loai pixel).
 - Lenh `dlnet unfold`: deep unfolding (LISTA) cho bai toan nghich thua `y = A x + nhieu` khi biet ma tran `A`.
 - Module thu vien: Tensor-LoRA (`dlnet/tensor_lora.py`), HOSVD (`dlnet/tensor.py`); chua duoc `design` dung.
-- Plugin `image` va `timeseries` (file `.npz` co `X` va `y`).
+- Plugin `image_classification`, `image_segmentation` (mask `y` (N,H,W), metric mIoU) va `timeseries` (file `.npz` co `X` va `y`).
+- Thu vien khoi `dlnet/blocks.py` (backbone, decoder, attention, mixture of experts; nguon va giay phep o `THIRD_PARTY.md`): `python -m dlnet blocks`.
 - `--meta-store file.jsonl`: hoc thu tu ho mo hinh tu cac lan chay truoc (chi sap thu tu; do duoc 58% top-3, chua dat muc tieu 80%).
 - Chua co: cost model FLOPs/VRAM, Mamba/SSM, so lieu tren du lieu anh / chuoi thoi gian that.
 
@@ -36,7 +37,8 @@ python -m dlnet design --data data.csv --target label --budget 5m --topk 3
 python -m dlnet design --data cube.mat --gt gt.mat --split block --patch 9 --pca 30 --budget 10m --topk 3
 
 # anh (.npz: X (N,H,W[,C]), y) va chuoi thoi gian (.npz: X (N,T[,C]), y)
-python -m dlnet design --data images.npz --budget 10m --topk 3
+python -m dlnet design --data images.npz --budget 10m --topk 3          # y (N,): phan loai
+python -m dlnet design --data masks.npz --budget 10m --topk 3           # y (N,H,W): phan doan
 python -m dlnet design --data series.npz --budget 10m --topk 3
 
 # bai toan nghich thua y = A x + nhieu (.npz chua A, Y, X): LISTA so voi ISTA / FISTA cung so vong

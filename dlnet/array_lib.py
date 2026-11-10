@@ -12,7 +12,13 @@ Time-series families (input N x C x T):
                   of causal padding and weight norm, because the task is whole-sequence prediction
   gru             bidirectional GRU, mean over time
   ts_transformer  per-step linear embedding, sinusoidal positions, encoder, mean over time
-All blocks are written from memory: not verified against the authors' code. There is no
+Backbone families from dlnet/blocks.py (see its docstring and THIRD_PARTY.md for the sources):
+  lenet, allconv, vgg, densenet, mobilenetv2   encoder + global pooling + linear classifier;
+                  cfg['attention'] in none | se | self adds an attention block per stage
+Segmentation families (input N x C x H x W, output N x classes x H x W):
+  fcn, unet, deconvnet   an encoder (cfg['encoder'], any backbone above or resnet) and the
+                  matching decoder from dlnet/blocks.py
+All blocks in THIS file are written from memory: not verified against the authors' code. There is no
 state-space (Mamba) family yet.
 """
 
@@ -23,9 +29,16 @@ import math
 import torch
 from torch import nn
 
-IMAGE_FAMILIES = ("cnn", "resnet", "vit")
+try:  # inside the dlnet package
+    from . import blocks
+except ImportError:  # inside an exported package (blocks.py sits next to model.py)
+    import blocks
+
+BACKBONE_FAMILIES = ("lenet", "allconv", "vgg", "densenet", "mobilenetv2")
+SEG_FAMILIES = ("fcn", "unet", "deconvnet")
+IMAGE_FAMILIES = ("cnn", "resnet", "vit", *BACKBONE_FAMILIES)
 TS_FAMILIES = ("tcn", "gru", "ts_transformer")
-FAMILIES = IMAGE_FAMILIES + TS_FAMILIES
+FAMILIES = IMAGE_FAMILIES + TS_FAMILIES + SEG_FAMILIES
 
 
 def _conv_bn(i, o, k=3, stride=1, dim=2):
@@ -184,8 +197,21 @@ class TSTransformer(nn.Module):
 def build_model(cfg: dict, in_dim: int, out_dim: int) -> nn.Module:
     """cfg['shape'] is the per-sample input shape: (C, H, W) for images, (C, T) for series."""
     f, w, d, p, shape = cfg["family"], cfg["width"], cfg["depth"], cfg["dropout"], cfg["shape"]
-    if f in IMAGE_FAMILIES and len(shape) != 3 or f in TS_FAMILIES and len(shape) != 2:
+    if (
+        f in IMAGE_FAMILIES + SEG_FAMILIES
+        and len(shape) != 3
+        or f in TS_FAMILIES
+        and len(shape) != 2
+    ):
         raise ValueError(f"family {f} does not accept inputs of shape {shape}")
+    if f in BACKBONE_FAMILIES:
+        enc = blocks.Encoder(in_dim, w, d, min(shape[1:]), f, cfg.get("attention", "none"))
+        return blocks.Classifier(enc, out_dim, p)
+    if f in SEG_FAMILIES:
+        enc = blocks.Encoder(
+            in_dim, w, d, min(shape[1:]), cfg.get("encoder", "resnet"), cfg.get("attention", "none")
+        )
+        return blocks.Segmenter(enc, "deconv" if f == "deconvnet" else f, out_dim, p)
     if f == "cnn":
         return CNN(in_dim, out_dim, w, d, p, min(shape[1:]))
     if f == "resnet":
