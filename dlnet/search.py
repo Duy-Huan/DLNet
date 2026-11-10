@@ -6,11 +6,13 @@ import math
 import time
 
 import numpy as np
+import torch
 
 from .core import Trainer
 
 
 def _new_trainer(cfg, data, seed, build_fn):
+    torch.manual_seed(seed)  # the seed must control the weight init too, not only the batch order
     m = build_fn(cfg, data["in_dim"], data["out_dim"])
     return Trainer(m, data, lr=cfg["lr"], wd=cfg["wd"], batch=cfg["batch"], seed=seed)
 
@@ -68,10 +70,16 @@ def run_search(data, cands, deadline, topk, build_fn, rungs=(4, 12, 30), eta=3, 
                 "test": {k: float(np.mean([t[k] for t in tests])) for k in tests[0]},
                 "train_seconds": round(secs, 1),
                 "epochs": ep,
+                "trainer": a["tr"],  # seed-0 trained model, used by hparams.estimate (not exported)
             }
         )
     results.sort(key=lambda r: -r["val_mean"])
-    # "indistinguishable" groups: neighbours closer than the larger std share a group
+    return assign_groups(results)
+
+
+def assign_groups(results):
+    """Sort by validation and mark 'indistinguishable' groups: neighbours closer than the larger std."""
+    results.sort(key=lambda r: -r["val_mean"])
     g = 0
     for i, r in enumerate(results):
         if i and results[i - 1]["val_mean"] - r["val_mean"] > max(

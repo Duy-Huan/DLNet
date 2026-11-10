@@ -23,6 +23,20 @@ def _short(t: dict, task: str) -> str:
     return f"acc {t['accuracy']}, bal {t['balanced_accuracy']}{k}"
 
 
+def _hp_note(hp: dict) -> str:
+    src = hp.get("source")
+    if not src or src["estimated"] is None:
+        return " (searched; not estimated)"
+    e = src["estimated"]
+    gns = (e.get("gradient_noise_scale") or {}).get("b_simple")
+    gns = f", B_simple {gns:.0f}" if gns else ""
+    return (
+        f"\n  - Adopted: {src['adopted']}. Estimated lr {e['lr']:.2g}, batch {e['batch']}, "
+        f"wd {e['wd']:.2g}{gns}; validation {src['val_searched']:.4f} (searched) vs "
+        f"{'n/a' if src['val_estimated'] is None else format(src['val_estimated'], '.4f')} (estimated)"
+    )
+
+
 def verdict(top1: dict, reference: list[dict], n_val: int, task: str) -> dict:
     """Acceptance rule (conservative).
 
@@ -51,6 +65,37 @@ def verdict(top1: dict, reference: list[dict], n_val: int, task: str) -> dict:
         "best_reference": best_ref["name"],
         "best_reference_val": round(best_ref["va"]["score"], 5),
     }
+
+
+def hyperparameters(r: dict, recipe_epochs: int) -> dict:
+    """The full training setting of one baseline, plus how it was obtained."""
+    cfg = r["cfg"]
+    hp = {
+        "optimizer": "AdamW",
+        "lr": cfg["lr"],
+        "weight_decay": cfg["wd"],
+        "batch_size": cfg["batch"],
+        "epochs": recipe_epochs,
+        "lr_schedule": "cosine",
+        "grad_clip_norm": 5.0,
+        "dropout": cfg["dropout"],
+        **{k: cfg[k] for k in ("width", "depth", "rank", "rank_ratio", "patch") if k in cfg},
+    }
+    est = r.get("hparams")
+    if est:
+        hp["source"] = {
+            "adopted": est["adopted"],
+            "searched": est["searched"],
+            "estimated": est["estimated"],
+            "val_searched": est["val_searched"],
+            "val_estimated": est["val_estimated"],
+            "methods": [
+                "LR range test (Smith 1506.01186)",
+                "gradient noise scale B_simple (McCandlish 1812.06162)",
+                "normalized weight decay (Loshchilov & Hutter 1711.05101)",
+            ],
+        }
+    return hp
 
 
 _OWN = ("leaderboard.md", "leaderboard.json", "profile.json", "reference")
@@ -92,6 +137,7 @@ def export(out_dir, plugin, data, prof, chosen, reference, seed, epochs_recipe=1
         for name, src in plugin.extra_files.items():
             shutil.copy(src, d / name)
         arch = {k: v for k, v in cfg.items() if k != "params"}
+        hp = hyperparameters(r, epochs_recipe)
         config = {
             "plugin": plugin.name,
             "task": task,
@@ -100,6 +146,7 @@ def export(out_dir, plugin, data, prof, chosen, reference, seed, epochs_recipe=1
             "out_dim": data["out_dim"],
             "primary_metric": data["primary"],
             "arch": arch,
+            "hyperparameters": hp,
             "data": plugin.data_config(data),
             "recipe": {
                 "epochs": epochs_recipe,
@@ -122,6 +169,10 @@ def export(out_dir, plugin, data, prof, chosen, reference, seed, epochs_recipe=1
             f"- Validation ({data['primary']}): {r['val_mean']:.4f} +/- {r['val_std']:.4f} "
             f"({r['n_seeds']} seeds, {r['epochs']} epochs)\n"
             f"- Test (mean over seeds): {_fmt(r['test'], task)}\n"
+            f"- Hyperparameters: lr {hp['lr']:.2g}, weight decay {hp['weight_decay']:.2g}, "
+            f"batch {hp['batch_size']}, dropout {hp['dropout']}, AdamW, cosine, "
+            f"{hp['epochs']} epochs (full recipe), clip {hp['grad_clip_norm']}"
+            f"{_hp_note(hp)}\n"
             f"- Search time spent on this candidate: {r['train_seconds']}s\n"
             f"- Indistinguishable-group id: {r['group']} (same id = difference within seed noise)\n\n"
             f"Short search budget only. Re-train with the full recipe (see `python train.py -h`); "
@@ -134,6 +185,7 @@ def export(out_dir, plugin, data, prof, chosen, reference, seed, epochs_recipe=1
                 "roles": r["roles"],
                 "group": r["group"],
                 "params": cfg["params"],
+                "hyperparameters": hp,
                 "val_mean": round(r["val_mean"], 5),
                 "val_std": round(r["val_std"], 5),
                 "test": {k: round(x, 5) for k, x in r["test"].items()},
@@ -161,12 +213,15 @@ def export(out_dir, plugin, data, prof, chosen, reference, seed, epochs_recipe=1
         )
     )
     md = [f"# Leaderboard ({task}, primary metric = {data['primary']}, higher is better)\n"]
-    md.append("| rank | model | roles | group | params | val (mean+/-std) | test |")
-    md.append("|---|---|---|---|---|---|---|")
+    md.append(
+        "| rank | model | roles | group | params | lr | wd | batch | val (mean+/-std) | test |"
+    )
+    md.append("|---|---|---|---|---|---|---|---|---|---|")
     for r in rows:
-        ts = _short(r["test"], task)
+        ts, h = _short(r["test"], task), r["hyperparameters"]
         md.append(
             f"| {r['rank']} | {r['name']} | {', '.join(r['roles'])} | {r['group']} | {r['params']:,} | "
+            f"{h['lr']:.2g} | {h['weight_decay']:.2g} | {h['batch_size']} | "
             f"{r['val_mean']} +/- {r['val_std']} | {ts} |"
         )
     md.append("\n## Reference baselines (same split)\n")

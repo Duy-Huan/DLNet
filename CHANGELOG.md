@@ -7,10 +7,15 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 ## [Unreleased]
 
 ### Thêm
+- Hyperparameter đi kèm mỗi baseline: `dlnet/hparams.py` ước lượng lr (LR range test, Smith), batch size (gradient noise scale, McCandlish) và weight decay (normalized, AdamW), kiểm chứng bằng huấn luyện lại và chỉ chấp nhận khi tốt hơn rõ rệt. Khối `hyperparameters` có trong `config.yaml`, `leaderboard.json`, `report.md`; `leaderboard.md` thêm cột lr, wd, batch. 20% cuối `--budget` dành cho bước này.
+- `ref/optimazeDL/`: 22 paper về ước lượng chất lượng mạng và hyperparameter (SNIP, GraSP, ZiCo, Zen-NAS, TE-NAS, GradSign, WeightWatcher, Hyperband, BOHB, ASHA, Optuna, PBT, ...) cùng mã chính thức đã ghim commit; quy tắc `agent.md` §16 và skill `implement-standard-algorithm`: phải tham khảo và implement theo thuật toán chuẩn.
 - Môi trường Python tái lập: `scripts/setup_env.sh` (Linux/macOS) và `scripts/setup_env.ps1` (Windows) tạo `.venv`, cài torch CPU (tự lùi về PyPI nếu chỉ mục bị chặn) cùng DLNet và công cụ dev, rồi tự kiểm tra; `.python-version` (3.12) và `requirements.txt`/`requirements-dev.txt` ghim phiên bản đã kiểm tra, để pull về chỉ cần `python -m venv .venv`, activate, `pip install -r requirements.txt`. Không commit venv vì vượt giới hạn 100 MB/file của GitHub và không mang đi máy khác được.
 - Lệnh `dlnet selfcheck` (chứng minh cài đặt chạy đúng, ~20 giây) và `dlnet --version`.
 - CI: job `env-setup` chạy quy trình cài đặt như người dùng (script, kích hoạt `.venv`, `dlnet selfcheck`) trên Ubuntu, macOS và Windows.
 - Test chặn commit nhầm venv hoặc file lớn hơn 50 MB.
+
+### Sửa
+- Seed nay quyết định cả khởi tạo trọng số (trước đây mô hình được tạo trước `torch.manual_seed` nên cùng seed vẫn cho trọng số khác nhau giữa các lần chạy).
 
 ## [0.1.0] - 2026-11-10
 

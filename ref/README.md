@@ -11,5 +11,6 @@ PDF tải từ arXiv, tên file = `<nhóm>_<tên>_<arXiv id>.pdf`. Mã arXiv đ�
 | 05 | Deep unfolding / algorithm unrolling | Unfolded module |
 | 06 | PEFT: LoRA, adapters, prefix/prompt tuning, Compacter, MAD-X, AdapterFusion, Hyper-X, task arithmetic | Computation / Aggregation module |
 | 07 | MoE, hypernetwork, lottery ticket | Routing, sparse composition |
+| `optimazeDL/` | Thuật toán chuẩn ước lượng chất lượng mạng (zero-cost proxy, WeightWatcher), tìm/ước lượng hyperparameter (LR range test, noise scale, Hyperband, BOHB, ...), benchmark NAS + mã chính thức | Estimator, Search, `dlnet/hparams.py` (agent.md §16; chỉ mục `optimazeDL/README.md`) |
 
 Lưu ý: Kossaifi & Cichocki (Tensor Networks Part 1/2) là chuyên khảo dài; Elsken NAS survey là bản arXiv 1808.05377 (cùng nội dung bản JMLR).
