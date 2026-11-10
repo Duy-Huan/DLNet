@@ -259,6 +259,7 @@ Nguyên tắc: lõi **tổng quát trước**, kiểm chứng end-to-end sớm t
 - Không thêm phụ thuộc nặng ngoài danh sách §6 nếu chưa thống nhất.
 - Kết quả thực nghiệm lưu kèm seed/config để tái lập.
 - Không commit dữ liệu thô hoặc khóa/bí mật.
+- Trước khi làm, chọn skill phù hợp trong `skills/` (§15).
 
 ## 11. Quy trình Git & CI/CD
 
@@ -409,6 +410,17 @@ budget: {time: 2h, vram_gb: 12}
 ```
 
 **Cạm bẫy đã biết**: rò rỉ do patch chồng lấn; chọn siêu tham số bằng chính tập test; số mẫu thiểu số rất ít; đánh giá một seed. Giao thức §12.2 xử lý các điểm này.
+
+## 15. Skills (bắt buộc đọc trước khi làm)
+
+Quy trình đã đúc kết nằm trong `skills/` (chỉ mục: `skills/README.md`).
+
+**Quy tắc cho agent (người/AI):**
+1. Trước khi làm bất kỳ việc nào, tìm skill phù hợp: đọc bảng trong `skills/README.md` hoặc chạy `grep -ril "<từ khóa>" skills/*/SKILL.md`.
+2. Chọn skill khớp nhất, đọc đủ `SKILL.md` rồi làm theo. Việc nhiều phần có thể cần nhiều skill (ví dụ thêm plugin: `add-domain-plugin` + `evaluate-honestly` + `git-dev-main`).
+3. Không có skill nào khớp: làm việc đó, rồi thêm skill mới (thư mục `skills/<tên>/SKILL.md` có `name`, `description`, `triggers`) và một dòng vào `skills/README.md`.
+4. Skill sai hoặc lỗi thời: sửa skill trong cùng commit với thay đổi gây ra sự lệch.
+5. Báo cáo cho người dùng nêu skill nào đã dùng.
 
 ## Tài liệu tham khảo
 Toàn bộ PDF nằm trong `ref/` (mục lục: `ref/README.md`).
