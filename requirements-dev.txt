@@ -1,0 +1,2 @@
+# Chay + phat trien (pytest, ruff): pip install -r requirements-dev.txt
+-e .[dev,design]

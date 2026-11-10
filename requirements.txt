@@ -1,0 +1,2 @@
+# Chay DLNet: pip install -r requirements.txt  (nen dung scripts/setup_env.sh de co torch CPU nhe)
+-e .[design]

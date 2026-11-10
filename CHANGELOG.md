@@ -6,6 +6,12 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+### Thêm
+- Môi trường Python tái lập: `scripts/setup_env.sh` (Linux/macOS) và `scripts/setup_env.ps1` (Windows) tạo `.venv`, cài torch CPU (tự lùi về PyPI nếu chỉ mục bị chặn) cùng DLNet và công cụ dev, rồi tự kiểm tra; thêm `requirements.txt`, `requirements-dev.txt`. Không commit venv vì vượt giới hạn 100 MB/file của GitHub và không mang đi máy khác được.
+- Lệnh `dlnet selfcheck` (chứng minh cài đặt chạy đúng, ~20 giây) và `dlnet --version`.
+- CI: job `env-setup` chạy quy trình cài đặt như người dùng (script, kích hoạt `.venv`, `dlnet selfcheck`) trên Ubuntu, macOS và Windows.
+- Test chặn commit nhầm venv hoặc file lớn hơn 50 MB.
+
 ## [0.1.0] - 2026-11-10
 
 Bản đầu tiên: prototype chạy được từ dữ liệu đến Top-K baseline PyTorch cho dữ liệu bảng và ảnh siêu phổ (HSI).
