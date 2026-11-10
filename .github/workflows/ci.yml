@@ -3,8 +3,6 @@ name: CI
 on:
   push:
     branches: [dev, main]
-  pull_request:
-    branches: [main]
   workflow_call:
   schedule:
     - cron: "17 3 * * 1"  # weekly: catches torch/scikit-learn upgrades breaking the pipeline
@@ -16,18 +14,6 @@ env:
   TORCH_INDEX: https://download.pytorch.org/whl/cpu
 
 jobs:
-  enforce-source:
-    name: enforce-source
-    if: github.event_name == 'pull_request' && github.base_ref == 'main'
-    runs-on: ubuntu-latest
-    steps:
-      - name: PR vao main chi duoc den tu dev
-        run: |
-          if [ "${{ github.head_ref }}" != "dev" ]; then
-            echo "::error::PR vao main phai den tu nhanh dev (hien tai: ${{ github.head_ref }})"
-            exit 1
-          fi
-
   lint:
     name: lint
     runs-on: ubuntu-latest

@@ -14,9 +14,11 @@ Khong tao them nhanh khac. Khi push vao `dev` va CI xanh, `promote.yml` tu tao P
    - Block force pushes, khong cho xoa nhanh
 4. Rule cho `dev`: Require status checks (`lint`, `test ...`, `regression`, `e2e`), block force pushes, khong cho xoa nhanh.
 5. Dat `dev` lam nhanh mac dinh.
+6. **Settings -> Rules -> Rulesets -> New tag ruleset**: pattern `v*`, chan xoa va chan cap nhat tag (tag phat hanh la bat bien). Workflow `release.yml` van tao tag duoc (khong dua bot vao danh sach chan tao).
+7. Release dung `GITHUB_TOKEN` voi `contents: write` (da co trong Workflow permissions o muc 1).
 
-Luu y: PR do `GITHUB_TOKEN` tao khong tu kich hoat workflow `pull_request`; khong dat `enforce-source`
-lam required check. Cac check `test` da chay tren commit cua `dev` nen van thoa dieu kien merge.
+Luu y: CI khong co trigger `pull_request` (PR do `GITHUB_TOKEN` tao chua tung chay duoc job nao). Cac check
+(`lint`, `test`, `regression`, `e2e`) chay tren push vao `dev` va gan vao dung SHA, nen van thoa dieu kien merge vao `main`.
 
 ## Cac job CI
 | Job | Chay gi | Muc dich |
@@ -28,3 +30,9 @@ lam required check. Cac check `test` da chay tren commit cua `dev` nen van thoa 
 
 Moi tuan (thu Hai 03:17 UTC) CI tu chay lai tren nhanh mac dinh de bat loi do nang cap torch/scikit-learn.
 `promote.yml` goi ca `ci.yml`, nen `dev -> main` chi xay ra khi moi job tren xanh.
+
+## Release
+`promote.yml` goi `release.yml` ngay sau khi merge dev vao main. `release.yml` doc `version` trong `pyproject.toml`;
+neu chua co tag `vX.Y.Z` thi kiem tra (`scripts/release.py check`), build wheel, thu cai, roi tao tag va GitHub Release
+voi ghi chu lay tu `CHANGELOG.md`. Chay tay: **Actions -> Release -> Run workflow** (dung khi auto-merge bi tre).
+Quy trinh day du: `agent.md` §11.2 va `skills/release/SKILL.md`.
