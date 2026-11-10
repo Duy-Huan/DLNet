@@ -261,6 +261,7 @@ Nguyên tắc: lõi **tổng quát trước**, kiểm chứng end-to-end sớm t
 - Không thêm phụ thuộc nặng ngoài danh sách §6 nếu chưa thống nhất.
 - Kết quả thực nghiệm lưu kèm seed/config để tái lập.
 - Không commit dữ liệu thô hoặc khóa/bí mật.
+- **Môi trường Python:** không commit `.venv` (nặng hàng GB, riêng từng máy, vượt giới hạn 100 MB/file của GitHub; `tests/test_env_setup.py` chặn). Môi trường tái lập bằng `scripts/setup_env.sh` / `scripts/setup_env.ps1` (hoặc `requirements*.txt`), kiểm bằng `dlnet selfcheck`; job CI `env-setup` chạy đúng quy trình này trên Ubuntu, macOS, Windows. Thêm phụ thuộc mới: sửa `pyproject.toml` (extras `design`/`dev`), không sửa riêng script.
 - Trước khi làm, chọn skill phù hợp trong `skills/` (§15).
 - Mỗi thay đổi người dùng thấy được phải thêm một dòng vào `CHANGELOG.md` mục `[Unreleased]`; phát hành theo §11.2.
 - Mỗi lỗi sửa phải có regression test đi kèm (`tests/test_regression.py`, đỏ trước xanh sau); thay đổi chỉ xanh khi `lint`, `test`, `regression`, `e2e` đều xanh.

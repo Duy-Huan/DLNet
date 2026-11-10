@@ -86,3 +86,39 @@ jobs:
           pip install -e ".[dev,design]"
       - name: CLI -> exported package -> its own tests and train.py (tabular + HSI)
         run: pytest -q -m e2e -p no:cacheprovider
+
+  env-setup:
+    name: env-setup (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Setup nhu nguoi dung (script cai .venv, co tu kiem tra)
+        if: runner.os != 'Windows'
+        run: ./scripts/setup_env.sh
+      - name: Setup nhu nguoi dung (Windows PowerShell)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/setup_env.ps1
+      - name: Kich hoat .venv roi chay lenh (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: |
+          source .venv/bin/activate
+          which dlnet
+          dlnet --version
+          dlnet selfcheck
+      - name: Kich hoat .venv roi chay lenh (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          .venv\Scripts\Activate.ps1
+          (Get-Command dlnet).Source
+          dlnet --version
+          dlnet selfcheck
