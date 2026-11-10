@@ -12,4 +12,5 @@ triggers: model, family, library, module, tensor, Tucker, TT, low-rank, SPACE
 5. Với module tensor: hai nhánh cần so sánh công bằng với bản dense (cùng width, ít tham số hơn). Biến thể đã có: `TTLinear`, `LowRankLinear`, `TuckerConv`.
 6. Cost model v0 là đếm tham số của mô hình đã khởi tạo (`count_params`). Phải bỏ các cấu hình lỗi shape thay vì làm sập vòng sinh.
 7. Test: forward đúng shape với batch 2, backward chạy được, số tham số của biến thể nén nhỏ hơn bản dense.
-8. Cập nhật `agent.md` §13 (registry / danh mục khối) và theo skill `git-dev-main`.
+8. HSI: ưu tiên thêm **khối** vào registry thay vì viết mô hình riêng: `@register(kind, name)` trên lớp con của `Block` trong `hsi_lib.py`, hiện thực `features(...)` (suy luận shape tĩnh, `raise ValueError` khi đầu vào không hợp lệ). Khối tự xuất hiện trong họ `composed`; muốn có họ preset thì thêm một dòng vào `PRESETS` và `SPACE`. Test `test_static_shape_inference_matches_the_built_blocks` tự kiểm tra khối mới.
+9. Cập nhật `agent.md` §13 (registry / danh mục khối) và theo skill `git-dev-main`.

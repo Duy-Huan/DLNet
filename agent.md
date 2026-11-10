@@ -229,7 +229,7 @@ Nguyên tắc: lõi **tổng quát trước**, kiểm chứng end-to-end sớm t
 | **M1** | **End-to-end tổng quát**: plugin tabular + bộ ứng viên MLP/ResNet-MLP/FT-Transformer + proxy → short-train → **xuất Top-K + leaderboard** | `dlnet design --data x.csv --topk 3` ra 3 gói baseline chạy được |
 | **M2** | **Plugin HSI**: loader, split chống rò rỉ, preset 1D/2D/3D-CNN + HybridSN-style + CNN phân rã Tucker-2, metric OA/AA/Kappa | **Xong (v0.2.0)**: chạy thật trên Indian Pines, Pavia University; xếp hạng trên 3 lần chia khối (`--cv-splits`, §9 mục 7) |
 | **M3** | Giao thức đánh giá đầy đủ (§12.2–12.3): nhiều seed, nhóm "chưa phân biệt được", quy tắc chấp nhận | **Xong (v0.2.0)**: báo cáo tái lập, val và test đều có ± std qua seed và lần chia |
-| **M4** | Library mở rộng + tự ghép theo grammar (§13): SSRN, Transformer, Mamba/SSM, ResNet/ConvNeXt block | Sinh được ≥20 ứng viên hợp lệ từ registry |
+| **M4** | Library mở rộng + tự ghép theo grammar (§13): SSRN, Transformer, Mamba/SSM, ResNet/ConvNeXt block | **Xong phần lõi (v0.3.0)**: registry có kiểu + grammar trong `hsi_lib.py`, test sinh ≥20 ứng viên hợp lệ. Chưa có: Mamba/SSM, ViT/Swin |
 | **M5** | Cost model + tiết kiệm thời gian: zero-cost proxy (theo §16.1), successive halving, cache, resume; **hyperparameter estimate (LR range test, noise scale) đã có, §16.2** | Giảm ≥X% thời gian, cùng chất lượng top-1 |
 | **M6** | Estimator: intrinsic dim → dung lượng, rank tensor | Ước lượng ổn định trên nhiều dataset |
 | **M7** | Tensor: Tucker/HOSVD tiền xử lý, lớp TT/Tucker/TR, Tensor-LoRA | Nén ≥X% tham số, mất ≤Y% metric |
@@ -361,6 +361,8 @@ dlnet design --data data.csv --task auto --budget 2h --topk 5
 ## 13. Module Library & tự động ghép baseline
 
 ### 13.1 Registry
+**Hiện trạng (v0.3.0):** registry nằm trong `dlnet/hsi_lib.py` (một file vì nó được copy thành `model.py` của gói xuất ra): `BLOCKS`, `@register(kind, name)`, lớp `Block` với `features(in_ch, width, depth, patch)` là suy luận shape tĩnh; `plan_composed` kiểm tra grammar; `sample_composed` lấy mẫu; `PRESETS` là các họ preset. Cost vẫn là đếm tham số (FLOPs/VRAM: M5). Đoạn dưới là thiết kế đích.
+
 Mọi khối nằm trong `dlnet/library/` và đăng ký qua một giao diện chung:
 ```python
 @register("spectral_encoder", name="spectral_mamba")
@@ -385,7 +387,7 @@ Hợp đồng shape cho phép **suy luận shape tĩnh và loại ứng viên gh
 | Đầu ra | phân loại, phân vùng, tái tạo |
 
 ### 13.3 Preset baseline nổi tiếng
-Mỗi mô hình kinh điển được viết lại như **một cấu hình của registry** (không phải code riêng), ví dụ: 1D-CNN, 2D-CNN, 3D-CNN, HybridSN, SSRN, SpectralFormer, SSFTT, các biến thể Mamba cho HSI. Lợi ích: vừa là bộ baseline tham chiếu (§12.2), vừa là điểm xuất phát của tìm kiếm. Danh sách này là tham chiếu; **phải kiểm tra lại nguồn gốc và tái hiện số liệu khi cài đặt**, chưa có trong `ref/`.
+Mỗi mô hình kinh điển được viết lại như **một cấu hình của registry** (không phải code riêng), ví dụ: 1D-CNN, 2D-CNN, 3D-CNN, HybridSN, SSRN, SpectralFormer, SSFTT, các biến thể Mamba cho HSI. Lợi ích: vừa là bộ baseline tham chiếu (§12.2), vừa là điểm xuất phát của tìm kiếm. Đã có dạng preset: `resnet2d`, `dwsep2d`, `convnext2d`, `spec_transformer`, `ssrn` (viết từ trí nhớ, chưa đối chiếu mã gốc). Danh sách này là tham chiếu; **phải kiểm tra lại nguồn gốc và tái hiện số liệu khi cài đặt**, chưa có trong `ref/`.
 
 ### 13.4 Tự ghép (grammar có kiểu)
 ```
