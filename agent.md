@@ -240,18 +240,17 @@ constraints:  {max_params: 5e6, max_latency_ms: 20}
 
 ## 11. Quy trình Git & CI/CD
 
-**Hai nhánh cố định:**
-- `main`: luôn ổn định, chỉ nhận code từ `dev` (tự động, sau khi CI xanh).
-- `dev`: nhánh phát triển; mọi việc làm trên `dev` hoặc nhánh con (`feature/*`, `claude/*`) rồi merge vào `dev`.
+**Chỉ có đúng hai nhánh, không tạo thêm:**
+- `dev`: nơi duy nhất để phát triển; commit và push trực tiếp vào `dev`.
+- `main`: luôn ổn định, chỉ nhận code từ `dev` (tự động, sau khi CI xanh); không ai push trực tiếp.
 
 ```
-feature/*  ──PR──►  dev  ──(CI xanh, tự động)──►  main
+commit ──► dev ──(CI xanh, tự động)──► main
 ```
 
 Workflow (`.github/workflows/`):
-- `ci.yml`: chạy khi push/PR vào `dev` hoặc `main`: lint (ruff), test (pytest, Python 3.10–3.12); PR vào `main` mà nguồn không phải `dev` bị từ chối.
+- `ci.yml`: chạy khi push vào `dev`/`main` và khi có PR vào `main`: lint (ruff), test (pytest, Python 3.10–3.12); PR vào `main` mà nguồn không phải `dev` bị từ chối.
 - `promote.yml`: khi push vào `dev` và CI xanh → tự tạo PR `dev → main` và merge.
-
 Thiết lập thủ công trên GitHub (không làm được từ code): xem `.github/README.md`.
 
 ## Tài liệu tham khảo
