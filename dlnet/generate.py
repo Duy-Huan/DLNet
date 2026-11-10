@@ -9,8 +9,18 @@ from .library import FAMILIES, build_model, count_params
 SPACE = {
     "mlp": {"width": [64, 128, 256], "depth": [2, 3, 4], "dropout": [0.0, 0.1, 0.2]},
     "resmlp": {"width": [64, 128, 256], "depth": [1, 2, 3], "dropout": [0.0, 0.1, 0.2]},
-    "tt_resmlp": {"width": [64, 128, 256], "depth": [1, 2, 3], "dropout": [0.0, 0.1], "rank": [4, 8, 16]},
-    "lowrank_mlp": {"width": [128, 256], "depth": [2, 3, 4], "dropout": [0.0, 0.1], "rank": [8, 16, 32]},
+    "tt_resmlp": {
+        "width": [64, 128, 256],
+        "depth": [1, 2, 3],
+        "dropout": [0.0, 0.1],
+        "rank": [4, 8, 16],
+    },
+    "lowrank_mlp": {
+        "width": [128, 256],
+        "depth": [2, 3, 4],
+        "dropout": [0.0, 0.1],
+        "rank": [8, 16, 32],
+    },
     "ft_transformer": {"width": [32, 64], "depth": [1, 2], "dropout": [0.0, 0.1]},
 }
 TRAIN = {"lr": [1e-3, 3e-3], "wd": [1e-4, 1e-2], "batch": [64, 128]}

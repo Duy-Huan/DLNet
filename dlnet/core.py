@@ -76,9 +76,13 @@ def prepare(X, y, task: str, seed: int = 0) -> dict:
         d["X" + k] = torch.from_numpy(Xs[i])
         d["y" + k] = torch.from_numpy(yt[i])
     d["Xnp"] = {k: Xs[i] for k, i in zip(("tr", "va", "te"), (tr, va, te))}
-    balance = np.bincount(y[tr]).min() / np.bincount(y[tr]).max() if task == "classification" else 1.0
+    balance = (
+        np.bincount(y[tr]).min() / np.bincount(y[tr]).max() if task == "classification" else 1.0
+    )
     d["primary"] = (
-        "neg_rmse" if task == "regression" else ("accuracy" if balance > 0.3 else "balanced_accuracy")
+        "neg_rmse"
+        if task == "regression"
+        else ("accuracy" if balance > 0.3 else "balanced_accuracy")
     )
     return d
 
@@ -92,7 +96,15 @@ def compute_metrics(y_true, y_pred, task: str, primary: str) -> dict:
         return m
     acc = float(np.mean(y_true == y_pred))
     recalls = [np.mean(y_pred[y_true == c] == c) for c in np.unique(y_true)]
-    m = {"accuracy": acc, "balanced_accuracy": float(np.mean(recalls))}
+    pe = sum(
+        np.mean(y_true == c) * np.mean(y_pred == c)
+        for c in np.unique(np.concatenate([y_true, y_pred]))
+    )
+    m = {
+        "accuracy": acc,
+        "balanced_accuracy": float(np.mean(recalls)),
+        "kappa": float((acc - pe) / (1 - pe + 1e-12)),
+    }
     m["score"] = m[primary]
     return m
 
@@ -137,7 +149,10 @@ class Trainer:
     @torch.no_grad()
     def evaluate(self, split: str) -> dict:
         self.model.eval()
-        out = self.model(self.data["X" + split])
+        X = self.data["X" + split]
+        out = torch.cat(
+            [self.model(X[torch.arange(i, min(i + 1024, len(X)))]) for i in range(0, len(X), 1024)]
+        )
         d = self.data
         if d["task"] == "regression":
             pred = out.squeeze(-1).numpy() * d["y_std"] + d["y_mean"]

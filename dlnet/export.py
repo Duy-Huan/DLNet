@@ -8,52 +8,19 @@ from pathlib import Path
 
 HERE = Path(__file__).parent
 
-TRAIN_PY = '''"""Full training recipe for this baseline. Usage:
-    python train.py --data data.csv --target <column> [--epochs 100] [--seed 0]
-Requires: torch, numpy, pandas.
-"""
-import argparse
-import json
-
-import core
-from model import build_model, count_params
-
-cfg = json.load(open("config.yaml"))  # JSON is valid YAML
-ap = argparse.ArgumentParser()
-ap.add_argument("--data", required=True)
-ap.add_argument("--target", required=True)
-ap.add_argument("--epochs", type=int, default=cfg["recipe"]["epochs"])
-ap.add_argument("--seed", type=int, default=0)
-a = ap.parse_args()
-
-X, y, _ = core.load_csv(a.data, a.target)
-data = core.prepare(X, y, cfg["task"], seed=cfg["split_seed"])
-model = build_model(cfg["arch"], data["in_dim"], data["out_dim"])
-print(f"params={count_params(model):,} epochs={a.epochs}")
-tr, best_val = core.train_full(
-    model, data, cfg["arch"]["lr"], cfg["arch"]["wd"], cfg["arch"]["batch"], a.epochs, seed=a.seed
-)
-print("val :", tr.evaluate("va"))
-print("test:", tr.evaluate("te"))
-'''
-
-TEST_PY = '''import json
-from pathlib import Path
-
-import torch
-
-from model import build_model
-
-def test_forward_shape():
-    cfg = json.load(open(Path(__file__).parent.parent / "config.yaml"))
-    m = build_model(cfg["arch"], cfg["in_dim"], cfg["out_dim"]).eval()
-    out = m(torch.randn(4, cfg["in_dim"]))
-    assert out.shape == (4, cfg["out_dim"])
-'''
-
 
 def _fmt(m: dict, task: str) -> str:
-    return f"{m['rmse']:.4f} (R2 {m['r2']:.3f})" if task == "regression" else f"{m['accuracy']:.4f} (bal {m['balanced_accuracy']:.4f})"
+    if task == "regression":
+        return f"{m['rmse']:.4f} (R2 {m['r2']:.3f})"
+    extra = f", kappa {m['kappa']:.4f}" if "kappa" in m else ""
+    return f"{m['accuracy']:.4f} (bal {m['balanced_accuracy']:.4f}{extra})"
+
+
+def _short(t: dict, task: str) -> str:
+    if task == "regression":
+        return f"rmse {t['rmse']}"
+    k = f", kappa {t['kappa']}" if "kappa" in t else ""
+    return f"acc {t['accuracy']}, bal {t['balanced_accuracy']}{k}"
 
 
 def verdict(top1: dict, reference: list[dict], n_val: int, task: str) -> dict:
@@ -71,7 +38,9 @@ def verdict(top1: dict, reference: list[dict], n_val: int, task: str) -> dict:
     if task == "classification":
         p = min(max(top1["val_mean"], 0.01), 0.99)
         noise = max(noise, (p * (1 - p) / n_val) ** 0.5)
-    test_margin = top1["test"]["score"] - max(r["te"]["score"] for r in reference)  # vs every reference
+    test_margin = top1["test"]["score"] - max(
+        r["te"]["score"] for r in reference
+    )  # vs every reference
     ok = margin > noise and test_margin > 0
     return {
         "beats_reference": bool(ok),
@@ -84,7 +53,7 @@ def verdict(top1: dict, reference: list[dict], n_val: int, task: str) -> dict:
     }
 
 
-def export(out_dir, data, prof, chosen, reference, seed, epochs_recipe=100):
+def export(out_dir, plugin, data, prof, chosen, reference, seed, epochs_recipe=100):
     out = Path(out_dir)
     if out.exists():
         shutil.rmtree(out)
@@ -101,17 +70,25 @@ def export(out_dir, data, prof, chosen, reference, seed, epochs_recipe=100):
         cfg = r["cfg"]
         d = out / f"top{i}_{cfg['family']}"
         (d / "tests").mkdir(parents=True)
-        shutil.copy(HERE / "library.py", d / "model.py")
+        shutil.copy(plugin.model_file, d / "model.py")
         shutil.copy(HERE / "core.py", d / "core.py")
+        for name, src in plugin.extra_files.items():
+            shutil.copy(src, d / name)
         arch = {k: v for k, v in cfg.items() if k != "params"}
         config = {
+            "plugin": plugin.name,
             "task": task,
             "split_seed": seed,
             "in_dim": data["in_dim"],
             "out_dim": data["out_dim"],
             "primary_metric": data["primary"],
             "arch": arch,
-            "recipe": {"epochs": epochs_recipe, "schedule": "cosine", "select": "best-val checkpoint"},
+            "data": plugin.data_config(data),
+            "recipe": {
+                "epochs": epochs_recipe,
+                "schedule": "cosine",
+                "select": "best-val checkpoint",
+            },
             "search_result": {
                 "val_mean": r["val_mean"],
                 "val_std": r["val_std"],
@@ -120,8 +97,8 @@ def export(out_dir, data, prof, chosen, reference, seed, epochs_recipe=100):
             },
         }
         (d / "config.yaml").write_text(json.dumps(config, indent=2))
-        (d / "train.py").write_text(TRAIN_PY)
-        (d / "tests" / "test_model.py").write_text(TEST_PY)
+        (d / "train.py").write_text(plugin.train_template)
+        (d / "tests" / "test_model.py").write_text(plugin.test_template)
         (d / "report.md").write_text(
             f"# top{i}: {cfg['family']}  {r['roles']}\n\n"
             f"- Config: `{arch}`\n- Params: {cfg['params']:,}\n"
@@ -130,8 +107,8 @@ def export(out_dir, data, prof, chosen, reference, seed, epochs_recipe=100):
             f"- Test (mean over seeds): {_fmt(r['test'], task)}\n"
             f"- Search time spent on this candidate: {r['train_seconds']}s\n"
             f"- Indistinguishable-group id: {r['group']} (same id = difference within seed noise)\n\n"
-            f"Short search budget only. Re-train with the full recipe: "
-            f"`python train.py --data <csv> --target <col>`; neighbouring ranks may reorder.\n"
+            f"Short search budget only. Re-train with the full recipe (see `python train.py -h`); "
+            f"neighbouring ranks may reorder.\n"
         )
         rows.append(
             {
@@ -147,18 +124,30 @@ def export(out_dir, data, prof, chosen, reference, seed, epochs_recipe=100):
         )
 
     ref_rows = [
-        {"name": x["name"], "val": round(x["va"]["score"], 5), "test": {k: round(a, 5) for k, a in x["te"].items()}}
+        {
+            "name": x["name"],
+            "val": round(x["va"]["score"], 5),
+            "test": {k: round(a, 5) for k, a in x["te"].items()},
+        }
         for x in reference
     ]
     (out / "leaderboard.json").write_text(
-        json.dumps({"task": task, "metric": data["primary"], "verdict": v, "top_k": rows, "reference": ref_rows}, indent=2)
+        json.dumps(
+            {
+                "task": task,
+                "metric": data["primary"],
+                "verdict": v,
+                "top_k": rows,
+                "reference": ref_rows,
+            },
+            indent=2,
+        )
     )
     md = [f"# Leaderboard ({task}, primary metric = {data['primary']}, higher is better)\n"]
     md.append("| rank | model | roles | group | params | val (mean+/-std) | test |")
     md.append("|---|---|---|---|---|---|---|")
     for r in rows:
-        t = r["test"]
-        ts = f"rmse {t['rmse']}" if task == "regression" else f"acc {t['accuracy']}, bal {t['balanced_accuracy']}"
+        ts = _short(r["test"], task)
         md.append(
             f"| {r['rank']} | {r['name']} | {', '.join(r['roles'])} | {r['group']} | {r['params']:,} | "
             f"{r['val_mean']} +/- {r['val_std']} | {ts} |"
@@ -166,8 +155,7 @@ def export(out_dir, data, prof, chosen, reference, seed, epochs_recipe=100):
     md.append("\n## Reference baselines (same split)\n")
     md.append("| model | val | test |\n|---|---|---|")
     for r in ref_rows:
-        t = r["test"]
-        ts = f"rmse {t['rmse']}" if task == "regression" else f"acc {t['accuracy']}, bal {t['balanced_accuracy']}"
+        ts = _short(r["test"], task)
         md.append(f"| {r['name']} | {r['val']} | {ts} |")
     md.append("\n## Verdict\n")
     if v["beats_reference"]:

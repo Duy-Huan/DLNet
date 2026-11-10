@@ -8,17 +8,16 @@ import time
 import numpy as np
 
 from .core import Trainer
-from .library import build_model
 
 
-def _new_trainer(cfg, data, seed):
-    m = build_model(cfg, data["in_dim"], data["out_dim"])
+def _new_trainer(cfg, data, seed, build_fn):
+    m = build_fn(cfg, data["in_dim"], data["out_dim"])
     return Trainer(m, data, lr=cfg["lr"], wd=cfg["wd"], batch=cfg["batch"], seed=seed)
 
 
-def run_search(data, cands, deadline, topk, rungs=(4, 12, 30), eta=3, seeds=3, log=print):
+def run_search(data, cands, deadline, topk, build_fn, rungs=(4, 12, 30), eta=3, seeds=3, log=print):
     # --- stage 1: successive halving (resumable trainers, seed 0)
-    alive = [{"cfg": c, "tr": _new_trainer(c, data, 0)} for c in cands]
+    alive = [{"cfg": c, "tr": _new_trainer(c, data, 0, build_fn)} for c in cands]
     log(f"[search] {len(alive)} candidates, rungs={rungs}")
     for r, ep in enumerate(rungs):
         for a in alive:
@@ -47,7 +46,7 @@ def run_search(data, cands, deadline, topk, rungs=(4, 12, 30), eta=3, seeds=3, l
         for s in range(1, seeds):
             if time.time() > deadline:
                 break
-            t = _new_trainer(cfg, data, s)
+            t = _new_trainer(cfg, data, s, build_fn)
             t.fit(ep)
             vals.append(t.evaluate("va")["score"])
             tests.append(t.evaluate("te"))
@@ -67,7 +66,9 @@ def run_search(data, cands, deadline, topk, rungs=(4, 12, 30), eta=3, seeds=3, l
     # "indistinguishable" groups: neighbours closer than the larger std share a group
     g = 0
     for i, r in enumerate(results):
-        if i and results[i - 1]["val_mean"] - r["val_mean"] > max(results[i - 1]["val_std"], r["val_std"], 1e-9):
+        if i and results[i - 1]["val_mean"] - r["val_mean"] > max(
+            results[i - 1]["val_std"], r["val_std"], 1e-9
+        ):
             g += 1
         r["group"] = g
     return results
