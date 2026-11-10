@@ -14,7 +14,35 @@ import torch
 from dlnet import cli, zoo
 from dlnet.zoo import core, presets, space
 
-PROBE = {"vec": (16,), "seq": (8, 32), "map": (8, 16, 16), "ser": (8, 32), "vol": (4, 8, 8, 8)}
+PROBE = {
+    "vec": (16,),
+    "seq": (8, 32),
+    "map": (8, 16, 16),
+    "ser": (8, 32),
+    "vol": (4, 8, 8, 8),
+    "graph": (8, 12),
+    "ids": (5, 7),
+}
+PROBE_OVERRIDE = {("gmf", "seq"): (2, 16)}  # ops with a fixed arity
+
+
+def _probe(name, kind):
+    return PROBE_OVERRIDE.get((name, kind), PROBE[kind])
+
+
+def _input(kind, dims, n=2):
+    """A valid random batch: integers for ids, a symmetric adjacency after the features for graphs."""
+    if kind == "ids":
+        return torch.stack([torch.randint(0, c, (n,)) for c in dims], 1)
+    if kind == "graph":
+        nn_ = dims[0]
+        a = (torch.rand(n, nn_, nn_) < 0.4).float()
+        return torch.cat(
+            [torch.randn(n, nn_, dims[1] - nn_), ((a + a.transpose(1, 2)) > 0).float()], -1
+        )
+    return torch.randn(n, *dims)
+
+
 CASES = [(n, k) for n, o in sorted(zoo.OPS.items()) for k in o.kin]
 
 
@@ -25,9 +53,10 @@ def _cfg(spec, kind, dims, head="cls", out=3):
 @pytest.mark.parametrize(("name", "kind"), CASES)
 def test_every_op_builds_runs_and_trains_on_every_kind_it_declares(name, kind):
     spec = {"op": name}
-    info = zoo.check(spec, kind, PROBE[kind])
-    m = zoo.build_model(_cfg(spec, kind, PROBE[kind]))
-    out = m(torch.randn(2, *PROBE[kind]))
+    dims = _probe(name, kind)
+    info = zoo.check(spec, kind, dims)
+    m = zoo.build_model(_cfg(spec, kind, dims))
+    out = m(_input(kind, dims))
     assert out.shape == (2, 3)
     out.sum().backward()
     assert info["params"] <= zoo.count_params(m)  # the head adds parameters
@@ -41,7 +70,7 @@ def test_every_parameter_value_builds_or_is_rejected_with_value_error(name):
         for key, values in o.space.items():
             for v in values:
                 try:
-                    zoo.check({"op": name, key: v}, kind, PROBE[kind])
+                    zoo.check({"op": name, key: v}, kind, _probe(name, kind))
                 except ValueError:
                     pass  # an invalid combination is allowed to be refused, never to crash
 

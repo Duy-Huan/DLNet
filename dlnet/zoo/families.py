@@ -53,6 +53,9 @@ HSI_PRESETS = {
 }  # fmt: skip
 HSI_SPECTRAL, HSI_SPATIAL = ("cnn1d", "transformer"), ("conv", "res", "dwsep", "convnext", "tucker")
 FUSIONS = ("concat", "gated")
+GRAPH = ("gcn_net", "gat_net", "sage_net", "gin_net", "graph_mlp")
+RECSYS = ("mf", "ncf", "fm", "dlrm")
+RECONSTRUCTION = ("conv_ae", "vae")
 BACKBONES = ("lenet", "allconv", "vgg", "resnet", "densenet", "mobilenetv2")
 
 
@@ -404,6 +407,67 @@ def sample_composed(rng) -> dict:
     }
 
 
+# ------------------------------------------------------------------ autoencoders
+
+
+def code_size(cfg, dims) -> int:
+    """Number of elements of the bottleneck code of an autoencoder recipe."""
+    h, w = dims[1], dims[2]
+    for _ in range(n_levels(min(dims[1:]), 3) - 1):
+        h, w = -(-h // 2), -(-w // 2)
+    return cfg["latent"] * h * w
+
+
+def reconstruction(cfg, dims):
+    """Encoder backbone, a bottleneck (plain 1x1 convolution, or variational) and a transposed-convolution decoder, no skips."""
+    f = cfg["family"]
+    stages = encoder_stages(cfg.get("encoder", "vgg"), cfg["width"], cfg["depth"], min(dims[1:]))
+    if f == "conv_ae":
+        stages.append(S(cba(cfg["latent"], 1, 1, "identity", "none")))
+    elif f == "vae":
+        stages.append(S(N("vae_bottleneck", latent=cfg["latent"])))
+    else:
+        raise ValueError(f"unknown autoencoder family {f!r}")
+    return {"op": "encdec", "stages": stages, "dec": "deconv", "width": cfg["width"]}
+
+
+# ---------------------------------------------------------------- graphs and ids
+
+
+def graph(cfg, dims):
+    f, w, d, p = cfg["family"], cfg["width"], cfg["depth"], cfg["dropout"]
+    layer = {
+        "gcn_net": lambda: N("gcn", out=w, act="relu"),
+        "gat_net": lambda: N("gat", out=w, heads=2),
+        "sage_net": lambda: N("sage", out=w),
+        "gin_net": lambda: N("gin", out=w),
+    }
+    if f == "graph_mlp":  # no message passing: the flattened features and adjacency
+        return S(N("flatten"), N("mlp", width=w, depth=d, act="gelu", dropout=p))
+    if f not in layer:
+        raise ValueError(f"unknown graph family {f!r}")
+    return S(*[layer[f]() for _ in range(d)], N("graph_readout", mode=cfg.get("readout", "mean")))
+
+
+def recsys(cfg, dims):
+    f, w, d, p = cfg["family"], cfg["width"], cfg["depth"], cfg["dropout"]
+    emb = N("embed_fields", dim=w)
+    if f == "mf":
+        return S(emb, N("gmf"))
+    if f == "ncf":
+        return S(emb, N("flatten"), N("mlp", width=2 * w, depth=d, act="relu", dropout=p))
+    if f == "fm":
+        return S(emb, N("pair_dots", self_interaction=0))
+    if f == "dlrm":
+        both = {
+            "op": "par",
+            "branches": [N("flatten"), N("pair_dots", self_interaction=0)],
+            "merge": "concat",
+        }
+        return S(emb, both, N("mlp", width=2 * w, depth=d, act="relu", dropout=p))
+    raise ValueError(f"unknown recsys family {f!r}")
+
+
 # ------------------------------------------------------------------------ dispatch
 
 DOMAINS = {
@@ -412,6 +476,9 @@ DOMAINS = {
     "segmentation": (SEGMENTATION, segmentation, "map", "dense"),
     "timeseries": (TIMESERIES, timeseries, "ser", "cls"),
     "hsi": (HSI, hsi, "map", "cls"),
+    "graph": (GRAPH, graph, "graph", "cls"),
+    "recsys": (RECSYS, recsys, "ids", "cls"),
+    "reconstruction": (RECONSTRUCTION, reconstruction, "map", "dense"),
 }
 
 

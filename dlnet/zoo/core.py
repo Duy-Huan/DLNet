@@ -5,6 +5,8 @@ returns, a discrete search space for its parameters, functional tags used by the
 source it was taken from. A tensor kind is the layout without the batch axis:
 
     vec (D)      seq (T, D)      map (C, H, W)      ser (C, T)      vol (C, D, H, W)
+    graph (N, F+N)   a dense graph: N nodes, F features per node followed by the N x N adjacency row
+    ids (c_1, ..., c_F)   F categorical fields, dims = their cardinalities; the tensor is (B, F) integers
 
 An ARCHITECTURE is a plain JSON tree (a "spec"). A node is either a leaf {"op": name, **params}
 or a combinator:
@@ -31,7 +33,7 @@ from dataclasses import dataclass, field
 import torch
 from torch import nn
 
-KINDS = ("vec", "seq", "map", "ser", "vol")
+KINDS = ("vec", "seq", "map", "ser", "vol", "graph", "ids")
 ND = {"ser": 1, "map": 2, "vol": 3}  # spatial dimensionality of the convolutional kinds
 OPS: dict[str, OpDef] = {}
 COMBINATORS = ("seq", "res", "par", "rep", "moe", "encdec")
@@ -74,14 +76,21 @@ def ops_with(tag: str, kind: str | None = None) -> list[str]:
 # ------------------------------------------------------------------ shape tracing
 
 
-def _trace(m: nn.Module, dims) -> tuple[int, ...]:
+def probe(kind: str, dims, n: int = 2, device=None) -> torch.Tensor:
+    """A zero tensor of batch n for the kind (integer ids for `ids`, whose dims are cardinalities)."""
+    if kind == "ids":
+        return torch.zeros(n, len(dims), dtype=torch.long, device=device)
+    return torch.zeros(n, *dims, device=device)
+
+
+def _trace(m: nn.Module, dims, kind: str = "vec") -> tuple[int, ...]:
     p = next(itertools.chain(m.parameters(), m.buffers()), None)
     dev = p.device if p is not None else torch.device("cpu")
     was = m.training
     m.eval()
     try:
         with torch.no_grad():
-            y = m(torch.zeros(2, *dims, device=dev))
+            y = m(probe(kind, dims, 2, dev))
     except (RuntimeError, IndexError, AssertionError) as e:
         raise ValueError(f"cannot apply to shape {tuple(dims)}: {e}") from e
     finally:
@@ -110,7 +119,7 @@ def _leaf(node, kind, dims):
     except (TypeError, KeyError) as e:
         raise ValueError(f"{name}: bad parameters {params}: {e}") from e
     out_kind = o.kout or kind
-    return m, out_kind, _trace(m, dims)
+    return m, out_kind, _trace(m, dims, kind)
 
 
 # -------------------------------------------------------------------- combinators
@@ -130,6 +139,12 @@ class Residual(nn.Module):
 
 
 def _projection(kind, din, dout):
+    if din == dout:
+        return None
+    if kind not in ("vec", "seq", *ND):
+        raise ValueError(
+            f"residual projection is not defined for kind {kind}: the body must keep the shape"
+        )
     if kind in ("vec",):
         return nn.Linear(din[0], dout[0]) if din != dout else None
     if kind == "seq":
@@ -286,6 +301,8 @@ def _build(node, kind, dims):
             mods.append(m)
         return nn.Sequential(*mods), kind, dims
     if name == "moe":
+        if kind == "ids":
+            raise ValueError("the moe gate needs a real-valued input, not integer ids")
         spec = node["experts"]
         spec = [spec["body"]] * int(spec["n"]) if isinstance(spec, dict) else spec
         parts = [_build(e, kind, dims) for e in spec]
@@ -362,9 +379,14 @@ class Head(nn.Module):
 
 
 class ZooNet(nn.Module):
-    def __init__(self, body, head, in_dims):
+    def __init__(self, body, head, in_dims, kl_weight=0.0):
         super().__init__()
-        self.body, self.head, self.size = body, head, tuple(in_dims[-2:])
+        self.body, self.head, self.size, self.kl_weight = body, head, tuple(in_dims[-2:]), kl_weight
+
+    def kl_loss(self):
+        """Sum of the KL terms stored by variational modules in the last training forward pass (0 if none)."""
+        kls = [m.last_kl for m in self.modules() if getattr(m, "last_kl", None) is not None]
+        return sum(kls) if kls else None
 
     def forward(self, x):
         z = self.body(x)
@@ -375,10 +397,12 @@ def build_model(cfg: dict, in_dim=None, out_dim=None) -> nn.Module:
     """Model of a candidate {"spec": ..., "input": {"kind", "dims"}, "head": "cls|dense", ...}."""
     inp = cfg["input"]
     body, kind, dims = _build(cfg["spec"], inp["kind"], tuple(inp["dims"]))
+    if cfg.get("head") == "none":  # the spec already produces the output (a generator)
+        return body
     head = Head(
         kind, dims, out_dim or cfg["out_dim"], cfg.get("head", "cls"), cfg.get("dropout", 0.0)
     )
-    return ZooNet(body, head, inp["dims"])
+    return ZooNet(body, head, inp["dims"], cfg.get("beta", 1e-3))
 
 
 def count_params(model: nn.Module) -> int:

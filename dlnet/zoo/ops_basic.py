@@ -214,7 +214,14 @@ def _gap(dims, kind, mode):
     )  # fmt: skip
 
 
-@op("flatten", ("seq", "ser", "map", "vol"), "vec", space={}, tags={"adapt"}, source="torch.nn")
+@op(
+    "flatten",
+    ("seq", "ser", "map", "vol", "graph"),
+    "vec",
+    space={},
+    tags={"adapt"},
+    source="torch.nn",
+)
 def _flatten(dims, kind):
     return nn.Flatten()
 

@@ -70,7 +70,9 @@ def synflow(model: nn.Module, x_shape: tuple[int, ...]) -> float:
 def grad_norm(model: nn.Module, X, y, task: str) -> float:
     m = copy.deepcopy(model).train()
     out = m(X)
-    if task == "regression":
+    if task == "reconstruction":
+        loss = nn.functional.mse_loss(out, y)
+    elif task == "regression":
         loss = nn.functional.mse_loss(out.squeeze(-1), y)
     else:
         loss = nn.functional.cross_entropy(out, y)

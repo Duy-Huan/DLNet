@@ -24,6 +24,8 @@ import torch
 from torch import nn
 from torch.utils.flop_counter import FlopCounterMode
 
+from .core import probe
+
 
 def _first_tensor(o):
     if isinstance(o, torch.Tensor):
@@ -33,7 +35,7 @@ def _first_tensor(o):
     return None
 
 
-def model_cost(model: nn.Module, dims, batch: int = 64) -> dict:
+def model_cost(model: nn.Module, dims, batch: int = 64, kind: str = "vec") -> dict:
     """Cost of an already built model (meta or real) for per-sample input shape `dims`."""
     was = model.training
     model.eval()
@@ -49,7 +51,7 @@ def model_cost(model: nn.Module, dims, batch: int = 64) -> dict:
     hooks = [m.register_forward_hook(hook) for m in model.modules() if not list(m.children())]
     try:
         with torch.no_grad(), FlopCounterMode(display=False) as fc:
-            model(torch.zeros(1, *dims, device=dev))
+            model(probe(kind, dims, 1, dev))
     finally:
         for h in hooks:
             h.remove()
@@ -65,15 +67,21 @@ def model_cost(model: nn.Module, dims, batch: int = 64) -> dict:
 
 
 def estimate(
-    build_fn, cfg: dict, in_dim: int, out_dim: int, dims, batch: int | None = None
+    build_fn,
+    cfg: dict,
+    in_dim: int,
+    out_dim: int,
+    dims,
+    batch: int | None = None,
+    kind: str = "vec",
 ) -> dict:
     """Cost of the model `build_fn(cfg, in_dim, out_dim)`; meta device first, CPU if an op needs real data."""
     batch = batch or cfg.get("batch", 64)
     try:
         with torch.device("meta"):
-            return model_cost(build_fn(cfg, in_dim, out_dim), dims, batch)
+            return model_cost(build_fn(cfg, in_dim, out_dim), dims, batch, kind)
     except (RuntimeError, NotImplementedError, TypeError, ValueError):
-        return model_cost(build_fn(cfg, in_dim, out_dim), dims, batch)
+        return model_cost(build_fn(cfg, in_dim, out_dim), dims, batch, kind)
 
 
 def parse_size(s: str | None) -> float | None:

@@ -79,11 +79,22 @@ class DomainPlugin:
         return {}
 
 
-ALIASES = {"image": "image_classification", "segmentation": "image_segmentation"}
+ALIASES = {
+    "image": "image_classification",
+    "segmentation": "image_segmentation",
+    "recommendation": "recsys",
+}
 
 
 def _registry() -> dict[str, DomainPlugin]:
-    from .arrays import ImageClassificationPlugin, ImageSegmentationPlugin, TimeSeriesPlugin
+    from .arrays import (
+        GraphClassificationPlugin,
+        ImageClassificationPlugin,
+        ImageReconstructionPlugin,
+        ImageSegmentationPlugin,
+        RecommendationPlugin,
+        TimeSeriesPlugin,
+    )
     from .hsi import HSIPlugin
     from .tabular import TabularPlugin
 
@@ -92,7 +103,10 @@ def _registry() -> dict[str, DomainPlugin]:
         HSIPlugin(),
         ImageClassificationPlugin(),
         ImageSegmentationPlugin(),
+        ImageReconstructionPlugin(),
         TimeSeriesPlugin(),
+        GraphClassificationPlugin(),
+        RecommendationPlugin(),
     )
     return {p.name: p for p in plugins}
 

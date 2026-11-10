@@ -10,6 +10,8 @@ HERE = Path(__file__).parent
 
 
 def _fmt(m: dict, task: str) -> str:
+    if task == "reconstruction":
+        return f"MSE {m['mse']:.4f} (PSNR {m['psnr']:.2f} dB)"
     if task == "regression":
         return f"{m['rmse']:.4f} (R2 {m['r2']:.3f})"
     extra = f", kappa {m['kappa']:.4f}" if "kappa" in m else ""
@@ -19,6 +21,8 @@ def _fmt(m: dict, task: str) -> str:
 
 
 def _short(t: dict, task: str) -> str:
+    if task == "reconstruction":
+        return f"mse {t['mse']}, psnr {t['psnr']} dB"
     if task == "regression":
         return f"rmse {t['rmse']}"
     k = f", kappa {t['kappa']}" if "kappa" in t else ""

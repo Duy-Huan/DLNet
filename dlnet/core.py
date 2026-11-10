@@ -108,6 +108,10 @@ def compute_metrics(y_true, y_pred, task: str, primary: str) -> dict:
         m = {"rmse": rmse, "r2": r2}
         m["score"] = -rmse
         return m
+    if task == "reconstruction":  # y_true is the input itself; lower MSE is better
+        mse = float(np.mean((y_true - y_pred) ** 2))
+        rng = float(y_true.max() - y_true.min()) or 1.0
+        return {"mse": mse, "psnr": float(10 * np.log10(rng**2 / max(mse, 1e-12))), "score": -mse}
     if y_true.ndim > 1:  # dense prediction: one label per pixel, negative labels are ignored
         keep = y_true >= 0
         y_true, y_pred = y_true[keep], y_pred[keep]
@@ -148,7 +152,11 @@ class Trainer:
         self.gen = torch.Generator().manual_seed(seed)
         self.epochs_done = 0
         self.seconds = 0.0
-        self.loss_fn = nn.MSELoss() if data["task"] == "regression" else nn.CrossEntropyLoss()
+        self.loss_fn = (
+            nn.MSELoss()
+            if data["task"] in ("regression", "reconstruction")
+            else nn.CrossEntropyLoss()
+        )
 
     def fit(self, epochs: int, scheduler=None):
         t0 = time.time()
@@ -163,6 +171,9 @@ class Trainer:
                 out = self.model(X[b])
                 out = out.squeeze(-1) if self.data["task"] == "regression" else out
                 loss = self.loss_fn(out, y[b])
+                kl = getattr(self.model, "kl_loss", None)  # variational bottleneck (VAE)
+                if kl is not None and (k := kl()) is not None:
+                    loss = loss + self.model.kl_weight * k
                 self.opt.zero_grad()
                 loss.backward()
                 nn.utils.clip_grad_norm_(self.model.parameters(), 5.0)
@@ -180,7 +191,9 @@ class Trainer:
             [self.model(X[torch.arange(i, min(i + 1024, len(X)))]) for i in range(0, len(X), 1024)]
         )
         d = self.data
-        if d["task"] == "regression":
+        if d["task"] == "reconstruction":
+            pred = out.numpy()
+        elif d["task"] == "regression":
             pred = out.squeeze(-1).numpy() * d["y_std"] + d["y_mean"]
         else:
             pred = out.argmax(1).numpy()

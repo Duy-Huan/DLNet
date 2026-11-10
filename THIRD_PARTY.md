@@ -23,14 +23,17 @@ Công cụ dùng nội bộ nên **không xét giấy phép** khi lấy module (
 | rasbt | `LeNet5`, `VGG16` | `lenet_stage`, `vgg_stage` |
 | rasbt | `MLP`, `MultilayerPerceptron`, `MultiLayerPerceptron` | `mlp` |
 | rasbt | `RNN` (LSTM), `TextCNN` | `rnn`, `textcnn` |
-| rasbt | decoder của `ConvolutionalAutoencoder` | decoder `deconv`, `up_deconv` |
+| rasbt | decoder của `ConvolutionalAutoencoder`; `AutoEncoder`, `ConvVariationalAutoencoder` | decoder `deconv`, `up_deconv`; họ `conv_ae`, `vae` (`vae_bottleneck`: reparameterization, KL) trên plugin `image_reconstruction` |
+| rasbt | `DCGAN` (generator, discriminator) | `vec_to_map`, `up_deconv`, `conv_bn_act`; lệnh `dlnet gan` (huấn luyện đối kháng, xếp hạng theo MMD²) |
+| rasbt | `GraphNet` (3 notebook: trung bình hàng xóm, cạnh học được chưa port, bộ lọc phổ) | `grid_graph_avg`, `grid_spectral_conv` (đồ thị lưới pixel với kernel Gaussian) |
 | rasbt | `ResNet`, `AlexNet`, `ConvNet` (all-conv) | preset `resnet`, ghép từ `conv_bn_act` |
 | cortex | `BidirectionalSelfAttention`, `CausalSelfAttention` | `attn_seq`, `transformer_block` (cờ `causal`) |
 | cortex | `TransformerBlock`, `MLP` | `transformer_block`, `ffn` |
 | cortex | `SinePosEncoder` | `pos` (`sine`) |
 | cortex | `MeanPooling`, `WeightedMeanPooling` | `seq_pool` (`mean`, `attn`) |
 | cortex | `Conv1dResidBlock` | `conv1d_resid` |
-| openrec | `MLP`, `SecondOrderFeatureInteraction` (tf2) | `mlp`, `fm_interaction` (DLRM = `fm_interaction` + `mlp`) |
+| openrec | `MLP`, `SecondOrderFeatureInteraction` (tf2) | `mlp`, `fm_interaction`, `pair_dots` |
+| openrec | `LatentFactor`, `GMF`, DLRM (tf2) | `embed_fields`, `gmf`; họ `mf`, `ncf`, `fm`, `dlrm` trên plugin `recsys` |
 | modular_deep_learning | mixture of experts: expectation, top-k; `escort`; expert/gate bất kỳ | combinator `moe` (`soft`, `topk`, `product`), activation `escort` |
 | pytorch/vision | `BasicBlock`, `Bottleneck` (ResNeXt, Wide) | `basic_block`, `bottleneck` |
 | pytorch/vision | `MBConv`, `FusedMBConv`, `mobilenetv3.InvertedResidual` | `mbconv`, `fused_mbconv` |
@@ -43,20 +46,18 @@ Công cụ dùng nội bộ nên **không xét giấy phép** khi lấy module (
 | mamba | `Mamba` (`mamba_simple.py`), `selective_scan_ref` | `mamba_block` (quét tuần tự, giới hạn độ dài 256) |
 | mamba | `Mamba2Simple`, `ssd_minimal_discrete` | `mamba2_block` (SSD theo khối, không giới hạn độ dài) |
 
-Từ paper, viết từ trí nhớ (không có trong nguồn trên): CBAM, ECA, Inception, MobileNetV1 `dw_sep`, ResNet v2 `preact_block`, MLP-Mixer, GLU, DCN `cross_net`, FT-Transformer `feature_tokens`, U-Net.
+Từ paper, viết từ trí nhớ (không có trong nguồn trên): GCN, GAT, GraphSAGE, GIN (đồ thị), CBAM, ECA, Inception, MobileNetV1 `dw_sep`, ResNet v2 `preact_block`, MLP-Mixer, GLU, DCN `cross_net`, FT-Transformer `feature_tokens`, U-Net.
 
 ## Chưa port và lý do
 
 | Nguồn | Lớp / phần chưa có | Lý do |
 |---|---|---|
-| rasbt | `AutoEncoder`, `VariationalAutoencoder`, `ConditionalVAE`, `ConvVAE` | cần loss tái tạo/KL và vòng huấn luyện riêng; DLNet chỉ huấn luyện có nhãn |
-| rasbt | `GAN`, `DCGAN`, `Flatten`, `Reshape1` | cần huấn luyện đối kháng |
 | rasbt | `CoralLayer` | cần tác vụ hồi quy thứ hạng (ordinal) |
-| rasbt | `GraphNet` | cần dữ liệu đồ thị; zoo chưa có kiểu `graph` |
+| rasbt | `ConditionalVariationalAutoencoder`, `GraphNet` bản cạnh học được (`gnn-basic-edge-1`), `GAN` MLP | CVAE cần đầu vào điều kiện (nhãn) cùng ảnh; bản cạnh học được chưa làm; GAN dùng bản DCGAN tích chập |
+| openrec | các recommender BPR, WRMF, UCML, YouTube, RNN và loss cặp (`PairwiseLogLoss`) | cần huấn luyện theo cặp dương/âm; zoo chỉ có hồi quy/phân loại điểm (pointwise). Đã có: `LatentFactor`, GMF, DLRM, FM |
 | rasbt | `DistilBERTClass` | bọc mô hình HuggingFace pretrained |
 | cortex | `root`/`branch`/`leaf`/`trunk` nhiều tác vụ, mask padding, `MaskLayerNorm1d`, `PoolingSelfAttention` | zoo xử lý đầu vào độ dài cố định, một tác vụ; cây nhiều đầu ra mới có ở `dlnet/blocks.py` (bản cũ) |
 | cortex | phần protein: tokenizer, BLOSUM, corruption/diffusion, acquisition | ngoài phạm vi |
-| openrec | `LatentFactor` và các recommender (BPR, WRMF, GMF, UCML, YouTube, RNN) | cần đầu vào là id; zoo chưa có kiểu `ids` (bản cũ ở `blocks.py`) |
 | modular_deep_learning | EM, stochastic, expert-loss; optimizer hai nhiệt độ; attention trên hidden của experts | là biến thể huấn luyện, không phải module |
 | pytorch/vision | Inception v3, GoogLeNet phụ trợ, MaxViT, MNASNet, LRASPP, deform conv, DropBlock | chưa làm; detection, video, optical flow, quantization, trọng số pretrained: ngoài phạm vi |
 | mamba | Mamba3, kernel CUDA/Triton, cache suy luận, `Block`/`MHA`/`MLP` của gói | cần GPU và kernel riêng; Mamba và Mamba-2 đã port bằng PyTorch thuần (Mamba chạy tuần tự, Mamba-2 theo khối) |
