@@ -6,6 +6,21 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+Mốc M9 (xem `agent.md` §8, §14.3): plugin ảnh, chuỗi thời gian và recommender meta-learning.
+
+### Thêm
+- Plugin `image`: `dlnet design --data images.npz` với `X` dạng (N, H, W) hoặc (N, H, W, C) và `y`. Họ mô hình: `cnn`, `resnet`, `vit`.
+- Plugin `timeseries`: `dlnet design --data series.npz` với `X` dạng (N, T) hoặc (N, T, C) và `y`. Họ mô hình: `tcn`, `gru`, `ts_transformer`.
+- Cả hai hỗ trợ phân loại và hồi quy (`--task`), tên mảng khác (`--x-key`, `--y-key`), xuất gói `top<i>_*/` chạy độc lập như các plugin khác. Router tự nhận loại dữ liệu theo số chiều của `X`.
+- `--meta-store file.jsonl`: recommender meta-learning. Mỗi lần chạy được ghi vào kho; các lần chạy trước trên dataset tương tự bỏ phiếu thứ tự họ mô hình (ghi trong `leaderboard.json`, khóa `meta_recommendation`). Chỉ sắp thứ tự, không loại họ nào.
+- `scripts/bench_meta.py`: đo recommender bằng leave-one-dataset-out trên 12 dataset bảng.
+- Skill mới: `deep-unfolding`, `meta-recommender`.
+
+### Hạn chế đã biết
+- Recommender **chưa đạt** tiêu chí của M9: họ tốt nhất nằm trong top-3 gợi ý ở 7/12 dataset (58%; ngẫu nhiên 51%; mục tiêu ≥80%). Kho 12 dataset quá nhỏ và nhãn lấy từ 4 epoch đầu nên nhiễu.
+- Plugin ảnh và chuỗi thời gian mới chạy trên dữ liệu tổng hợp nhỏ; chưa có số liệu trên dữ liệu thật. Các họ mô hình viết từ trí nhớ, chưa đối chiếu mã tác giả. Chưa có Mamba/SSM và ConvNeXt cho ảnh. Không có augmentation.
+- Mảng `(N, S, S)` được hiểu là ảnh xám vuông; chuỗi thời gian có T = C cần `--plugin timeseries`.
+
 ## [0.7.0] - 2026-11-10
 
 Mốc M8 (xem `agent.md` §5, §8): deep unfolding cho bài toán nghịch có mô hình thuận.

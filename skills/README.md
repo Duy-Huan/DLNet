@@ -23,3 +23,5 @@ grep -ril "<từ khóa>" skills/*/SKILL.md      # ví dụ: plugin, split, leaka
 | [setup-env](setup-env/SKILL.md) | Tạo/sửa môi trường Python, cài đặt, requirements | venv, environment, install, requirements, selfcheck |
 | [implement-standard-algorithm](implement-standard-algorithm/SKILL.md) | Thêm/sửa bộ ước lượng chất lượng mạng hoặc hyperparameter theo thuật toán chuẩn | proxy, hyperparameter, lr, batch, SynFlow, ZiCo, Hyperband |
 | [find-verify-papers](find-verify-papers/SKILL.md) | Tìm và tải paper vào `ref/` | paper, arXiv, ref |
+| [deep-unfolding](deep-unfolding/SKILL.md) | Thêm/sửa mạng unfolding cho bài toán nghịch, so với thuật toán lặp gốc | unfolding, LISTA, ISTA, inverse problem |
+| [meta-recommender](meta-recommender/SKILL.md) | Dùng, đo, sửa recommender học từ kho kết quả | meta-learning, meta store, family order |

@@ -22,7 +22,7 @@ def design(args) -> int:
 
     import torch
 
-    from . import export, hparams, plugins, proxies, search
+    from . import export, hparams, meta, plugins, proxies, search
 
     t0 = time.time()
     budget = parse_budget(args.budget)
@@ -68,6 +68,16 @@ def design(args) -> int:
         raise SystemExit("no valid candidate was generated (check --per-family and the budget)")
     fams = sorted({c["family"] for c in cands})
     print(f"[generate] {len(cands)} valid candidates from families {fams}")
+    meta_rec = None
+    if args.meta_store:  # past runs vote on the family ORDER; no family is removed
+        meta_rec = meta.recommend(meta.load(args.meta_store), plugin.name, meta.features(prof))
+        if meta_rec:
+            cands = meta.reorder(cands, meta_rec["family_order"])
+            print(
+                f"[meta] {meta_rec['n_records']} past runs; family order {meta_rec['family_order']}"
+            )
+        else:
+            print(f"[meta] fewer than {meta.MIN_RECORDS} past {plugin.name} runs: default order")
 
     # Zero-cost proxies of the untrained candidates: measured against real training below,
     # never used to prune (agent.md 16.1). At most 10% of the budget.
@@ -91,6 +101,13 @@ def design(args) -> int:
     results = search.assign_groups(results)
     chosen = search.select_topk(results, args.topk)
     extras = {}
+    if meta_rec:
+        extras["meta_recommendation"] = meta_rec
+    if args.meta_store:
+        rec = meta.make_record(plugin.name, prof, trace.get("rung1", []), Path(args.data).name)
+        if rec:
+            meta.append(args.meta_store, rec)
+            print(f"[meta] stored this run in {args.meta_store}")
     pairs = [(zc[id(c)], val) for c, val in trace.get("rung1", []) if id(c) in zc]
     if len(pairs) >= 3:
         rep = proxies.correlation_report(
@@ -149,9 +166,11 @@ def main(argv=None) -> int:
     unfold_run.add_parser(sub)
     d = sub.add_parser("design", help="propose Top-K deep learning baselines for a dataset")
     d.add_argument(
-        "--data", required=True, help="data file (CSV for tabular; .mat/.npz/.npy for hsi)"
+        "--data",
+        required=True,
+        help="data file (CSV: tabular; .mat/.npz/.npy: hsi; .npz with X, y: image / timeseries)",
     )
-    d.add_argument("--plugin", default="auto", help="auto | tabular | hsi")
+    d.add_argument("--plugin", default="auto", help="auto | tabular | hsi | image | timeseries")
     d.add_argument("--budget", default="5m")
     d.add_argument("--topk", type=int, default=3)
     d.add_argument("--per-family", type=int, default=8)
@@ -164,6 +183,10 @@ def main(argv=None) -> int:
     )
     d.add_argument("--out", default="dlnet_out")
     d.add_argument("--no-cache", action="store_true", help="do not reuse finished runs of --out")
+    d.add_argument(
+        "--meta-store",
+        help="JSONL file of past runs: used to order the families, and this run is appended",
+    )
     d.add_argument("--no-proxies", action="store_true", help="skip the zero-cost proxy report")
     for p in plugins._registry().values():
         p.add_arguments(d)

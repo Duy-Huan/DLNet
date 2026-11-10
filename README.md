@@ -21,7 +21,9 @@ Tùy chọn (làm hết các bước trên bằng một lệnh, tự tìm Python
 - Plugin `tabular` (CSV) va plugin `hsi` (anh sieu pho: cube + ground truth, phan loai pixel).
 - Lenh `dlnet unfold`: deep unfolding (LISTA) cho bai toan nghich thua `y = A x + nhieu` khi biet ma tran `A`.
 - Module thu vien: Tensor-LoRA (`dlnet/tensor_lora.py`), HOSVD (`dlnet/tensor.py`); chua duoc `design` dung.
-- Chua co: cost model FLOPs/VRAM, plugin anh / chuoi thoi gian.
+- Plugin `image` va `timeseries` (file `.npz` co `X` va `y`).
+- `--meta-store file.jsonl`: hoc thu tu ho mo hinh tu cac lan chay truoc (chi sap thu tu; do duoc 58% top-3, chua dat muc tieu 80%).
+- Chua co: cost model FLOPs/VRAM, Mamba/SSM, so lieu tren du lieu anh / chuoi thoi gian that.
 
 ## Dung thu
 ```bash
@@ -32,6 +34,10 @@ python -m dlnet design --data data.csv --target label --budget 5m --topk 3
 
 # hyperspectral (.mat / .npz / .npy)
 python -m dlnet design --data cube.mat --gt gt.mat --split block --patch 9 --pca 30 --budget 10m --topk 3
+
+# anh (.npz: X (N,H,W[,C]), y) va chuoi thoi gian (.npz: X (N,T[,C]), y)
+python -m dlnet design --data images.npz --budget 10m --topk 3
+python -m dlnet design --data series.npz --budget 10m --topk 3
 
 # bai toan nghich thua y = A x + nhieu (.npz chua A, Y, X): LISTA so voi ISTA / FISTA cung so vong
 python -m dlnet unfold --data problem.npz --layers 4,8,16 --epochs 100

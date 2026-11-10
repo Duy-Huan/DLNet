@@ -281,7 +281,7 @@ Nguyên tắc: lõi **tổng quát trước**, kiểm chứng end-to-end sớm t
 | **M6** | Estimator: intrinsic dim → dung lượng, rank tensor | **Xong phần đo được (v0.5.0)**, xem §16.4: hai bộ ước lượng (TwoNN, MLE) kèm độ lệch chuẩn qua mẫu con và cờ `stable`; đo trên 5 bộ biết đáp án và 5 bộ thật. Chưa có: bằng chứng `capacity_hint` dự đoán đúng độ rộng tốt nhất (nên chỉ ghi thông tin) |
 | **M7** | Tensor: Tucker/HOSVD tiền xử lý, lớp TT/Tucker/TR, Tensor-LoRA | **Xong phần module và phép đo (v0.6.0)**, xem "Kết quả đo M7" ở §4: lớp TT/TR nén 81–89% tham số, mất ≤0,4 điểm accuracy (trong mức nhiễu) trên digits. Tensor-LoRA có đủ 4 format nhưng **chưa nối vào `design`** (DLNet chưa có backbone pretrained) và trong phép đo nhỏ chưa hơn huấn luyện từ đầu. HOSVD chưa dùng làm tiền xử lý HSI |
 | **M8** | Deep unfolding (khi có mô hình thuận) | **Xong cho bài toán thưa tuyến tính (v0.7.0)**, xem "Kết quả đo M8" ở §5: lệnh `dlnet unfold`, LISTA-CP hơn ISTA và FISTA (λ đã tune) 3,3–6,3 dB ở cùng số vòng K trên dữ liệu tổng hợp. Chưa có: ADMM/AMP, support selection, toán tử A không tường minh (ảnh), dữ liệu thật |
-| **M9** | Plugin ảnh, chuỗi thời gian; recommender học từ kho kết quả (meta-learning) | Top-K chứa mô hình tốt nhất trong ≥80% dataset giữ lại |
+| **M9** | Plugin ảnh, chuỗi thời gian; recommender học từ kho kết quả (meta-learning) | **Có plugin và recommender (v0.8.0), tiêu chí 80% CHƯA đạt**, xem §14.3: plugin `image` (cnn, resnet, vit) và `timeseries` (tcn, gru, ts_transformer) chạy end-to-end trên dữ liệu tổng hợp; recommender kNN đoán đúng họ tốt nhất trong top-3 ở 7/12 dataset bảng (58%, ngẫu nhiên 51%). Chưa có: Mamba/SSM, ConvNeXt cho ảnh, dữ liệu ảnh/chuỗi thật, kho kết quả đủ lớn |
 
 ---
 
@@ -465,8 +465,8 @@ class DomainPlugin:
 |---|---|---|---|
 | `tabular` | bảng đặc trưng | MLP, ResNet-MLP, FT-Transformer | M1 (kiểm chứng lõi nhanh) |
 | `hsi` | khối `H×W×B` siêu phổ | 1D/2D/3D-CNN, HybridSN, SSRN, SpectralFormer | M2 |
-| `image` | ảnh RGB/xám | ResNet, ConvNeXt, ViT nhỏ | M9 |
-| `timeseries` | chuỗi thời gian | TCN, Transformer, SSM/Mamba | M9 |
+| `image` | ảnh RGB/xám, `.npz` có `X` (N,H,W[,C]) và `y` | **đã có:** `cnn`, `resnet`, `vit` | M9 (v0.8.0) |
+| `timeseries` | chuỗi thời gian, `.npz` có `X` (N,T[,C]) và `y` | **đã có:** `tcn`, `gru`, `ts_transformer` | M9 (v0.8.0) |
 | `signal`/khác | tín hiệu, tensor đa chiều | tuỳ domain | sau |
 
 `--task auto`: Plugin Router gọi `detect` của từng plugin, chọn plugin tin cậy nhất, hỏi lại người dùng nếu nhập nhằng.
@@ -496,6 +496,20 @@ budget: {time: 2h, vram_gb: 12}
 ```
 
 **Cạm bẫy đã biết**: rò rỉ do patch chồng lấn; chọn siêu tham số bằng chính tập test; số mẫu thiểu số rất ít; đánh giá một seed. Giao thức §12.2 xử lý các điểm này.
+
+### 14.3 Plugin ảnh, chuỗi thời gian và recommender meta-learning (M9)
+- **Plugin `image` / `timeseries`** (`dlnet/plugins/arrays.py`, `dlnet/array_data.py`, `dlnet/array_lib.py`): đọc `.npz` có `X` và `y`; chia 60/20/20 phân tầng; chuẩn hóa theo kênh bằng thống kê train; baseline tham chiếu cổ điển chạy trên đầu vào duỗi phẳng (PCA 64 chiều fit trên train nếu > 512 chiều). Router phân biệt theo số chiều của `X`: 4 chiều hoặc (N,S,S) là ảnh, (N,T,C) với T≠C là chuỗi; nhập nhằng thì dùng `--plugin`.
+- Các họ mô hình viết từ trí nhớ theo ResNet (arXiv:1512.03385), ViT (arXiv:2010.11929), TCN (arXiv:1803.01271, lệch: padding không nhân quả, BatchNorm), **chưa đối chiếu** mã tác giả và các paper này chưa có trong `ref/`. Chưa có Mamba/SSM và ConvNeXt cho ảnh.
+- Chỉ mới chạy trên dữ liệu tổng hợp nhỏ (thanh ngang/dọc 8×8; sin hai tần số), chưa có số liệu trên dữ liệu thật.
+- **Recommender** (`dlnet/meta.py`, bật bằng `--meta-store file.jsonl`): mỗi lần chạy ghi một bản ghi (meta-feature: log n, log d, intrinsic dim, số lớp; điểm validation rung 1 tốt nhất của từng họ). Lần chạy sau, k=5 dataset gần nhất cùng plugin bỏ phiếu thứ tự họ (trung bình hạng chuẩn hóa, trọng số 1/(khoảng cách+0,1)). **Chỉ sắp thứ tự, không loại họ nào.**
+- **Kết quả đo (`python scripts/bench_meta.py`, 12 dataset bảng, ngân sách 30s mỗi bộ, leave-one-dataset-out):**
+
+| Top-k | kNN theo meta-feature | Mọi dataset (không lọc láng giềng) | Ngẫu nhiên |
+|---|---|---|---|
+| 1 | 4/12 = 33% | 3/12 = 25% | 17% |
+| 3 | 7/12 = 58% | 8/12 = 67% | 51% |
+
+- **Kết luận:** tiêu chí M9 "Top-K chứa mô hình tốt nhất trong ≥80% dataset giữ lại" **chưa đạt** (58%). Với 12 dataset, chênh lệch so với ngẫu nhiên (1 dataset) không có ý nghĩa thống kê, và meta-feature chưa hơn thứ tự toàn cục. Nhãn "họ tốt nhất" lấy từ rung 1 (4 epoch) nên nhiễu: bốn họ khác nhau chia nhau vị trí đầu. Cần kho lớn hơn nhiều (hàng chục đến hàng trăm dataset) và nhãn từ huấn luyện đầy đủ trước khi dùng recommender cho việc gì hơn sắp thứ tự.
 
 ## 15. Skills (bắt buộc đọc trước khi làm)
 
