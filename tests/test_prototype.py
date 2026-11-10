@@ -9,8 +9,8 @@ pytest.importorskip("pandas")
 import numpy as np
 
 from dlnet import core, export, generate, profile, reference, search
-from dlnet.library import TTLinear
 from dlnet.plugins.tabular import TabularPlugin
+from dlnet.zoo.ops_vec import TTLinear
 
 
 def _data(task="classification"):

@@ -9,8 +9,9 @@ pytest.importorskip("scipy")
 import numpy as np
 import torch
 
-from dlnet import export, hsi_data, hsi_lib, search
+from dlnet import export, hsi_data, search, zoo
 from dlnet.plugins.hsi import HSIPlugin
+from dlnet.zoo import families
 
 
 def synth(h=48, w=48, bands=40, k=4, seed=0):
@@ -64,12 +65,12 @@ def test_multilinear_rank_low_rank_cube():
     assert max(hsi_data.multilinear_rank(cube.astype("float32"), 0.99)) <= 3
 
 
-@pytest.mark.parametrize("family", hsi_lib.FAMILIES)
+@pytest.mark.parametrize("family", families.HSI)
 def test_models_forward(family):
     cfg = {"family": family, "width": 8, "depth": 2, "dropout": 0.0, "patch": 9, "rank_ratio": 0.5}
     if family == "composed":
         cfg.update(spectral="cnn1d", spatial="res", fusion="gated")
-    m = hsi_lib.build_model(cfg, 20, 5).eval()
+    m = families.build(cfg, "hsi", (20, 9, 9), 5).eval()
     assert m(torch.randn(3, 20, 9, 9)).shape == (3, 5)
 
 
@@ -112,22 +113,33 @@ def _prof(n_features=12, patch=5):
 def test_registry_generates_at_least_20_valid_candidates():
     """M4 criterion: >= 20 valid candidates, presets and grammar compositions, all runnable."""
     cands = HSIPlugin().generate(_prof(), 4, 0)
-    new = [c for c in cands if c["family"] in hsi_lib.PRESETS or c["family"] == "composed"]
-    assert len(new) >= 20 and {c["family"] for c in new} == {*hsi_lib.PRESETS, "composed"}
+    new = [c for c in cands if c["family"] in families.HSI_PRESETS or c["family"] == "composed"]
+    assert len(new) >= 20 and {c["family"] for c in new} == {*families.HSI_PRESETS, "composed"}
     x = torch.randn(2, 12, 5, 5)
     for c in new:
-        m = hsi_lib.build_model(c, 12, 4)
+        m = zoo.build_model(c)
         out = m(x)
         assert out.shape == (2, 4)
         out.sum().backward()
-        assert hsi_lib.count_params(m) == c["params"]
+        assert zoo.count_params(m) == c["params"]
 
 
 def test_static_shape_inference_matches_the_built_blocks():
+    """Every spectral / spatial / joint encoder: zoo.check predicts the built feature size."""
     x = torch.randn(2, 12, 5, 5)
-    for cls in hsi_lib.BLOCKS.values():
-        b = cls(12, 16, 2, 0.0, 5).eval()
-        assert b(x).shape == (2, cls.features(12, 16, 2, 5))
+    cfg = {"width": 16, "depth": 2, "dropout": 0.0, "patch": 5}
+    for key, names in (
+        ("spectral", families.HSI_SPECTRAL),
+        ("spatial", families.HSI_SPATIAL),
+        ("joint", ("conv3d", "ssrn")),
+    ):
+        for name in names:
+            spec = families.hsi({"family": "composed", **cfg, key: name}, (12, 5, 5))
+            info = zoo.check(spec, "map", (12, 5, 5))
+            out = zoo.build_model(
+                {"spec": spec, "input": {"kind": "map", "dims": [12, 5, 5]}, "out_dim": 3}
+            )
+            assert info["kind"] == "vec" and out(x).shape == (2, 3)
 
 
 @pytest.mark.parametrize(
@@ -142,12 +154,25 @@ def test_static_shape_inference_matches_the_built_blocks():
 )
 def test_grammar_rejects_ill_typed_models_before_building(bad):
     with pytest.raises(ValueError):
-        hsi_lib.plan_composed({"width": 16, "depth": 1, "patch": 5, **bad}, 12)
+        families.hsi(
+            {"family": "composed", "width": 16, "depth": 1, "dropout": 0.0, "patch": 5, **bad},
+            (12, 5, 5),
+        )
 
 
 def test_ssrn_rejected_statically_when_too_few_bands():
     with pytest.raises(ValueError):
-        hsi_lib.plan_composed({"width": 8, "depth": 1, "patch": 5, "joint": "ssrn"}, 5)
+        families.hsi(
+            {
+                "family": "composed",
+                "width": 8,
+                "depth": 1,
+                "dropout": 0.0,
+                "patch": 5,
+                "joint": "ssrn",
+            },
+            (5, 5, 5),
+        )
     cands = HSIPlugin().generate(_prof(n_features=5), 2, 0)
     assert "ssrn" not in {c["family"] for c in cands}
 

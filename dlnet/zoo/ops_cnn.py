@@ -211,6 +211,24 @@ def _transition(dims, kind, compression, pool):
     return nn.Sequential(*layers, AVGP[nd](pool, pool) if pool > 1 else nn.Identity())
 
 
+class TuckerConv(nn.Sequential):
+    """Tucker-2 factorised kxk convolution: 1x1 (in -> r1), kxk (r1 -> r2), 1x1 (r2 -> out), BN, ReLU."""
+
+    def __init__(self, nd, i, o, ratio, k):
+        r1, r2 = max(4, int(i * ratio)), max(4, int(o * ratio))
+        c = CONV[nd]
+        super().__init__(
+            c(i, r1, 1, bias=False), c(r1, r2, k, padding=k // 2, bias=False), c(r2, o, 1, bias=False),
+            BN[nd](o), nn.ReLU(),
+        )  # fmt: skip
+
+
+@op("tucker_conv", SP, space={"out": [0, 32, 64, 128], "ratio": [0.5, 0.25], "k": [3, 5]}, tags={"block"},
+    source="Tucker-2 convolution (Kim et al., arXiv:1511.06530); this repository (out = 0 keeps the width)")  # fmt: skip
+def _tucker(dims, kind, out, ratio, k):
+    return TuckerConv(ND[kind], dims[0], out or dims[0], ratio, k)
+
+
 @op("nin_block", SP, space={"out": [32, 64, 128], "k": [3, 5], "dropout": [0.0, 0.3, 0.5]}, tags={"block"},
     source="rasbt/deeplearning-models NiN (Lin et al., arXiv:1312.4400): conv, then two 1x1 convs")  # fmt: skip
 def _nin(dims, kind, out, k, dropout):

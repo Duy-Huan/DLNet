@@ -17,6 +17,38 @@ def parse_budget(s: str) -> float:
     return float(m.group(1)) * {"": 1, "s": 1, "m": 60, "h": 3600}[m.group(2)]
 
 
+def _apply_cost_model(plugin, data, cands, args):
+    """Measure params / FLOPs / VRAM of every candidate; drop the ones over the limits."""
+    from .zoo import cost
+
+    inp = plugin.zoo_input(data)
+    if inp is None:
+        return cands
+    max_flops, max_vram = cost.parse_size(args.max_flops), cost.parse_size(args.max_vram)
+    kept, dropped = [], 0
+    for c in cands:
+        try:
+            c.update(cost.estimate(plugin.build_model, c, data["in_dim"], data["out_dim"], inp[1]))
+        except (RuntimeError, ValueError, TypeError) as e:  # a candidate we cannot cost still runs
+            print(f"[cost] {c['family']}: not costed ({str(e)[:60]})")
+            kept.append(c)
+            continue
+        if cost.within(c, max_flops, max_vram):
+            kept.append(c)
+        else:
+            dropped += 1
+    if dropped:
+        print(
+            f"[cost] dropped {dropped} candidates over --max-flops {args.max_flops} / --max-vram {args.max_vram}"
+        )
+    if kept and "flops" in kept[0]:
+        fl = sorted(c["flops"] for c in kept if "flops" in c)
+        print(
+            f"[cost] {len(kept)} candidates; FLOPs/sample min {fl[0]:,} median {fl[len(fl) // 2]:,} max {fl[-1]:,}"
+        )
+    return kept
+
+
 def design(args) -> int:
     from pathlib import Path
 
@@ -72,6 +104,7 @@ def design(args) -> int:
         origins = sorted({c["origin"].split(":")[0] for c in zoo_cands})
         print(f"[zoo] {len(zoo_cands)} architectures from the module zoo ({', '.join(origins)})")
     cands += zoo_cands
+    cands = _apply_cost_model(plugin, data, cands, args)
     if not cands:
         raise SystemExit("no valid candidate was generated (check --per-family and the budget)")
     fams = sorted({c["family"] for c in cands})
@@ -216,7 +249,6 @@ def main(argv=None) -> int:
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("selfcheck", help="verify the installation end to end (about 20 seconds)")
     unfold_run.add_parser(sub)
-    sub.add_parser("blocks", help="list the block library (backbones, decoders, attention, ...)")
     sub.add_parser("zoo", help="list every module of the zoo with kinds, tags and sources")
     d = sub.add_parser("design", help="propose Top-K deep learning baselines for a dataset")
     d.add_argument(
@@ -254,6 +286,12 @@ def main(argv=None) -> int:
         "--evolve", type=int, default=1, help="generations of mutation/crossover (0 = off)"
     )
     d.add_argument("--evolve-pop", type=int, default=8, help="children per generation")
+    d.add_argument(
+        "--max-flops", help="drop candidates above this many forward FLOPs per sample, e.g. 50M"
+    )
+    d.add_argument(
+        "--max-vram", help="drop candidates above this estimated training VRAM in MB, e.g. 4000"
+    )
     d.add_argument("--no-proxies", action="store_true", help="skip the zero-cost proxy report")
     for p in plugins._registry().values():
         p.add_arguments(d)
@@ -262,11 +300,6 @@ def main(argv=None) -> int:
         from . import zoo
 
         print(zoo.describe())
-        return 0
-    if args.cmd == "blocks":
-        from . import blocks
-
-        print(blocks.describe())
         return 0
     if args.cmd == "unfold":
         return unfold_run.run(args)

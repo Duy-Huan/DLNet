@@ -8,9 +8,10 @@ from typing import ClassVar
 
 import numpy as np
 
-from .. import hsi_data, hsi_lib
+from .. import hsi_data, zoo
 from ..core import compute_metrics
 from ..profile import capacity_hint, intrinsic_dim_report, rounded, twonn_intrinsic_dim
+from ..zoo import families
 from . import DomainPlugin
 
 HERE = Path(__file__).parent.parent
@@ -92,7 +93,7 @@ TRAIN = {"lr": [1e-3, 3e-3], "wd": [1e-4, 1e-3], "batch": [32, 64]}
 
 class HSIPlugin(DomainPlugin):
     name = "hsi"
-    model_file = HERE / "hsi_lib.py"
+    model_file = HERE / "zoo_model.py"
     extra_files: ClassVar[dict[str, Path]] = {"hsi_data.py": HERE / "hsi_data.py"}
     train_template = TRAIN_PY
     test_template = TEST_PY
@@ -179,7 +180,7 @@ class HSIPlugin(DomainPlugin):
     def generate(self, prof, n_per_family, seed):
         rng = np.random.default_rng(seed)
         cands, seen = [], set()
-        for fam in hsi_lib.FAMILIES:
+        for fam in families.HSI:
             for _ in range(n_per_family * 6):
                 if sum(c["family"] == fam for c in cands) >= n_per_family:
                     break
@@ -187,19 +188,19 @@ class HSIPlugin(DomainPlugin):
                 for k, v in {**SPACE[fam], **TRAIN}.items():
                     cfg[k] = v[int(rng.integers(len(v)))]
                 if fam == "composed":
-                    cfg.update(hsi_lib.sample_composed(rng))
+                    cfg.update(families.sample_composed(rng))
                 key = tuple(sorted(cfg.items()))
                 if key in seen:
                     continue
                 seen.add(key)
-                try:  # static shape check first, then cost model (v0): instantiate and count
-                    if fam == "composed" or fam in hsi_lib.PRESETS:
-                        hsi_lib.plan_composed(
-                            {**cfg, **hsi_lib.PRESETS.get(fam, {})}, prof["n_features"]
-                        )
-                    cfg["params"] = hsi_lib.count_params(
-                        hsi_lib.build_model(cfg, prof["n_features"], prof["n_classes"])
+                try:  # static check, then cost model (v0): the parameter count of the whole model
+                    families.complete(
+                        cfg,
+                        "hsi",
+                        (prof["n_features"], prof["patch"], prof["patch"]),
+                        prof["n_classes"],
                     )
+                    cfg["params"] = families.count_params(cfg)
                 except (RuntimeError, ValueError):
                     continue
                 if cfg["params"] <= prof["max_params"]:
@@ -212,7 +213,7 @@ class HSIPlugin(DomainPlugin):
         return "map", (data["in_dim"], data["patch"], data["patch"]), "cls"
 
     def build_model(self, cfg, in_dim, out_dim):
-        return hsi_lib.build_model(cfg, in_dim, out_dim)
+        return zoo.build_model(cfg, in_dim, out_dim)
 
     def reference(self, data):
         """Classical baselines on the same split: spectral-only AND spectral+spatial (patch-mean).

@@ -41,6 +41,7 @@ Công cụ dùng nội bộ nên **không xét giấy phép** khi lấy module (
 | pytorch/vision | `ViT` | preset `vit` (`patchify` + `pos` + `transformer_block`) |
 | pytorch/vision | `segmentation` ASPP, FPN, FCN | decoder `aspp`, `fpn`, `fcn` (rút gọn) |
 | mamba | `Mamba` (`mamba_simple.py`), `selective_scan_ref` | `mamba_block` (quét tuần tự, giới hạn độ dài 256) |
+| mamba | `Mamba2Simple`, `ssd_minimal_discrete` | `mamba2_block` (SSD theo khối, không giới hạn độ dài) |
 
 Từ paper, viết từ trí nhớ (không có trong nguồn trên): CBAM, ECA, Inception, MobileNetV1 `dw_sep`, ResNet v2 `preact_block`, MLP-Mixer, GLU, DCN `cross_net`, FT-Transformer `feature_tokens`, U-Net.
 
@@ -58,14 +59,32 @@ Từ paper, viết từ trí nhớ (không có trong nguồn trên): CBAM, ECA, 
 | openrec | `LatentFactor` và các recommender (BPR, WRMF, GMF, UCML, YouTube, RNN) | cần đầu vào là id; zoo chưa có kiểu `ids` (bản cũ ở `blocks.py`) |
 | modular_deep_learning | EM, stochastic, expert-loss; optimizer hai nhiệt độ; attention trên hidden của experts | là biến thể huấn luyện, không phải module |
 | pytorch/vision | Inception v3, GoogLeNet phụ trợ, MaxViT, MNASNet, LRASPP, deform conv, DropBlock | chưa làm; detection, video, optical flow, quantization, trọng số pretrained: ngoài phạm vi |
-| mamba | Mamba2/SSD, Mamba3, kernel CUDA/Triton, cache suy luận | cần GPU và kernel riêng; bản port chạy tuần tự |
+| mamba | Mamba3, kernel CUDA/Triton, cache suy luận, `Block`/`MHA`/`MLP` của gói | cần GPU và kernel riêng; Mamba và Mamba-2 đã port bằng PyTorch thuần (Mamba chạy tuần tự, Mamba-2 theo khối) |
 
 ## Kiểm chứng
 
-`PYTHONPATH=<torchvision> python scripts/verify_zoo.py` (torchvision chỉ cài tạm, không phải phụ thuộc) so số tham số và shape đầu ra của 14 khối đã port với khối gốc cùng cấu hình: **14/14 khớp** (BasicBlock, Bottleneck của ResNet-50, ResNeXt-50 32x4d và Wide-ResNet-50-2, ConvNeXt CNBlock, EfficientNet MBConv và FusedMBConv, MobileNetV3 InvertedResidual, RegNet, ShuffleNetV2 stride 1 và 2, SqueezeNet Fire, SqueezeExcitation, Conv2dNormActivation). Các con số đã ghim vào `tests/test_zoo.py::GOLDEN`. Lần kiểm đầu tiên phát hiện MobileNetV3 đặt SE trên kênh đã mở rộng (khác EfficientNet): đã sửa.
+Hai phép kiểm, đều cần cài tạm repo gốc (không phải phụ thuộc của DLNet):
 
-Giới hạn của phép kiểm: khớp số tham số và shape nghĩa là cấu trúc giống, không chứng minh phép tính giống (trọng số không được chép sang, chưa so đầu ra số học). Mamba được kiểm bằng hồi quy tay (`test_mamba_selective_scan_matches_a_manual_recurrence`), chưa so với `mamba_ssm`. Các khối từ paper chưa đối chiếu mã tác giả.
+1. **Số tham số và shape** (`scripts/verify_zoo.py`, torchvision): 14/14 khối khớp; số đã ghim ở `tests/test_zoo.py::GOLDEN`.
+2. **Số học thật** (`scripts/verify_numeric.py --mamba <dir> --cortex <dir>`): dựng khối gốc và khối của zoo cùng cấu hình, **chép trọng số** từ khối gốc sang, so đầu ra trên cùng đầu vào ở chế độ eval. **24/24 khối khớp** (sai khác lớn nhất 4,8e-7):
 
-## `dlnet/blocks.py` (bản M10)
+| Khối | Nguồn gốc | Sai khác lớn nhất |
+|---|---|---|
+| `selective_scan` | `mamba_ssm.selective_scan_ref` | 0 (trùng từng bit) |
+| `mamba_block` (2 cấu hình) | `mamba_ssm.modules.mamba_simple.Mamba`, đường chạy chậm | 0 |
+| `ssd_minimal` | `mamba_ssm.modules.ssd_minimal.ssd_minimal_discrete` (Mamba-2, Listing 1) | 0 |
+| `mamba2_block` (2 cấu hình) | `mamba_ssm.modules.mamba2_simple.Mamba2Simple`, đường không fused; kernel Triton thay bằng SSD tối thiểu của chính repo | ≤ 2,4e-7 |
+| `transformer_block` (3 cấu hình, có/không causal, có/không đổi độ rộng) | cortex `TransformerBlock` | ≤ 2,4e-7 |
+| `conv1d_resid` (2 cấu hình, có dilation) | cortex `Conv1dResidBlock` | ≤ 2,4e-7 |
+| `basic_block`, `bottleneck` (ResNeXt) | torchvision resnet | 0 |
+| `convnext_block`, `mbconv`, `fused_mbconv`, `regnet_block`, `shuffle_unit`, `fire`, `se`, `conv_bn_act`, `patch_merge` | torchvision | 0 |
+| `mbconv` kiểu MobileNetV3 | torchvision mobilenetv3 | 0 với BatchNorm eps mặc định (torchvision dùng 1e-3) |
+| `transformer_block` kiểu ViT (`bias=1`) | torchvision `EncoderBlock` | ≤ 4,8e-7 |
 
-Thư viện khối đầu tiên (backbone/decoder/attention/MoE cho các họ cũ). Vẫn được các họ cũ của plugin ảnh dùng; mọi phần trùng đã có bản tổng quát hơn trong zoo. Sẽ gỡ khi các họ cũ chuyển hẳn sang preset của zoo.
+Những điều phép kiểm này **phát hiện và đã sửa**: (a) MobileNetV3 đặt SE trên kênh đã mở rộng; (b) khối transformer của cortex không có bias và nhánh skip của nó cộng MLP vào **đầu vào của khối** chứ không phải `x + attention` như transformer chuẩn: zoo giữ bản chuẩn làm mặc định và có tùy chọn `cortex_skip=1` để tái hiện chính xác; (c) LayerNorm theo kênh của cortex tính phương sai bằng `E[x²]-E[x]²` kẹp ở eps, nên `conv1d_resid` dùng đúng công thức đó thay vì `nn.LayerNorm`.
+
+**Chưa đối chiếu được** (không có mã tham chiếu cài được ở đây): `window_attn` (torchvision có relative position bias, zoo không), ASPP/FPN/FCN (bản rút gọn), CBAM, ECA, Inception, MLP-Mixer, GLU, DCN, FT-Transformer, U-Net (viết từ paper), `dw_sep` (MobileNetV1). Mamba chỉ đối chiếu đường chạy chậm trên CPU, không có kernel CUDA.
+
+## Các họ cũ đã chuyển thành công thức (M12)
+
+`library.py`, `array_lib.py`, `hsi_lib.py` và `blocks.py` đã bị gỡ; mọi họ nay là công thức sinh spec zoo (`dlnet/zoo/families.py`). Số tham số của công thức so với bản cũ cùng cấu hình (width 16, depth 2): **22/33 họ trùng tuyệt đối**; còn lại lệch ≤ 10% do khác biệt đã biết (`ft_transformer`, `vit`, `ts_transformer`, `spec_transformer`: lớp transformer của zoo không có bias ở LayerNorm/attention theo cortex, −5% đến −7%; `moe_mlp` +10%: mỗi expert không còn head riêng mà một head chung đọc hỗn hợp; `tcn` −0,9%; `fcn` +0,8%; `convnext2d` +0,3%; `densenet`, `hybridsn` ≈ 0%). Các con số trùng được ghim ở `tests/test_cost.py::test_family_param_counts_match_the_earlier_libraries`.

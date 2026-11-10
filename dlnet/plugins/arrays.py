@@ -1,6 +1,6 @@
 """Image classification, image segmentation and time-series plugins: .npz with X and y.
 
-Shapes: see dlnet/array_data.py. Models: dlnet/array_lib.py, built from dlnet/blocks.py.
+Shapes: see dlnet/array_data.py. Models: recipes in dlnet/zoo/families.py (the module zoo).
 """
 
 from __future__ import annotations
@@ -11,7 +11,8 @@ from typing import ClassVar
 
 import numpy as np
 
-from .. import array_data, array_lib, core, profile, reference
+from .. import array_data, core, profile, reference, zoo
+from ..zoo import families as recipes
 from . import DomainPlugin
 
 HERE = Path(__file__).parent.parent
@@ -78,7 +79,7 @@ SPACE = {
             "dropout": [0.0, 0.2],
             "attention": ["none", "none", "se"],
         }
-        for f in array_lib.BACKBONE_FAMILIES
+        for f in [f for f in recipes.IMAGE if f in recipes.BACKBONES]
     },
     **{
         f: {
@@ -88,7 +89,7 @@ SPACE = {
             "encoder": ["vgg", "resnet", "densenet", "mobilenetv2"],
             "attention": ["none", "none", "se"],
         }
-        for f in array_lib.SEG_FAMILIES
+        for f in recipes.SEGMENTATION
     },
     "tcn": {"width": [32, 64], "depth": [2, 3, 4], "dropout": [0.0, 0.1], "kernel": [3, 5, 7]},
     "gru": {"width": [32, 64], "depth": [1, 2], "dropout": [0.0, 0.1]},
@@ -103,11 +104,8 @@ class ArrayPlugin(DomainPlugin):
 
     kind = ""
     families: tuple[str, ...] = ()
-    model_file = HERE / "array_lib.py"
-    extra_files: ClassVar[dict[str, Path]] = {
-        "array_data.py": HERE / "array_data.py",
-        "blocks.py": HERE / "blocks.py",
-    }
+    model_file = HERE / "zoo_model.py"
+    extra_files: ClassVar[dict[str, Path]] = {"array_data.py": HERE / "array_data.py"}
     extra_dirs: ClassVar[dict[str, Path]] = {"zoo": HERE / "zoo"}
     head = "cls"
 
@@ -156,9 +154,9 @@ class ArrayPlugin(DomainPlugin):
         p["max_params"] = int(np.clip(300 * p["n_train"], 5e4, 3e6))
         return p
 
-    def generate(self, prof, n_per_family, seed):
-        import torch
+    domain = ""
 
+    def generate(self, prof, n_per_family, seed):
         rng = np.random.default_rng(seed)
         shape, out_dim = prof["shape"], prof["n_classes"] or 1
         cands, seen = [], set()
@@ -173,12 +171,9 @@ class ArrayPlugin(DomainPlugin):
                 if key in seen:
                     continue
                 seen.add(key)
-                cfg["shape"] = list(shape)
-                try:  # cost model (v0): instantiate, run one tiny batch, count parameters
-                    m = array_lib.build_model(cfg, shape[0], out_dim).eval()
-                    with torch.no_grad():
-                        m(torch.zeros(2, *shape))
-                    cfg["params"] = array_lib.count_params(m)
+                try:  # static check, then cost model (v0): parameters of the whole model
+                    recipes.complete(cfg, self.domain, shape, out_dim)
+                    cfg["params"] = recipes.count_params(cfg)
                 except (RuntimeError, ValueError):
                     continue
                 if cfg["params"] <= prof["max_params"]:
@@ -186,7 +181,7 @@ class ArrayPlugin(DomainPlugin):
         return cands
 
     def build_model(self, cfg, in_dim, out_dim):
-        return array_lib.build_model(cfg, in_dim, out_dim)
+        return zoo.build_model(cfg, in_dim, out_dim)
 
     def reference(self, data):
         """Classical baselines on the flattened input (PCA to 64 dims, fit on train, if large)."""
@@ -207,12 +202,14 @@ class ImageClassificationPlugin(ArrayPlugin):
 
     name = "image_classification"
     kind = "image"
-    families = array_lib.IMAGE_FAMILIES
+    families = recipes.IMAGE
+    domain = "image"
 
 
 class TimeSeriesPlugin(ArrayPlugin):
     name = kind = "timeseries"
-    families = array_lib.TS_FAMILIES
+    families = recipes.TIMESERIES
+    domain = "timeseries"
 
 
 def pixel_features(X: np.ndarray, k: int = 5) -> np.ndarray:
@@ -228,7 +225,8 @@ class ImageSegmentationPlugin(ArrayPlugin):
 
     name = "image_segmentation"
     kind = "segmentation"
-    families = array_lib.SEG_FAMILIES
+    families = recipes.SEGMENTATION
+    domain = "segmentation"
     head = "dense"
     metric_keys = ("miou", "accuracy", "balanced_accuracy", "kappa")
     REF_PIXELS = 20000  # training pixels sampled for the classical per-pixel baselines

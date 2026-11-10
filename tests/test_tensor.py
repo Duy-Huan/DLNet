@@ -12,7 +12,9 @@ from torch import nn
 
 from dlnet import tensor
 from dlnet import tensor_lora as tl
-from dlnet.library import TRLinear, TTLinear, build_model, count_params
+from dlnet.zoo import count_params
+from dlnet.zoo.families import tabular_model as build_model
+from dlnet.zoo.ops_vec import TRLinear, TTLinear
 
 # ------------------------------------------------------------------ HOSVD (data side)
 
@@ -150,10 +152,12 @@ def test_apply_and_merge_on_a_model():
     x = torch.randn(4, 8)
     before = model(x)
     n_all = count_params(model)
-    tl.apply_tensor_lora(model, "tr", rank=2, skip=("head",))
+    tl.apply_tensor_lora(
+        model, "tr", rank=2, skip=("head.f.1",)
+    )  # the zoo head is Head.f = [Dropout, Linear]
     assert torch.allclose(model(x), before)
     trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    assert 0 < trainable < n_all and model.head.weight.requires_grad
+    assert 0 < trainable < n_all and model.head.f[1].weight.requires_grad
     with torch.no_grad():
         for p in model.parameters():
             if p.requires_grad:

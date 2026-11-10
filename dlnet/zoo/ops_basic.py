@@ -140,9 +140,17 @@ def _dropout(dims, kind, p):
     return nn.Dropout(p)
 
 
+def _same_pad(k, dilation):
+    """'same' padding for an int or per-axis kernel size."""
+    if isinstance(k, (list, tuple)):
+        return tuple(dilation * (x - 1) // 2 for x in k)
+    return dilation * (k - 1) // 2
+
+
 class ConvBNAct(nn.Sequential):
-    def __init__(self, nd, i, o, k, s, groups, dilation, a, norm):
-        pad = dilation * (k - 1) // 2
+    def __init__(self, nd, i, o, k, s, groups, dilation, a, norm, pad="same"):
+        pad = 0 if pad == "valid" else _same_pad(k, dilation)
+        k, s = (tuple(k) if isinstance(k, list) else k), (tuple(s) if isinstance(s, list) else s)
         layers = [CONV[nd](i, o, k, s, pad, dilation=dilation, groups=groups, bias=norm == "none")]
         if norm != "none":
             layers.append(norm_layer({1: "ser", 2: "map", 3: "vol"}[nd], o, norm))
@@ -153,14 +161,18 @@ class ConvBNAct(nn.Sequential):
 
 @op("conv_bn_act", SP, space={"out": [16, 32, 64, 128], "k": [3, 1, 5, 7], "s": [1, 2],
     "groups": [1, 2, 4, 8, 16], "dilation": [1, 2, 4], "act": ["relu", "gelu", "swish", "leaky", "identity"],
-    "norm": ["batch", "group", "layer", "frn", "none"]}, tags={"stem", "block", "down"},
+    "norm": ["batch", "group", "layer", "frn", "none"], "pad": ["same", "valid"]}, tags={"stem", "block", "down"},
     source="pytorch/vision Conv2dNormActivation; rasbt/deeplearning-models (conv layers)")  # fmt: skip
-def _conv_bn_act(dims, kind, out, k, s, groups, dilation, act, norm):
-    """Convolution (any of 1/2/3-D), normalisation, activation; grouped and dilated variants."""
+def _conv_bn_act(dims, kind, out, k, s, groups, dilation, act, norm, pad):
+    """Convolution (any of 1/2/3-D), normalisation, activation; grouped and dilated variants.
+
+    k and s may be a list with one entry per spatial axis (e.g. [7, 3, 3] for a 3-D convolution
+    over (bands, height, width)); pad "valid" uses no padding.
+    """
     c = dims[0]
     if c % groups or out % groups:
         raise ValueError("groups must divide the channels")
-    return ConvBNAct(ND[kind], c, out, k, s, groups, dilation, act, norm)
+    return ConvBNAct(ND[kind], c, out, k, s, groups, dilation, act, norm, pad)
 
 
 @op("dw_sep", SP, space={"out": [16, 32, 64, 128], "k": [3, 5], "s": [1, 2], "act": ["relu", "relu6", "swish"]},
@@ -182,8 +194,11 @@ def _dw_sep(dims, kind, out, k, s, act):
     source="torch.nn",
 )
 def _pool(dims, kind, mode, k, s):
+    """Max or average pooling; k and s may be per-axis lists, odd sizes round up (ceil mode)."""
     nd = ND[kind]
-    return (MAXP if mode == "max" else AVGP)[nd](k, s, k // 2 if s == 1 else 0)
+    k, s = (tuple(k) if isinstance(k, list) else k), (tuple(s) if isinstance(s, list) else s)
+    pad = k // 2 if (s == 1 and isinstance(k, int)) else 0
+    return (MAXP if mode == "max" else AVGP)[nd](k, s, pad, ceil_mode=pad == 0)
 
 
 # ---------------------------------------------------------------------- adapters
@@ -202,6 +217,85 @@ def _gap(dims, kind, mode):
 @op("flatten", ("seq", "ser", "map", "vol"), "vec", space={}, tags={"adapt"}, source="torch.nn")
 def _flatten(dims, kind):
     return nn.Flatten()
+
+
+class PoolFlatten(nn.Module):
+    """Adaptive average pooling to a fixed spatial size, then flatten (what the old CNN families end with)."""
+
+    def __init__(self, nd, size):
+        super().__init__()
+        self.f = nn.Sequential(
+            GAP[nd](tuple(size) if isinstance(size, list) else size), nn.Flatten()
+        )
+
+    def forward(self, x):
+        return self.f(x)
+
+
+@op(
+    "pool_flatten",
+    SP,
+    "vec",
+    space={"size": [3, 2, 1]},
+    tags={"adapt"},
+    source="torch.nn (CNN heads of the earlier families)",
+)
+def _pool_flatten(dims, kind, size):
+    """(C, *spatial) -> (C * prod(size)): adaptive average pooling to `size` (int or per-axis list), flattened."""
+    return PoolFlatten(ND[kind], size)
+
+
+class CenterSpectrum(nn.Module):
+    def forward(self, x):
+        h, w = x.shape[2] // 2, x.shape[3] // 2
+        return x[:, :, h, w].unsqueeze(1)
+
+
+@op(
+    "center_spectrum",
+    "map",
+    "ser",
+    space={},
+    tags={"adapt", "stem"},
+    source="DLNet HSI: the spectrum of the centre pixel as a series (1, bands)",
+)
+def _center_spectrum(dims, kind):
+    return CenterSpectrum()
+
+
+class ToVol(nn.Module):
+    def forward(self, x):
+        return x.unsqueeze(1)
+
+
+@op(
+    "to_vol",
+    "map",
+    "vol",
+    space={},
+    tags={"adapt", "stem"},
+    source="DLNet HSI: (bands, H, W) -> (1, bands, H, W), the spectrum becomes the depth axis",
+)
+def _to_vol(dims, kind):
+    return ToVol()
+
+
+class VolToMap(nn.Module):
+    def forward(self, x):
+        n, c, d, h, w = x.shape
+        return x.reshape(n, c * d, h, w)
+
+
+@op(
+    "vol_to_map",
+    "vol",
+    "map",
+    space={},
+    tags={"adapt"},
+    source="HybridSN (Roy et al., arXiv:1902.06701): fold depth into channels",
+)
+def _vol_to_map(dims, kind):
+    return VolToMap()
 
 
 class Tokens(nn.Module):

@@ -19,9 +19,18 @@ from torch import nn
 
 from dlnet import core, tensor
 from dlnet import tensor_lora as tl
-from dlnet.library import build_model, count_params
+from dlnet.zoo import build_model as _zoo_build
+from dlnet.zoo import count_params
+from dlnet.zoo.families import complete
 
 SEEDS, EPOCHS = (0, 1, 2), 40
+
+
+def build_model(cfg, in_dim, out_dim):
+    """A tabular family of dlnet/zoo/families.py as a model."""
+    cfg = dict(cfg)
+    complete(cfg, "tabular", (in_dim,), out_dim)
+    return _zoo_build(cfg)
 
 
 def _fit(model, data, seed, lr=3e-3):
