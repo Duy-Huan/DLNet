@@ -6,6 +6,8 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-11-10
+
 Mốc M12 (xem `agent.md` §13.6, `THIRD_PARTY.md`): một thư viện duy nhất, cost model FLOPs/VRAM, đối chiếu số học với mã gốc.
 
 ### Thêm
@@ -214,7 +216,8 @@ Bản đầu tiên: prototype chạy được từ dữ liệu đến Top-K base
 - Chưa có zero-cost proxy, cost model FLOPs/VRAM, Tensor-LoRA, deep unfolding; chưa có plugin image và timeseries.
 - Kết quả trên Indian Pines và Pavia University là một lần chạy ngắn trên CPU: với chia theo khối, mạng sâu chưa vượt rõ baseline cổ điển.
 
-[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v0.10.0...HEAD
+[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v0.11.0...HEAD
+[0.11.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.11.0
 [0.10.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.10.0
 [0.9.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.9.0
 [0.8.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.8.0
