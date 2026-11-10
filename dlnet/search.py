@@ -17,16 +17,24 @@ def _new_trainer(cfg, data, seed, build_fn):
 
 def run_search(data, cands, deadline, topk, build_fn, rungs=(4, 12, 30), eta=3, seeds=3, log=print):
     # --- stage 1: successive halving (resumable trainers, seed 0)
+    if not cands:
+        raise ValueError("no candidates to search")
     alive = [{"cfg": c, "tr": _new_trainer(c, data, 0, build_fn)} for c in cands]
     log(f"[search] {len(alive)} candidates, rungs={rungs}")
     for r, ep in enumerate(rungs):
-        for a in alive:
-            if time.time() > deadline:
+        finished = []
+        for i, a in enumerate(alive):
+            # The very first candidate always trains, so even a spent budget yields a result.
+            if time.time() > deadline and not (r == 0 and i == 0):
                 break
             a["tr"].fit(ep - a["tr"].epochs_done)
             a["val0"] = a["tr"].evaluate("va")["score"]
-        alive = [a for a in alive if "val0" in a]
-        alive.sort(key=lambda a: -a["val0"])
+            finished.append(a)
+        if not finished:  # budget spent before this rung started: rank what the last rung left
+            log("[search] time budget reached; ranking with what is done")
+            break
+        # Only candidates that completed THIS rung compete: never rank different epoch counts.
+        alive = sorted(finished, key=lambda a: -a["val0"])
         keep = max(math.ceil(len(alive) / eta), min(len(alive), topk * 2))
         if r < len(rungs) - 1:
             alive = alive[:keep]

@@ -36,6 +36,8 @@ def design(args) -> int:
         print(f"[reference] {r['name']:<26} val={r['va']['score']:.4f}")
 
     cands = plugin.generate(prof, args.per_family, args.seed)
+    if not cands:
+        raise SystemExit("no valid candidate was generated (check --per-family and the budget)")
     fams = sorted({c["family"] for c in cands})
     print(f"[generate] {len(cands)} valid candidates from families {fams}")
 

@@ -20,10 +20,11 @@ def load_csv(path: str, target: str):
     import pandas as pd
 
     df = pd.read_csv(path)
+    df = df.dropna(subset=[target])  # a row without a label cannot be used
     y = df[target].to_numpy()
     X = pd.get_dummies(df.drop(columns=[target]))
     X = X.apply(pd.to_numeric, errors="coerce").astype("float32")
-    X = X.fillna(X.median())
+    # Missing features stay NaN here; prepare() imputes with TRAIN medians (no test leakage).
     return X.to_numpy(dtype=np.float32), y, list(X.columns)
 
 
@@ -50,6 +51,9 @@ def stratified_split(y: np.ndarray, task: str, seed: int, frac=(0.6, 0.2, 0.2)):
         g = rng.permutation(g)
         a = int(len(g) * frac[0])
         b = a + int(len(g) * frac[1])
+        if len(g) >= 3:  # every group with >= 3 members is present in every split
+            a = max(a, 1)
+            b = min(max(b, a + 1), len(g) - 1)
         tr += list(g[:a])
         va += list(g[a:b])
         te += list(g[b:])
@@ -60,6 +64,16 @@ def prepare(X, y, task: str, seed: int = 0) -> dict:
     """Split 60/20/20, standardise with train statistics, return tensors."""
     y, classes = encode_target(y, task)
     tr, va, te = stratified_split(y, task, seed)
+    if min(len(tr), len(va), len(te)) == 0:
+        raise ValueError(
+            f"too few samples ({len(y)}) for a 60/20/20 split: "
+            f"train={len(tr)} val={len(va)} test={len(te)}"
+        )
+    X = X.astype(np.float32, copy=True)
+    med = np.nanmedian(X[tr], axis=0)  # impute with TRAIN medians only
+    med = np.where(np.isnan(med), 0.0, med)
+    bad = np.isnan(X)
+    X[bad] = np.take(med, np.nonzero(bad)[1])
     mu, sd = X[tr].mean(0), X[tr].std(0) + 1e-6
     Xs = ((X - mu) / sd).astype(np.float32)
     d = {"task": task, "classes": classes, "in_dim": X.shape[1], "seed": seed}
