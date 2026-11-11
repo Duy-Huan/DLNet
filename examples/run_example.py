@@ -216,7 +216,11 @@ def run(name, budget, epochs, threads):
                 "--budget", budget, "--topk", 3, "--seed", 0, "--threads", threads, "--no-cache", *case["args"]],
                ROOT, qc_dir / "1_design.log", env)  # fmt: skip
     steps["1_design"] = {"ok": rc == 0, "seconds": t}
-    pkgs = sorted(p for p in (out.iterdir() if out.exists() else []) if p.is_dir() and p.name.startswith("top"))
+    pkgs = sorted(
+        p
+        for p in (out.iterdir() if out.exists() else [])
+        if p.is_dir() and p.name.startswith("top")
+    )
     steps["1_design"]["packages"] = [p.name for p in pkgs]
     if rc or not pkgs:
         return finish(name, qc_dir, steps, None)

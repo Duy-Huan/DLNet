@@ -56,9 +56,7 @@ SOURCES = {
 }  # fmt: skip
 # ISBI 2012 EM segmentation challenge training set (30 slices), as shipped by the U-Net Keras repo
 ISBI = "https://raw.githubusercontent.com/zhixuhao/unet/master/data/membrane/train"
-ISBI_SHA256 = (
-    "a6036caf93768d8ec1c099fa735bf6e9fa33f9093c08f7e94ad3ba6945c3deac"  # image_0..29 then label_0..29, numeric order
-)
+ISBI_SHA256 = "a6036caf93768d8ec1c099fa735bf6e9fa33f9093c08f7e94ad3ba6945c3deac"  # image_0..29 then label_0..29, numeric order
 
 # CamVid 32 -> the 11 classes of the SegNet benchmark (Brostow et al. 2009; Badrinarayanan et al.
 # 2017); Void and anything unlisted -> ignored (-100)
@@ -301,7 +299,9 @@ def camvid(case: str, cache: Path, size=(120, 90)) -> None:
             for m in members:
                 lut[codes.index(m)] = k
         names = sorted(
-            m.name for m in t.getmembers() if m.name.startswith("camvid/images/") and m.name.endswith(".png")
+            m.name
+            for m in t.getmembers()
+            if m.name.startswith("camvid/images/") and m.name.endswith(".png")
         )
         X, y = [], []
         for name in names:

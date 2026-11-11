@@ -17,6 +17,10 @@ pytestmark = pytest.mark.regression
 
 ROOT = Path(__file__).resolve().parent.parent
 MAX_TRACKED_MB = 50  # GitHub hard limit is 100 MB per file
+# examples/<domain>/<case>/input/ holds the publishers' dataset files unchanged (examples/prepare_data.py,
+# sha256 in SOURCE.md); Botswana.mat is 75 MB and losslessly compressed still 73 MB. Allowed up to
+# 95 MB there, below GitHub's 100 MB hard limit; everything else stays under 50 MB.
+MAX_DATASET_MB = 95
 
 
 def tracked():
@@ -35,12 +39,18 @@ def test_no_virtualenv_or_oversized_file_is_tracked():
         p for _, p in tracked() if re.search(r"(^|/)(\.venv|venv|site-packages)/|pyvenv\.cfg$", p)
     ]
     assert not bad, f"virtualenv files are tracked: {bad[:5]}"
+
+    def limit(p):
+        return MAX_DATASET_MB if re.match(r"examples/[^/]+/[^/]+/input/", p) else MAX_TRACKED_MB
+
     big = [
         p
         for _, p in tracked()
-        if (ROOT / p).is_file() and (ROOT / p).stat().st_size > MAX_TRACKED_MB * 2**20
+        if (ROOT / p).is_file() and (ROOT / p).stat().st_size > limit(p) * 2**20
     ]
-    assert not big, f"files over {MAX_TRACKED_MB} MB are tracked: {big}"
+    assert not big, (
+        f"files over the size limit ({MAX_TRACKED_MB} MB, {MAX_DATASET_MB} MB for example datasets): {big}"
+    )
 
 
 def test_gitignore_blocks_the_venv():
