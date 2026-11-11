@@ -41,8 +41,15 @@ def load_csv(path: str, target: str, warnings: list | None = None):
 
     df = pd.read_csv(path)
     if target not in df.columns:
+        import difflib
+
+        cols = [str(c) for c in df.columns]
+        close = [c for c in cols if c.lower() == str(target).lower()] or difflib.get_close_matches(
+            str(target), cols, n=3
+        )
+        hint = f"; did you mean {close}?" if close else ""
         raise SystemExit(
-            f"--target {target!r} is not a column of {path}; columns: {list(df.columns)}"
+            f"--target {target!r} is not a column of {path}{hint} Columns: {list(df.columns)}"
         )
     df = df.dropna(subset=[target])  # a row without a label cannot be used
     y = df[target].to_numpy()
@@ -64,6 +71,29 @@ def load_csv(path: str, target: str, warnings: list | None = None):
     X = X.apply(pd.to_numeric, errors="coerce").astype("float32")
     # Missing features stay NaN here; prepare() imputes with TRAIN medians (no test leakage).
     return X.to_numpy(dtype=np.float32), y, list(X.columns)
+
+
+def load_features(path: str, columns: list, target: str | None = None) -> np.ndarray:
+    """Features of a NEW csv in the column layout of training (predict.py): the same numeric
+    reading as load_csv, one-hot columns unseen in training dropped, missing ones set to 0, and
+    numeric columns absent from the file left missing (imputed with the TRAIN median)."""
+    import pandas as pd
+
+    df = pd.read_csv(path)
+    feats = df.drop(columns=[target]) if target and target in df.columns else df
+    for c in feats.columns:
+        if not pd.api.types.is_numeric_dtype(feats[c]) and not pd.api.types.is_bool_dtype(feats[c]):
+            num = pd.to_numeric(feats[c], errors="coerce")
+            n = int(feats[c].notna().sum())
+            if n and int(num.notna().sum()) / n >= 0.9:
+                feats[c] = num
+    X = pd.get_dummies(feats)
+    X = X.apply(pd.to_numeric, errors="coerce").astype("float32")
+    missing = [c for c in columns if c not in X.columns]
+    one_hot = {c for c in missing if any(c.startswith(f"{b}_") for b in feats.columns)}
+    X = X.reindex(columns=columns)
+    X[sorted(one_hot)] = X[sorted(one_hot)].fillna(0.0)  # a category absent from this file
+    return np.array(X.to_numpy(dtype=np.float32), copy=True)  # writable (pandas may share memory)
 
 
 def detect_task(y: np.ndarray) -> str:
@@ -114,7 +144,8 @@ def prepare(X, y, task: str, seed: int = 0) -> dict:
     X[bad] = np.take(med, np.nonzero(bad)[1])
     mu, sd = X[tr].mean(0), X[tr].std(0) + 1e-6
     Xs = ((X - mu) / sd).astype(np.float32)
-    d = {"task": task, "classes": classes, "in_dim": X.shape[1], "seed": seed}
+    d = {"task": task, "classes": classes, "in_dim": X.shape[1], "seed": seed,
+         "preprocess": {"type": "table", "median": med, "mean": mu, "std": sd}}  # fmt: skip
     if task == "regression":
         d["y_mean"], d["y_std"] = float(y[tr].mean()), float(y[tr].std() + 1e-6)
         d["y_raw"] = {k: y[i] for k, i in zip(("tr", "va", "te"), (tr, va, te))}
@@ -180,6 +211,16 @@ def compute_metrics(y_true, y_pred, task: str, primary: str) -> dict:
 # ------------------------------------------------------------------------ device
 
 DEVICE, AMP = "auto", "auto"  # defaults of every Trainer; `dlnet design --device/--amp` sets them
+# Training recipe (`dlnet design --recipe`): "modern" = augmentation for images (random shifts of up
+# to 1/8 of the side; horizontal flips for colour images and for segmentation, applied to image and
+# mask together) and label smoothing 0.1 for classification; "plain" = neither (DLNet <= 0.21).
+# Measured by the audit on a standard ResNet: removing both cost 2.3 test points on Fashion-MNIST
+# and 17.3 on CIFAR-10 (qa/reports/v0.19.0). train_full adds a linear warm-up to its cosine.
+RECIPE = "modern"
+RECIPES = {
+    "modern": {"augment": True, "label_smoothing": 0.1},
+    "plain": {"augment": False, "label_smoothing": 0.0},
+}
 
 
 def pick_device(name="auto") -> torch.device:
@@ -229,8 +270,10 @@ class Trainer:
         seed=0,
         device=None,
         amp=None,
+        recipe=None,
     ):
         torch.manual_seed(seed)
+        self.recipe = RECIPES[recipe or RECIPE]
         self.device = pick_device(DEVICE if device is None else device)
         self.amp = amp_dtype(self.device, AMP if amp is None else amp)
         # NHWC is faster for convolutions on GPUs (tensor cores); on the CPU it is left as is
@@ -248,8 +291,38 @@ class Trainer:
         self.loss_fn = (
             nn.MSELoss()
             if data["task"] in ("regression", "reconstruction")
-            else nn.CrossEntropyLoss()
+            else nn.CrossEntropyLoss(label_smoothing=self.recipe["label_smoothing"])
         )
+        kind = data.get("kind")
+        self.augment = self.recipe["augment"] and kind in ("image", "segmentation")
+        if self.augment:
+            c, h, w = data["shape"][:3]
+            self.shift = 0 if kind == "segmentation" else max(1, min(h, w) // 8)
+            self.flip = kind == "segmentation" or c == 3  # digits and letters must not be mirrored
+
+    def _augment(self, xb, yb):
+        """Random shift (zero padding) and horizontal flip per sample, on the training device.
+
+        One affine resampling at integer pixel offsets: exact pixel values, no host round trip."""
+        n = xb.shape[0]
+        g = self.gen
+        sign = torch.ones(n)
+        if self.flip:
+            sign = torch.where(torch.rand(n, generator=g) < 0.5, -1.0, 1.0)
+        theta = torch.zeros(n, 2, 3)
+        theta[:, 0, 0], theta[:, 1, 1] = sign, 1.0
+        if self.shift:
+            h, w = xb.shape[-2:]
+            d = torch.randint(-self.shift, self.shift + 1, (n, 2), generator=g).float()
+            theta[:, 0, 2], theta[:, 1, 2] = 2 * d[:, 0] / w, 2 * d[:, 1] / h
+        theta = theta.to(xb.device, xb.dtype)
+        grid = nn.functional.affine_grid(theta, list(xb.shape), align_corners=False)
+        xb = nn.functional.grid_sample(
+            xb, grid, mode="nearest", padding_mode="zeros", align_corners=False
+        )
+        if yb.dim() == 3:  # segmentation mask: the same flip (no shift for masks)
+            yb = torch.where((sign < 0).to(yb.device)[:, None, None], yb.flip(-1), yb)
+        return xb.contiguous(memory_format=torch.channels_last) if self.channels_last else xb, yb
 
     def split(self, key: str):
         """data[key] on the training device: copied once per data dict and device, unless it
@@ -289,6 +362,8 @@ class Trainer:
                 if len(b) < 2:
                     continue
                 xb, yb = self.batch_of(X, b), self.batch_of(y, b)
+                if self.augment:
+                    xb, yb = self._augment(xb, yb)
                 with self._autocast():
                     out = self.model(xb)
                     out = out.squeeze(-1) if self.data["task"] == "regression" else out
@@ -336,10 +411,20 @@ class Trainer:
         return compute_metrics(d["y_raw"][split], pred, d["task"], d["primary"])
 
 
-def train_full(model, data, lr, wd, batch, epochs, seed=0, device=None, amp=None):
-    """Full recipe: cosine LR, keep the best-validation checkpoint."""
-    tr = Trainer(model, data, lr=lr, wd=wd, batch=batch, seed=seed, device=device, amp=amp)
-    sched = torch.optim.lr_scheduler.CosineAnnealingLR(tr.opt, T_max=epochs)
+def train_full(model, data, lr, wd, batch, epochs, seed=0, device=None, amp=None, recipe=None):
+    """Full recipe: linear warm-up (5 % of the epochs, at least 1) then cosine decay, keep the
+    best-validation checkpoint."""
+    tr = Trainer(
+        model, data, lr=lr, wd=wd, batch=batch, seed=seed, device=device, amp=amp, recipe=recipe
+    )
+    warm = max(1, epochs // 20)
+
+    def factor(e):  # e = epochs finished
+        if e < warm:
+            return (e + 1) / (warm + 1)
+        return 0.5 * (1 + math.cos(math.pi * (e - warm) / max(epochs - warm, 1)))
+
+    sched = torch.optim.lr_scheduler.LambdaLR(tr.opt, factor)
     best, best_state = -math.inf, None
     for _ in range(epochs):
         tr.fit(1, scheduler=sched)
@@ -348,3 +433,32 @@ def train_full(model, data, lr, wd, batch, epochs, seed=0, device=None, amp=None
             best, best_state = v, copy.deepcopy(model.state_dict())
     model.load_state_dict(best_state)
     return tr, best
+
+
+# ------------------------------------------------------------------------ artifacts
+
+
+def _plain(x):
+    if isinstance(x, dict):
+        return {k: _plain(v) for k, v in x.items()}
+    if isinstance(x, (list, tuple)):
+        return [_plain(v) for v in x]
+    if isinstance(x, np.ndarray):
+        return _plain(x.tolist())
+    if isinstance(x, np.generic):
+        return x.item()
+    return x
+
+
+def save_artifacts(model, data, out_dir=".") -> None:
+    """Write model.pt (weights) and preprocess.json (everything predict.py needs to turn a new
+    file into model input and the output back into labels: TRAIN statistics, columns, classes)."""
+    import json
+    from pathlib import Path
+
+    out = Path(out_dir)
+    torch.save({k: v.detach().cpu() for k, v in model.state_dict().items()}, out / "model.pt")
+    meta = {"task": data["task"], "kind": data.get("kind"), "classes": data.get("classes"),
+            "y_mean": data.get("y_mean"), "y_std": data.get("y_std"),
+            "shape": data.get("shape"), "preprocess": data.get("preprocess")}  # fmt: skip
+    (out / "preprocess.json").write_text(json.dumps(_plain(meta), indent=1))

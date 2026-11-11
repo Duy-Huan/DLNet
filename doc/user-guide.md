@@ -6,16 +6,18 @@ Mọi tùy chọn có trong [cli.md](cli.md).
 
 ## 1. Cài đặt
 
-Cần Python 3.12 (đã kiểm tra trên Linux, macOS, Windows).
+Cần Python 3.10–3.13 (CI kiểm tra 3.10, 3.11, 3.12 trên Linux, macOS, Windows).
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate            # Windows: .venv\Scripts\activate
-pip install -r requirements.txt      # numpy, pandas, scipy, scikit-learn, torch (phiên bản ghim)
+# Máy KHÔNG có GPU NVIDIA: cài torch bản CPU TRƯỚC (nếu không, bước sau tải bản CUDA nhiều GB)
+pip install torch==2.15.0 --index-url https://download.pytorch.org/whl/cpu
+pip install -r requirements.txt      # numpy, pandas, scipy, scikit-learn, threadpoolctl, torch (ghim)
 python -m dlnet selfcheck            # khoảng 20 giây; in "selfcheck OK"
 ```
 
-Máy không có GPU: cài torch bản CPU trước (`pip install torch==2.15.0 --index-url https://download.pytorch.org/whl/cpu`). Script `scripts/setup_env.sh` / `setup_env.ps1` làm cả các bước trên.
+Script `scripts/setup_env.sh` / `setup_env.ps1` làm cả các bước trên.
 
 Máy có GPU NVIDIA: cài torch bản CUDA theo hướng dẫn trên pytorch.org (ví dụ `--index-url https://download.pytorch.org/whl/cu128`), kiểm tra bằng `python -c "import torch; print(torch.cuda.is_available())"`. DLNet tự dùng GPU khi torch thấy nó (mục 7).
 
@@ -135,6 +137,7 @@ python -m dlnet design --data new.npz --meta-store meta_image.jsonl
 | `--budget 400ep` | ngân sách **theo epoch**: mỗi epoch của bất kỳ ứng viên nào tính 1; các bước không huấn luyện (hồ sơ, baseline, proxy) không tính. Cùng lệnh cho cùng leaderboard trên máy nhanh hay chậm: dùng khi cần tái lập kết quả, so sánh hai cấu hình, hoặc chạy trong CI |
 | `--device auto` | thiết bị huấn luyện: `auto` (GPU CUDA nếu có, rồi Apple MPS, rồi CPU), `cpu`, `cuda`, `cuda:1`, `mps`. Chọn `cuda` mà không có GPU thì báo lỗi ngay, trước khi tiêu ngân sách |
 | `--amp auto` | mixed precision: `auto` = bfloat16 trên GPU hỗ trợ (fp16 kèm loss scaling trên GPU cũ), float32 trên CPU/MPS; `off` tắt; `bf16`/`fp16` ép (trên CPU chậm hơn float32, chỉ để thử) |
+| `--recipe modern` | công thức huấn luyện: `modern` (mặc định) = augmentation cho ảnh (dịch tối đa 1/8 cạnh; lật ngang cho ảnh màu và phân đoạn) và label smoothing 0,1; `plain` = không (như DLNet ≤ 0.21) |
 | `--threads 4` | số luồng CPU cho torch, BLAS, OpenMP. Mặc định `0` = số CPU còn rảnh lúc bắt đầu. **Chạy nhiều lệnh cùng lúc** trên một máy: đặt tổng `--threads` ≤ số CPU (ví dụ 4 lệnh trên máy 8 CPU: `--threads 2`); để mỗi lệnh dùng hết CPU có thể làm baseline treo rất lâu. Muốn hai lần chạy giống hệt từng bit: cố định `--threads` |
 | `--max-params 500k`, `--max-flops 50M`, `--max-vram 4000` | loại ứng viên vượt giới hạn trước khi huấn luyện (VRAM là ước lượng, chưa đối chiếu GPU) |
 | `--zoo 12`, `--evolve 1`, `--evolve-pop 8` | số kiến trúc từ zoo, số thế hệ tiến hóa, số con mỗi thế hệ |
@@ -166,16 +169,25 @@ DLNet chỉ bắt đầu một lần huấn luyện khi dự báo nó kết thú
 
 ## 9. Huấn luyện lại một baseline
 
-Mỗi `top<i>_*` là một gói độc lập (chỉ cần torch và numpy):
+Mỗi `top<i>_*` là một gói độc lập: cần torch và numpy; gói bảng cần thêm pandas, gói HSI cần scipy (khi đọc `.mat`). Các lệnh chạy được từ bất kỳ thư mục nào.
 
 ```bash
-cd dlnet_out/top1_resnet
-python train.py --data ../../images.npz --epochs 100 --seed 0            # GPU tự dùng nếu có
-python train.py --data ../../images.npz --device cpu --amp off           # ép CPU, float32
-python -m pytest tests -q
+python dlnet_out/top1_resnet/train.py --data images.npz --epochs 100 --seed 0   # GPU tự dùng nếu có
+python dlnet_out/top1_resnet/train.py --data images.npz --device cpu --amp off  # ép CPU, float32
+python -m pytest dlnet_out/top1_resnet/tests -q
 ```
 
-`config.yaml` (JSON hợp lệ) ghi spec kiến trúc, hyperparameter (`hyperparameters.source` cho biết giá trị đã tìm hay đã ước lượng), cách dựng lại dữ liệu và seed chia. Muốn dùng mô hình trong mã của bạn: `from model import build_model; m = build_model(cfg["arch"], cfg["in_dim"], cfg["out_dim"])`.
+`train.py` dùng công thức của lần tìm kiếm (`config.yaml` → `recipe`: warm-up rồi cosine, augmentation và label smoothing nếu `modern`), giữ checkpoint tốt nhất theo validation, rồi **lưu `model.pt` (trọng số) và `preprocess.json`** (thống kê chuẩn hóa của TRAIN, tên cột, danh sách lớp, ...).
+
+### Dự đoán trên dữ liệu mới
+
+```bash
+python dlnet_out/top1_resnet/predict.py --data new_images.npz --out predictions.npy
+python dlnet_out/top1_tabular_mlp/predict.py --data new_rows.csv --out predictions.csv   # bảng: CSV cùng cột, không cần cột đích
+python dlnet_out/top1_resnet/predict.py --data new_images.npz --export model.pt2          # thêm: đồ thị triển khai (torch.export)
+```
+
+File mới cùng định dạng với dữ liệu huấn luyện, không cần nhãn. Kết quả theo đơn vị gốc: nhãn lớp gốc (ví dụ `"cat"`, `21`), giá trị hồi quy gốc, mask với giá trị lớp gốc (phân đoạn), ảnh tái tạo theo thang gốc, bản đồ lớp (H, W) cho ảnh siêu phổ. `--export model.onnx` cần `pip install onnx onnxscript`. Trong mã Python: `import inference; model, meta, cfg = inference.load("dlnet_out/top1_resnet"); y = inference.predict_file(model, meta, cfg, "new.npz")`.
 
 ## 10. Học từ các lần chạy trước
 
@@ -199,9 +211,9 @@ python -m dlnet mcp                                               # MCP server c
 
 | Triệu chứng | Cách xử lý |
 |---|---|
-| `cannot tell the data type` | thêm `--plugin ...` hoặc đổi tên mảng / dùng `--x-key`, `--y-key` |
+| `cannot tell the data type` | thông báo liệt kê các mảng trong file: đổi tên thành `X`, `y` hoặc dùng `--x-key`, `--y-key` kèm `--plugin` |
 | `--out` đã có kết quả cũ | DLNet không xóa thư mục lạ; chọn `--out` khác |
-| `no valid candidate was generated` | nới `--max-params` / `--max-flops`, tăng `--per-family` |
+| `no valid candidate: ... none fits --max-params ...` | nới giới hạn (thông báo cho biết ứng viên nhỏ nhất có bao nhiêu tham số) hoặc tăng `--per-family`, `--zoo` |
 | Chỉ vài ứng viên được huấn luyện | tăng `--budget`, hoặc giảm `--zoo`, `--per-family`, hoặc dùng `--seeds N` |
 | Kết luận "không thắng baseline" | đó là kết quả thật: baseline cổ điển đủ tốt cho dữ liệu này, hoặc ngân sách quá ngắn |
 | `every candidate failed to train` | xem `failed_candidates`/log: thường do lr quá lớn, dữ liệu có `inf`, hoặc spec lỗi trong `--extra-specs` |

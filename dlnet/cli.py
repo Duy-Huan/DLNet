@@ -122,8 +122,12 @@ def design(args) -> int:
     except ValueError as e:
         raise SystemExit(f"--device: {e}") from None
     amp = core.amp_dtype(dev, args.amp)
-    saved = core.DEVICE, core.AMP
-    core.DEVICE, core.AMP = str(dev), args.amp  # every Trainer of this run
+    saved = core.DEVICE, core.AMP, core.RECIPE
+    core.DEVICE, core.AMP, core.RECIPE = (
+        str(dev),
+        args.amp,
+        args.recipe,
+    )  # every Trainer of this run
     print(f"[device] {dev}" + (f" ({torch_name(dev)})" if dev.type == "cuda" else "")
           + f", precision {'float32' if amp is None else str(amp).split('.')[-1]} (--device, --amp)")  # fmt: skip
     try:
@@ -131,7 +135,7 @@ def design(args) -> int:
             print(f"[threads] {n} (of {threads.available_cpus()} CPUs; --threads to change)")
             return _design(args, n)
     finally:
-        core.DEVICE, core.AMP = saved
+        core.DEVICE, core.AMP, core.RECIPE = saved
 
 
 def torch_name(dev) -> str:
@@ -163,6 +167,14 @@ def _design(args, n_threads) -> int:
     from .zoo import space
 
     t_wall = time.time()
+    from .zoo import cost as _cost
+
+    for k in ("max_params", "max_flops", "max_vram"):  # fail before any work, not with a traceback
+        try:
+            _cost.parse_size(getattr(args, k))
+        except (ValueError, KeyError):
+            raise SystemExit(f"bad --{k.replace('_', '-')} {getattr(args, k)!r}: use a number such as "
+                             "500k, 50M or 2G") from None  # fmt: skip
     budget, clock_mode = parse_budget_mode(args.budget)
     t0 = clock.start(clock_mode)
     clock.stage("load")
@@ -219,9 +231,17 @@ def _design(args, n_threads) -> int:
         origins = sorted({c["origin"].split(":")[0] for c in zoo_cands})
         print(f"[zoo] {len(zoo_cands)} architectures from the module zoo ({', '.join(origins)})")
     cands += zoo_cands
+    n_generated = len(cands)
+    smallest = min((c.get("params") or 0 for c in cands), default=0)
     cands = _apply_cost_model(plugin, data, cands, args)
     if not cands:
-        raise SystemExit("no valid candidate was generated (check --per-family and the budget)")
+        limits = [f"--{k.replace('_', '-')} {getattr(args, k)}" for k in ("max_params", "max_flops", "max_vram")
+                  if getattr(args, k)]  # fmt: skip
+        raise SystemExit(
+            f"no valid candidate: {n_generated} were generated" + (
+                f" but none fits {', '.join(limits)} (the smallest has {smallest:,} parameters); loosen the limit"
+                if limits and n_generated else "; raise --per-family / --zoo")
+        )  # fmt: skip
     fams = sorted({c["family"] for c in cands})
     print(f"[generate] {len(cands)} valid candidates from families {fams}")
     meta_rec = None
@@ -417,7 +437,16 @@ def _design(args, n_threads) -> int:
     top_ep = results[0]["epochs"]
     entries = [(r["cfg"], r["val_mean"]) for r in results if r["epochs"] == top_ep]
     chosen = search.select_topk(results, args.topk)
+    n_trained = len(trace.get("rung1", []))
     extras = {"warnings": _warnings(data, chosen, trace.get("failed", []))}
+    extras["search_coverage"] = {"candidates": len(cands), "trained": n_trained,
+                                 "top_k_requested": args.topk, "top_k_exported": len(chosen)}  # fmt: skip
+    if n_trained < max(3, len(cands) // 4):
+        extras["warnings"].append(f"Only {n_trained} of {len(cands)} candidates could be trained within the budget; "
+                                  "raise --budget, or lower --zoo / --per-family, or use --seeds N.")  # fmt: skip
+    if len(chosen) < args.topk:
+        extras["warnings"].append(f"Only {len(chosen)} of the {args.topk} requested models could be exported "
+                                  "(too few trained candidates).")  # fmt: skip
     if trace.get("failed"):
         extras["failed_candidates"] = trace["failed"]
     for w in extras["warnings"]:
@@ -667,6 +696,10 @@ def main(argv=None) -> int:
     d.add_argument(
         "--seed-order", default="data", choices=["data", "random"],
         help="random = control arm that keeps --seeds candidates at random (for measuring the selector)",
+    )  # fmt: skip
+    d.add_argument(
+        "--recipe", default="modern", choices=["modern", "plain"],
+        help="training recipe: modern = image augmentation (shifts, flips for colour) + label smoothing 0.1",
     )  # fmt: skip
     d.add_argument(
         "--hparams", default="auto", choices=["auto", "on", "off"],

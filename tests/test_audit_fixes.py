@@ -165,3 +165,36 @@ def test_hsi_pixel_split_warns_about_spatial_leakage(hsi_npz, tmp_path):
     md = (out / "leaderboard.md").read_text()
     assert "**Warnings**" in md and "| epochs | runs |" in md
     assert board["top_k"][0]["epochs"] > 0 and board["top_k"][0]["val_noise"] > 0
+
+
+def test_common_input_mistakes_get_messages_that_say_what_to_do(tmp_path, tabular_csv):
+    """Audit F4: 8/16 common mistakes gave a traceback or a misleading hint."""
+    from dlnet import plugins
+
+    rng = np.random.default_rng(0)
+    p = tmp_path / "odd.npz"  # per-sample arrays with other names: was sent to the HSI plugin
+    np.savez(p, images=rng.normal(size=(30, 8, 8)), labels=rng.integers(0, 2, 30))
+    with pytest.raises(SystemExit, match=r"images \(30, 8, 8\).*Name them X and y"):
+        plugins.route(str(p))
+    base = ["design", "--data", str(tabular_csv), "--target", "y", "--out", str(tmp_path / "o")]
+    with pytest.raises(SystemExit, match="bad --max-params 'abc'"):
+        cli.main([*base, "--max-params", "abc"])
+    with pytest.raises(SystemExit, match="none fits --max-params 10 .*smallest has"):
+        cli.main([*base, "--max-params", "10", "--budget", "4ep", "--no-proxies", "--threads", "1"])
+    with pytest.raises(SystemExit, match=r"did you mean \['y'\]"):
+        core.load_csv(str(tabular_csv), "Y")
+    with pytest.raises(SystemExit, match="file not found"):
+        cli.main(["design", "--data", str(tmp_path / "nope.csv"), "--target", "y"])
+
+
+def test_leaderboard_says_how_many_candidates_were_trained(tmp_path, tabular_csv):
+    """Audit F7: the leaderboard did not say that only 8 of 76 candidates were trained."""
+    out = tmp_path / "o"
+    argv = ["design", "--data", str(tabular_csv), "--target", "y", "--budget", "8ep", "--topk", "3",
+            "--no-proxies", "--threads", "1", "--out", str(out)]  # fmt: skip
+    assert cli.main(argv) == 0
+    b = json.loads((out / "leaderboard.json").read_text())
+    cov = b["search_coverage"]
+    assert cov["trained"] < cov["candidates"] and any(
+        "could be trained" in w for w in b["warnings"]
+    )

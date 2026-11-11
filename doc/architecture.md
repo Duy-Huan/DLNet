@@ -86,12 +86,15 @@ dlnet_out/
   top1_<họ>/                         một gói độc lập cho mỗi baseline
     model.py  core.py  array_data.py  zoo/    mã dựng và huấn luyện (không phụ thuộc DLNet)
     config.yaml                       spec, hyperparameter, cách dựng lại dữ liệu
-    train.py                          huấn luyện đầy đủ: python train.py --data ...
+    train.py                          huấn luyện đầy đủ: python train.py --data ...  -> model.pt, preprocess.json
+    predict.py, inference.py          dự đoán trên file mới (nhãn gốc), xuất torch.export / ONNX
     report.md                         số đo, nguồn gốc, chi phí
     tests/test_model.py               kiểm tra shape
 ```
 
-Không có trọng số trong gói: kết quả tìm kiếm là kết quả của ngân sách ngắn, nên gói được huấn luyện lại bằng `train.py`.
+Gói chưa có trọng số khi vừa xuất: kết quả tìm kiếm là kết quả của ngân sách ngắn, nên gói được huấn luyện lại bằng `train.py`, lệnh này lưu `model.pt` và `preprocess.json` (thống kê chuẩn hóa TRAIN, cột, lớp; mỗi hàm dựng dữ liệu ghi khối `preprocess`). `inference.prepare_input` áp đúng các thống kê đó lên file mới.
+
+Công thức huấn luyện (`core.RECIPE`, `--recipe`): `modern` thêm augmentation cho ảnh (`Trainer._augment`: dịch theo số nguyên pixel và lật ngang bằng một phép lấy mẫu affine trên thiết bị; mask phân đoạn lật cùng ảnh) và label smoothing 0,1; `train_full` dùng warm-up tuyến tính 5 % rồi cosine.
 
 ## 6. Nguyên tắc đánh giá
 
