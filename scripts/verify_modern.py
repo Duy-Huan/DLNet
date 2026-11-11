@@ -54,7 +54,9 @@ def check_tabm():
         copy_list(tensors(ref), tensors(mine))
         x = torch.randn(5, 10)
         ok &= report(f"TabM backbone k={k} w={w} d={d}", ref(x), mine(x))
-    emb = rtdl_num_embeddings.PeriodicEmbeddings(7, 24, n_frequencies=16, frequency_init_scale=0.1, lite=True)
+    emb = rtdl_num_embeddings.PeriodicEmbeddings(
+        7, 24, n_frequencies=16, frequency_init_scale=0.1, lite=True
+    )
     mine = PeriodicLite(7, 24, 16, 0.1)
     copy_list(tensors(emb), tensors(mine))
     x = torch.randn(5, 7)
@@ -86,7 +88,9 @@ def check_patchtst(repo):
                                 head_dropout=0, revin=True, affine=True).eval()  # fmt: skip
         mine = PatchTST(c, t, d, layers, heads, p, p // 2, 2 * d, 0.1).eval()
         a = [x for n, x in ref.named_parameters() if not n.startswith("head")]
-        a += [x for n, x in ref.named_buffers() if "num_batches" not in n and not n.startswith("head")]
+        a += [
+            x for n, x in ref.named_buffers() if "num_batches" not in n and not n.startswith("head")
+        ]
         copy_list(a, tensors(mine))
         _bn_same_random_stats(ref, mine)
         x = torch.randn(4, c, t)
@@ -119,7 +123,9 @@ def check_itransformer(repo):
                               n_heads=heads, e_layers=layers, d_ff=2 * d, activation="gelu")  # fmt: skip
         ref = Model(cfg).eval()
         mine = ITransformer(t, d, layers, heads, 2 * d, 0.1).eval()
-        copy_list([x for n, x in ref.named_parameters() if not n.startswith("projector")], tensors(mine))
+        copy_list(
+            [x for n, x in ref.named_parameters() if not n.startswith("projector")], tensors(mine)
+        )
         x = torch.randn(3, c, t)
         xe = x.transpose(1, 2)  # official input (B, T, C), normalised as in Model.forecast
         xe = xe - xe.mean(1, keepdim=True)
