@@ -11,3 +11,17 @@ $ /usr/local/bin/python -m dlnet design --data /home/user/DLNet/examples/hsi/ksc
 [reference] svm_rbf_spectral           val=0.8904
 [reference] svm_rbf_spectral_spatial   val=0.6692
 [zoo] 12 architectures from the module zoo (preset, random)
+[cost] 188 candidates; FLOPs/sample min 82,432 median 7,456,448 max 38,819,456
+[generate] 188 valid candidates from families ['afno2d', 'cnn1d', 'cnn2d', 'cnn3d', 'composed', 'convnext2d', 'dwsep2d', 'fahm', 'fcanet2d', 'ffc2d', 'fno2d', 'fourier_ss', 'gfnet2d', 'hybridsn', 'mambahsi', 'mambahsi_plus', 'resnet2d', 'spec_fft2d', 'spec_transformer', 'ssftt', 'ssrn', 'tucker_cnn2d', 'zoo_basic_block', 'zoo_basic_block_eca', 'zoo_bottleneck_dw_sep_mambahsi_plus_block', 'zoo_convnext_block', 'zoo_coord_attn_fused_mbconv_split_attn', 'zoo_ffn_gated_attn_block_gfnet_block', 'zoo_mamba_block_patchify_wukong', 'zoo_mbconv_res2net_block', 'zoo_mlstm_block_patchify', 'zoo_preact_block', 'zoo_regnet_block', 'zoo_unet_res_block']
+[seeds] -1 global_attention: 520 training images (1000000000 per class at least): global attention needs much data
+[seeds] 188/188 candidates, rankers ['prior']; first: ['cnn1d', 'cnn1d', 'cnn1d', 'cnn1d', 'cnn2d']
+[search] 188 candidates, rungs=(4, 12, 30)
+[search] rung 1 (4 ep): kept 10; best val=0.9019
+[search] rung 2 (12 ep): kept 6; best val=0.9442
+[search] rung 3 (30 ep): kept 5; best val=0.9635
+[cost] 8 candidates; FLOPs/sample min 1,442,746 median 6,874,816 max 8,478,080
+[evolve] generation 1: 8 children of ['mambahsi', 'zoo_convnext_block', 'zoo_bottleneck_dw_sep_mambahsi_plus_block']
+[search] 8 candidates, rungs=(4, 12, 30)
+[search] rung 1 (4 ep): kept 6; best val=0.9269
+[search] rung 2 (12 ep): kept 5; best val=0.9423
+[search] rung 3 (30 ep): kept 4; best val=0.9519
