@@ -16,3 +16,5 @@ $ /usr/local/bin/python -m dlnet design --data /home/user/DLNet/examples/hsi/pav
 [seeds] -1 global_attention: 857 training images (1000000000 per class at least): global attention needs much data
 [seeds] 188/188 candidates, rankers ['prior']; first: ['cnn1d', 'cnn1d', 'cnn1d', 'cnn1d', 'cnn1d']
 [search] 188 candidates, rungs=(4, 12, 30)
+[search] rung 1 (4 ep): kept 6; best val=0.9895
+[search] rung 2 (12 ep): kept 6; best val=0.9930
