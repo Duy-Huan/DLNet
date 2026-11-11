@@ -9,7 +9,7 @@ triggers: git, branch, dev, main, commit, push, CI, promote, merge
 
 0. Thay đổi người dùng thấy được: thêm dòng vào `CHANGELOG.md` `[Unreleased]`.
 1. Làm việc trên `dev`: `git checkout dev && git pull origin dev`.
-2. Trước khi commit: `ruff check .` và `python3 -m pytest -q` (dùng `python3 -m pytest`, không dùng binary `pytest` vì lệch môi trường).
+2. **Trước khi push, chạy CI trên máy**: `python scripts/ci_local.py` (lint, format, kiểm phiên bản và tài liệu, regression; khoảng 3 phút). Sửa mã lớn hoặc trước khi phát hành: `python scripts/ci_local.py --full` (toàn bộ test như CI). Cài một lần `python scripts/ci_local.py --install` để mọi `git push` tự chạy các cổng này (hook `scripts/hooks/pre-push`; push chỉ đổi dữ liệu/kết quả `examples/` thì chạy bản `--quick`). Không dùng `--no-verify` để lách; nếu buộc phải dùng thì nói rõ trong báo cáo. Dùng `python3 -m pytest`, không dùng binary `pytest` vì lệch môi trường.
 3. Commit rõ ràng (một thay đổi một commit), `git push -u origin dev`. Push lỗi do mạng thì thử lại tối đa 4 lần (2s, 4s, 8s, 16s).
 4. `promote.yml` tự gọi CI, nếu xanh thì tạo PR `dev → main`, merge, rồi `release.yml` tạo tag/Release nếu version mới. Không push thẳng vào `main`. Phát hành: skill `release`.
 5. Kiểm tra kết quả Actions trước khi nói "đã lên main". Chưa kiểm tra thì nói là chưa kiểm tra.

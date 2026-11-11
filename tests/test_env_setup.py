@@ -9,6 +9,7 @@ from __future__ import annotations
 import os
 import re
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -112,3 +113,22 @@ def test_cli_selfcheck_and_version():
     with pytest.raises(SystemExit) as e:
         cli.main(["--version"])
     assert e.value.code == 0 and __version__
+
+
+def test_local_ci_runs_the_gates_of_the_lint_job_and_the_hook_is_executable():
+    """Runs failed on GitHub for what a local check finds in seconds (unformatted file, oversized
+    file): scripts/ci_local.py must keep every command of the CI lint job, and the hook must run."""
+    import os
+
+    sys.path.insert(0, str(ROOT / "scripts"))
+    import ci_local
+
+    quick = [" ".join(c[1:]) for _, c in ci_local.QUICK]
+    ci = (ROOT / ".github" / "workflows" / "ci.yml").read_text()
+    for cmd in ("ruff check .", "ruff format --check .", "scripts/release.py docs"):
+        assert cmd in ci and any(cmd.removeprefix("ruff ") in q for q in quick), cmd
+    assert set(map(str, ci_local.QUICK)) <= set(map(str, ci_local.DEFAULT))
+    hook = ROOT / "scripts" / "hooks" / "pre-push"
+    assert "ci_local.py" in hook.read_text()
+    if os.name != "nt":
+        assert os.access(hook, os.X_OK)

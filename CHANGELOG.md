@@ -6,6 +6,8 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+- `scripts/ci_local.py`: chạy các cổng của CI trên máy trước khi push (`--quick`, mặc định, `--full`); `--install` cài hook pre-push (`scripts/hooks/pre-push`) để mọi `git push` tự kiểm trước. Quy tắc ghi ở agent.md §10 và skill `git-dev-main`.
+
 - CI: push chỉ đổi dữ liệu/kết quả ví dụ (`examples/*/*/input|output|qc`) không kích hoạt CI và Promote; push mới lên cùng nhánh thay thế lượt CI cũ đang chạy (trước đây các lượt dồn hàng).
 
 - CI: `examples/<lĩnh vực>/<bộ>/input/` (file dữ liệu gốc của nhà phát hành) được phép tới 95 MB, dưới giới hạn cứng 100 MB của GitHub; mọi chỗ khác vẫn giới hạn 50 MB (`tests/test_env_setup.py`). Code do lượt chạy ví dụ sinh ra (`examples/*/*/output`) không nằm trong phạm vi ruff.

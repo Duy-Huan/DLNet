@@ -455,6 +455,7 @@ Kết luận trung thực: Top-K được huấn luyện sâu gấp 2,5 lần n�
 - **Mọi thay đổi hay nâng cấp đều phải cập nhật `README.md` và tài liệu trong `doc/`** (§17, quy tắc 0); CI kiểm bằng `python scripts/release.py docs`.
 - **Thuật toán chuẩn:** mọi bộ ước lượng chất lượng mạng hoặc hyperparameter phải tham khảo `ref/optimazeDL/` và implement đúng công thức của paper/mã chính thức (§16); không tự chế.
 - Mỗi thay đổi người dùng thấy được phải thêm một dòng vào `CHANGELOG.md` mục `[Unreleased]`; phát hành theo §11.2.
+- **Chạy CI trên máy trước khi push** (`python scripts/ci_local.py`; hook pre-push cài bằng `--install`), để lỗi lint/test không lên GitHub rồi mới lộ (§11).
 - Mỗi lỗi sửa phải có regression test đi kèm (`tests/test_regression.py`, đỏ trước xanh sau); thay đổi chỉ xanh khi `lint`, `test`, `regression`, `e2e` đều xanh.
 
 ## 11. Quy trình Git, CI/CD & Release
