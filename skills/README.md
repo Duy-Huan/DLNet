@@ -20,6 +20,7 @@ grep -ril "<từ khóa>" skills/*/SKILL.md      # ví dụ: plugin, split, leaka
 | [audit-and-regression](audit-and-regression/SKILL.md) | Audit mã, thêm regression test, sửa CI | audit, regression, test, bug, CI |
 | [git-dev-main](git-dev-main/SKILL.md) | Commit, push, CI/CD, merge | git, branch, dev, main, CI, promote |
 | [release](release/SKILL.md) | Phát hành phiên bản, cập nhật CHANGELOG, tag | release, version, tag, changelog, semver |
+| [quality-audit](quality-audit/SKILL.md) | Chạy đội agent kiểm định chất lượng (độ tin cậy, mức hiện đại, khả thi, thuật toán) theo `qa/CHECKLIST.md` | quality, audit, QA, kiểm định, checklist, agent team |
 | [gpu-device](gpu-device/SKILL.md) | Viết/kiểm mã chạy trên GPU (CUDA, MPS) khi không có GPU; mixed precision | gpu, cuda, device, meta, amp, bf16 |
 | [setup-env](setup-env/SKILL.md) | Tạo/sửa môi trường Python, cài đặt, requirements | venv, environment, install, requirements, selfcheck |
 | [implement-standard-algorithm](implement-standard-algorithm/SKILL.md) | Thêm/sửa bộ ước lượng chất lượng mạng hoặc hyperparameter theo thuật toán chuẩn | proxy, hyperparameter, lr, batch, SynFlow, ZiCo, Hyperband |
