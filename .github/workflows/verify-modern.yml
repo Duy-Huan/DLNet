@@ -11,6 +11,8 @@ on:
     paths:
       - dlnet/zoo/ops_modern.py
       - dlnet/zoo/ops_freq.py
+      - dlnet/zoo/ops_next.py
+      - scripts/verify_next.py
       - scripts/verify_modern.py
       - scripts/verify_freq.py
       - .github/workflows/verify-modern.yml
@@ -68,3 +70,34 @@ jobs:
         run: |
           python scripts/verify_freq.py --gfnet /tmp/GFNet --afno /tmp/AFNO \
             --ffc /tmp/FFC --fcanet /tmp/FcaNet
+
+  verify-next:
+    # v1.0 drop-in operators (dlnet/zoo/ops_next.py)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install DLNet (CPU torch) and the reference libraries
+        run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -e . numpy "transformers==4.51.3" "timm==1.0.31" "PyWavelets==1.8.0"
+      - name: Official code (pinned)
+        run: |
+          set -e
+          mkdir -p /tmp/v1 && cd /tmp/v1
+          clone() { git clone -q "https://github.com/$1" "$2" && git -C "$2" checkout -q "$3"; }
+          clone jiachenzhu/DyT DyT aab5dde
+          clone qiuzh20/gated_attention gated_attention f4c2a5f
+          clone naver-ai/rope-vit rope-vit 48d8df5
+          clone BGU-CS-VIL/WTConv WTConv 4a84da2
+          clone jameslahm/lsnet lsnet cbe737c
+          clone ma-xu/Rewrite-the-Stars Rewrite-the-Stars c999eb5
+          clone mit-han-lab/efficientvit efficientvit de7d773
+          clone Visual-Attention-Network/SegNeXt SegNeXt c87bcae
+          git clone -q --filter=blob:none --sparse https://github.com/microsoft/unilm unilm
+          git -C unilm sparse-checkout set Diff-Transformer && git -C unilm checkout -q 31c5b90
+      - name: Compare outputs
+        run: python scripts/verify_next.py --root /tmp/v1
