@@ -254,7 +254,16 @@ def check_lsnet(root):
     ska.SKA = SKA
     package("lsnet_pkg", f"{root}/lsnet/model")
     sys.modules["lsnet_pkg.ska"] = ska
-    m = load(f"{root}/lsnet/model/lsnet.py", "lsnet_pkg.lsnet")
+    import timm.models.registry as reg
+
+    keep, reg.register_model = (
+        reg.register_model,
+        lambda f: f,
+    )  # its pretrained cfgs predate timm 1.0
+    try:
+        m = load(f"{root}/lsnet/model/lsnet.py", "lsnet_pkg.lsnet")
+    finally:
+        reg.register_model = keep
     ok = True
     torch.manual_seed(0)
     for depth, mixer in ((1, "ls"), (0, "repvgg")):

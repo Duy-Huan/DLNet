@@ -12,6 +12,8 @@ on:
       - dlnet/zoo/ops_modern.py
       - dlnet/zoo/ops_freq.py
       - dlnet/zoo/ops_next.py
+      - dlnet/zoo/ops_hsi.py
+      - scripts/verify_hsi.py
       - scripts/verify_next.py
       - scripts/verify_modern.py
       - scripts/verify_freq.py
@@ -131,3 +133,28 @@ jobs:
           pip install -e /tmp/dom/pytabkit
       - name: Compare outputs
         run: python scripts/verify_domain.py --root /tmp/dom
+
+  verify-hsi:
+    # v1.0 hyperspectral networks (dlnet/zoo/ops_hsi.py)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install DLNet (CPU torch) and what the official files import
+        run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -e . numpy einops beartype
+      - name: Official code (pinned)
+        run: |
+          set -e
+          mkdir -p /tmp/hsi && cd /tmp/hsi
+          clone() { git clone -q "https://github.com/$1" "$2" && git -C "$2" checkout -q "$3"; }
+          clone li-yapeng/MambaHSI MambaHSI a705284
+          clone RockAilab/MambaHSI_Plus MambaHSI_Plus 5ef6282
+          clone zgr6010/HSI_SSFTT HSI_SSFTT 994f5d7
+          clone zhangxc0105/FAHM FAHM 6a3049e
+      - name: Compare outputs
+        run: python scripts/verify_hsi.py --root /tmp/hsi
