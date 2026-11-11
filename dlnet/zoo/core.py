@@ -357,11 +357,25 @@ def check(spec, kind: str, dims) -> dict:
 
 
 class Head(nn.Module):
-    """Global pooling + dropout + linear (cls) or a 1x1 convolution per pixel (dense)."""
+    """Global pooling + dropout + linear (cls), a 1x1 convolution per pixel (dense), or one output
+    layer per ensemble member (ensemble: TabM, arXiv:2410.24210)."""
 
     def __init__(self, kind, dims, out_dim, mode="cls", dropout=0.0):
         super().__init__()
         self.kind, self.mode = kind, mode
+        if mode == "ensemble":
+            # tabm.LinearEnsemble: k separate linear layers on the k member representations (k, d).
+            # Training: (B, k, out), one loss per member (core.Trainer); eval: the members' mean
+            # probability (classification, as log) or mean value (out_dim = 1).
+            if kind != "seq":
+                raise ValueError("an ensemble head needs (members, features)")
+            k, d = dims
+            b = d**-0.5
+            self.drop = nn.Dropout(dropout)
+            self.weight = nn.Parameter(torch.empty(k, d, out_dim).uniform_(-b, b))
+            self.bias = nn.Parameter(torch.empty(k, out_dim).uniform_(-b, b))
+            self.k = k
+            return
         if mode == "dense":
             if kind != "map":
                 raise ValueError("dense prediction needs a map feature")
@@ -371,6 +385,15 @@ class Head(nn.Module):
             self.f = nn.Sequential(nn.Dropout(dropout), nn.Linear(feat, out_dim))
 
     def forward(self, x, size=None):
+        if self.mode == "ensemble":
+            y = (self.drop(x).transpose(0, 1) @ self.weight).transpose(
+                0, 1
+            ) + self.bias  # (B, k, out)
+            if self.training:
+                return y
+            if y.shape[-1] == 1:
+                return y.mean(1)
+            return torch.logsumexp(torch.log_softmax(y, -1), 1) - math.log(self.k)  # log mean prob
         if self.mode == "dense":
             y = self.f(x)
             return nn.functional.interpolate(y, size=size, mode="bilinear", align_corners=False) \
@@ -386,6 +409,8 @@ class ZooNet(nn.Module):
     def __init__(self, body, head, in_dims, kl_weight=0.0):
         super().__init__()
         self.body, self.head, self.size, self.kl_weight = body, head, tuple(in_dims[-2:]), kl_weight
+        # members of an ensemble head: in training the output is (B, k, out), one loss per member
+        self.ensemble_k = head.k if head.mode == "ensemble" else 0
 
     def kl_loss(self):
         """Sum of the KL terms stored by variational modules in the last training forward pass (0 if none)."""

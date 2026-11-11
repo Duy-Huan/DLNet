@@ -257,6 +257,16 @@ def amp_dtype(device: torch.device, amp="auto"):
 # ------------------------------------------------------------------------ training
 
 
+def members(model, out, y):
+    """(output, target) for the loss. An ensemble model (TabM) returns (B, k, out) in training:
+    every member gets its own loss, averaged (Gorishniy et al. 2025, sec. 3), not the loss of the
+    averaged prediction."""
+    k = getattr(model, "ensemble_k", 0)
+    if k and out.dim() == y.dim() + 2:
+        return out.flatten(0, 1), y.repeat_interleave(k, dim=0)
+    return out, y
+
+
 class Trainer:
     """Resumable trainer (needed for successive halving)."""
 
@@ -365,9 +375,9 @@ class Trainer:
                 if self.augment:
                     xb, yb = self._augment(xb, yb)
                 with self._autocast():
-                    out = self.model(xb)
+                    out, yl = members(self.model, self.model(xb), yb)
                     out = out.squeeze(-1) if self.data["task"] == "regression" else out
-                    loss = self.loss_fn(out.float(), yb)
+                    loss = self.loss_fn(out.float(), yl)
                     kl = getattr(self.model, "kl_loss", None)  # variational bottleneck (VAE)
                     if kl is not None and (k := kl()) is not None:
                         loss = loss + self.model.kl_weight * k

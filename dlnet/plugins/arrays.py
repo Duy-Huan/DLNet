@@ -188,6 +188,8 @@ SPACE = {
     "tcn": {"width": [32, 64], "depth": [2, 3, 4], "dropout": [0.0, 0.1], "kernel": [3, 5, 7]},
     "gru": {"width": [32, 64], "depth": [1, 2], "dropout": [0.0, 0.1]},
     "ts_transformer": {"width": [32, 64], "depth": [1, 2], "dropout": [0.0, 0.1]},
+    "patchtst": {"width": [32, 64], "depth": [1, 2, 3], "dropout": [0.0, 0.1], "patch": [8, 16]},
+    "itransformer": {"width": [32, 64, 128], "depth": [1, 2], "dropout": [0.0, 0.1]},
 }
 REF_MAX_FEATURES = 512  # flattened inputs larger than this are PCA-reduced for the references
 REF_PCA = 64
