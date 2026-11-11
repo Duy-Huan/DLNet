@@ -210,7 +210,7 @@ def refine(results, data, build_fn, deadline, epochs_recipe=100, log=print, fold
     its mean validation score beats the searched one by more than the larger seed std.
     Each result gets r['hparams'] with the searched, estimated and validated values.
     """
-    from .search import eval_runs, summarize
+    from .search import eval_runs, sampling_noise, summarize
 
     folds = folds or [data]
     for r in results:
@@ -242,10 +242,13 @@ def refine(results, data, build_fn, deadline, epochs_recipe=100, log=print, fold
             cand, folds, build_fn, r["epochs"], r["n_seeds"], deadline, cache=cache,
             run_cost=_refine_cost(r, data)[1] / max(r["n_seeds"], 1),
         )  # fmt: skip
+        if not vals:  # every run with the proposal failed: keep the searched values
+            continue
         new = summarize(vals, tests)
         v, sd = new["val_mean"], new["val_std"]
         r["hparams"]["val_estimated"] = v
-        if v - r["val_mean"] > max(sd, r["val_std"], 1e-9):
+        noise = sampling_noise(r["val_mean"], data["primary"], len(data["yva"]))
+        if v - r["val_mean"] > max(sd, r["val_std"], noise, 1e-9):  # one run: validation noise
             r["cfg"] = cand
             r.update(new)
             r["hparams"]["adopted"] = "estimated"

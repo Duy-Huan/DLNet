@@ -53,6 +53,66 @@ class Pace:
         return epochs * float(np.median(self.per_epoch)) if self.per_epoch else 0.0
 
 
+def _label(cfg) -> str:
+    return f"{cfg['family']} ({cfg.get('origin', 'family')})"
+
+
+def _train_step(a, epochs, failures, log=print) -> bool:
+    """Train candidate `a` for `epochs` more epochs and score it on validation.
+
+    A candidate that raises (shape bug, out of memory, ...) or ends with a non-finite validation
+    score (diverged) is dropped and recorded in `failures` instead of ending the whole run; a NaN
+    score would also corrupt every later sort (agent.md 9.4, audit R9)."""
+    try:
+        a["tr"].fit(epochs)
+        v = a["tr"].evaluate("va")["score"]
+    except Exception as e:  # noqa: BLE001  one broken candidate must not end the run
+        failures.append(
+            {"candidate": _label(a["cfg"]), "error": f"{type(e).__name__}: {str(e)[:200]}"}
+        )
+        log(f"[search] {_label(a['cfg'])} failed: {failures[-1]['error']}")
+        return False
+    if not math.isfinite(v):
+        failures.append(
+            {"candidate": _label(a["cfg"]), "error": f"non-finite validation score ({v})"}
+        )
+        log(f"[search] {_label(a['cfg'])} diverged (validation score {v}); dropped")
+        return False
+    a["val0"] = v
+    return True
+
+
+def sampling_noise(score: float, primary: str, n: int) -> float:
+    """Standard error of ONE validation score caused by the finite validation set.
+
+    accuracy-like metrics: binomial sqrt(p (1 - p) / n); RMSE: RMSE / sqrt(2 n) and MSE:
+    MSE sqrt(2 / n) (normal errors, delta method). With a single run per model this is the only
+    noise estimate there is: reporting +/- 0 would claim a precision the data does not have
+    (audit S4). n = number of validation samples (images for dense tasks: pixels are correlated).
+    """
+    n = max(int(n), 1)
+    if primary in ("accuracy", "balanced_accuracy", "miou", "kappa"):
+        p = min(max(score, 0.01), 0.99)
+        return float((p * (1 - p) / n) ** 0.5)
+    if primary == "neg_rmse":
+        return float(abs(score) / (2 * n) ** 0.5)
+    if primary == "neg_mse":
+        return float(abs(score) * (2 / n) ** 0.5)
+    return 0.0
+
+
+def annotate_noise(results, data):
+    """r["val_noise"] = the larger of the seed/split std and the validation sampling error."""
+    n, primary = len(data["yva"]), data["primary"]
+    for r in results:
+        sn = sampling_noise(r["val_mean"], primary, n)
+        r["val_noise"] = max(r["val_std"], sn)
+        r["noise_source"] = (
+            "runs" if r["n_seeds"] > 1 and r["val_std"] >= sn else "validation sampling"
+        )
+    return results
+
+
 def _ranked(items, rank=None):
     """Order trained candidates best first: by validation score, or by `rank` (an objective, see
     dlnet/objectives.py) applied to [(cfg, val), ...]."""
@@ -121,6 +181,7 @@ def eval_runs(cfg, folds, build_fn, epochs, n_runs, deadline, first=None, cache=
     `cache` (RunCache) returns stored results of identical runs instead of training again.
     `run_cost`: predicted cost of one run on the budget clock; a run that would end after
     `deadline` is not started (cached runs are always used: they cost nothing).
+    Runs that raise or end with a non-finite validation score are skipped.
     Returns (val scores, test metric dicts, seconds, number of distinct splits used).
     """
     vals, tests, secs = [], [], 0.0
@@ -132,10 +193,19 @@ def eval_runs(cfg, folds, build_fn, epochs, n_runs, deadline, first=None, cache=
         if hit is None and vals and not clock.fits(0.0 if t else run_cost, deadline):
             break
         if hit is None:
-            if t is None:
-                t = _new_trainer(cfg, fold, i, build_fn)
-                t.fit(epochs)
-            hit = {"val": t.evaluate("va")["score"], "test": t.evaluate("te"), "secs": t.seconds}
+            try:
+                if t is None:
+                    t = _new_trainer(cfg, fold, i, build_fn)
+                    t.fit(epochs)
+                hit = {
+                    "val": t.evaluate("va")["score"],
+                    "test": t.evaluate("te"),
+                    "secs": t.seconds,
+                }
+            except Exception:  # noqa: BLE001, S112  a failed run is skipped, not fatal (audit R9)
+                continue
+            if not math.isfinite(hit["val"]):
+                continue
             if cache:
                 cache.put(key, hit)
         vals.append(hit["val"])
@@ -170,21 +240,24 @@ def run_search(
     cands = interleave(cands)
     alive = [{"cfg": c, "tr": _new_trainer(c, data, 0, build_fn)} for c in cands]
     log(f"[search] {len(alive)} candidates, rungs={rungs}")
-    pace = Pace()
+    pace, failures = Pace(), (trace if trace is not None else {}).setdefault("failed", [])
     for r, ep in enumerate(rungs):
         finished = []
-        for i, a in enumerate(alive):
-            # The very first candidate always trains, so even a spent budget yields a result.
-            if clock.now() > deadline and not (r == 0 and i == 0):
+        for a in alive:
+            # Until one candidate has a score, keep training, so even a spent budget yields a result.
+            first = r == 0 and not finished
+            if clock.now() > deadline and not first:
                 break
-            if (r or i) and not clock.fits(
+            if not first and not clock.fits(
                 pace.cost(a["cfg"], ep - a["tr"].epochs_done, a["tr"]), deadline
             ):
                 continue  # would end after the deadline; a cheaper candidate may still fit
-            a["tr"].fit(ep - a["tr"].epochs_done)
-            pace.record(a["tr"], a["cfg"])
-            a["val0"] = a["tr"].evaluate("va")["score"]
-            finished.append(a)
+            if _train_step(a, ep - a["tr"].epochs_done, failures, log):
+                pace.record(a["tr"], a["cfg"])
+                finished.append(a)
+        if r == 0 and not finished:
+            raise SystemExit(f"every candidate failed to train ({len(failures)} failures, first: "
+                             f"{failures[0]['error'] if failures else '-'})")  # fmt: skip
         if not finished:  # budget spent before this rung started: rank what the last rung left
             log("[search] time budget reached; ranking with what is done")
             break
@@ -213,6 +286,8 @@ def stage2(finalists, folds, build_fn, seeds, deadline, cache=None):
         vals, tests, secs, n_splits = eval_runs(
             cfg, folds, build_fn, ep, n_runs, deadline, first=a["tr"], cache=cache, run_cost=cost
         )
+        if not vals:  # its stage-1 run failed on test or every run diverged
+            continue
         results.append(
             {
                 "cfg": cfg,
@@ -269,10 +344,11 @@ def run_hyperband(
     brackets = hyperband_brackets(R, eta, unit)
     log(f"[hyperband] {len(pool)} candidates; brackets (n, epochs): {brackets}")
     done, first_rung, it, pace = [], [], 0, Pace()
+    failures = (trace if trace is not None else {}).setdefault("failed", [])
     while pool and (clock.now() < deadline or not done):  # a spent budget still yields one result
         it += 1
         for b, rungs in enumerate(brackets):
-            if not pool or (clock.now() > deadline and done):
+            if not pool or (clock.now() >= deadline and done):  # >=: a work budget ends exactly
                 break
             take, pool = pool[: rungs[0][0]], pool[rungs[0][0] :]
             alive = [{"cfg": c, "tr": _new_trainer(c, data, 0, build_fn)} for c in take]
@@ -288,10 +364,9 @@ def run_hyperband(
                         pace.cost(a["cfg"], left, a["tr"]), deadline
                     ):
                         continue
-                    a["tr"].fit(left)
-                    pace.record(a["tr"], a["cfg"])
-                    a["val0"] = a["tr"].evaluate("va")["score"]
-                    finished.append(a)
+                    if _train_step(a, left, failures, log):
+                        pace.record(a["tr"], a["cfg"])
+                        finished.append(a)
                 if not finished:
                     break
                 if ep == unit:
@@ -299,34 +374,99 @@ def run_hyperband(
                 alive = _ranked(finished, rank)
                 if i < len(rungs) - 1:
                     alive = alive[: max(rungs[i + 1][0], 1)]
+            alive = [
+                a for a in alive if "val0" in a
+            ]  # a bracket may train nobody (budget, failures)
+            if not alive:
+                continue
             full = [a for a in alive if a["tr"].epochs_done >= R]
             done += full or alive[:1]
             log(f"[hyperband] iteration {it} bracket {b + 1}: {len(take)} configs -> "
                 f"{len(full)} at {R} epochs; best val={alive[0]['val0']:.4f}")  # fmt: skip
     if trace is not None:
         trace["rung1"], trace["rung1_epochs"] = first_rung, unit
+    if not done:
+        raise SystemExit(f"every candidate failed to train ({len(failures)} failures)")
     best_ep = max(a["tr"].epochs_done for a in done)
     pool_final = _ranked([a for a in done if a["tr"].epochs_done == best_ep], rank)
     finalists = pool_final[: max(topk * 2, topk + 2)]
     return stage2(finalists, folds, build_fn, seeds, deadline, cache)
 
 
-def assign_groups(results):
-    """Sort by validation and mark 'indistinguishable' groups: neighbours closer than the larger std
-    (std over seeds, and over splits when repeated splits are used)."""
-    results.sort(key=lambda r: -r["val_mean"])
+def final_order(results, rank=None):
+    """Order results for the leaderboard: models trained for more epochs first, then by `rank`
+    (an objective, dlnet/objectives.py) or by validation inside each epoch group.
+
+    A model trained 4 epochs and one trained 12 cannot be compared on their scores (the principle
+    of successive halving); results of the first generation and of evolution can differ in epochs
+    when the budget ran out (audit S3). `equalize` first tries to bring them to the same epochs."""
+    by: dict[int, list] = {}
+    for r in results:
+        by.setdefault(r["epochs"], []).append(r)
+    out = []
+    for ep in sorted(by, reverse=True):
+        g = by[ep]
+        out += (
+            [g[i] for i in rank([(r["cfg"], r["val_mean"]) for r in g])]
+            if rank
+            else sorted(g, key=lambda r: -r["val_mean"])
+        )
+    return out
+
+
+def equalize(results, folds, build_fn, deadline, cache=None, log=print):
+    """Train results with fewer epochs on to the largest epoch count, while the budget allows
+    (best first), re-running their seeds/splits; the others keep their epochs and are ranked
+    after (final_order). Needs the stage-1 trainer of each result (r["trainer"])."""
+    if not results:
+        return results
+    target = max(r["epochs"] for r in results)
+    for r in sorted(results, key=lambda r: -r["val_mean"]):
+        tr = r.get("trainer")
+        if r["epochs"] >= target or tr is None or not tr.epochs_done:
+            continue
+        per_epoch = 1.0 if clock.mode() == "work" else tr.seconds / tr.epochs_done
+        cost = per_epoch * ((target - r["epochs"]) + (r["n_seeds"] - 1) * target)
+        if not clock.fits(cost, deadline):
+            continue
+        try:
+            tr.fit(target - tr.epochs_done)
+        except Exception:  # noqa: BLE001, S112  keep the shorter result rather than lose the model
+            continue
+        vals, tests, secs, n_splits = eval_runs(
+            r["cfg"], folds, build_fn, target, r["n_seeds"], deadline, first=tr, cache=cache,
+            run_cost=per_epoch * target,
+        )  # fmt: skip
+        if vals:
+            r.update(summarize(vals, tests), epochs=target, n_splits=n_splits,
+                     train_seconds=round(secs, 1))  # fmt: skip
+            log(
+                f"[equalize] {r['cfg']['family']}: trained on to {target} epochs, val={r['val_mean']:.4f}"
+            )
+    return results
+
+
+def assign_groups(results, ordered=False):
+    """Mark 'indistinguishable' groups: neighbours (in ranking order) of the same epoch count whose
+    validation scores differ by less than the larger noise (val_noise: seed/split std, or the
+    validation sampling error when there is one run). `ordered=False` sorts by epochs then val."""
+    if not ordered:
+        results.sort(key=lambda r: (-r["epochs"], -r["val_mean"]))
     g = 0
     for i, r in enumerate(results):
-        if i and results[i - 1]["val_mean"] - r["val_mean"] > max(
-            results[i - 1]["val_std"], r["val_std"], 1e-9
-        ):
-            g += 1
+        if i:
+            q = results[i - 1]
+            noise = max(q.get("val_noise", q["val_std"]), r.get("val_noise", r["val_std"]), 1e-9)
+            if q["epochs"] != r["epochs"] or abs(q["val_mean"] - r["val_mean"]) > noise:
+                g += 1
         r["group"] = g
     return results
 
 
-def select_topk(results, k, keep_order=False):
-    """Diversity-aware selection: best per family first, then fill by rank."""
+def select_topk(results, k, keep_order=True):
+    """Diversity-aware selection: best per family first, then fill by rank; the chosen models keep
+    the order of `results` (final_order). Roles: best-small only if smaller than top1, most-stable
+    only when every chosen model was run at least twice (one run has no measured spread)."""
     chosen, fams = [], set()
     for r in results:
         if r["cfg"]["family"] not in fams and len(chosen) < k:
@@ -335,7 +475,7 @@ def select_topk(results, k, keep_order=False):
     for r in results:
         if r not in chosen and len(chosen) < k:
             chosen.append(r)
-    if keep_order:  # results were already ordered by an objective: keep that order
+    if keep_order:
         pos = {id(r): i for i, r in enumerate(results)}
         chosen.sort(key=lambda r: pos[id(r)])
     else:
@@ -344,8 +484,13 @@ def select_topk(results, k, keep_order=False):
     roles = {id(top1): ["top1"]}
     rest = chosen[1:]
     if rest:
-        roles.setdefault(id(min(rest, key=lambda r: r["cfg"]["params"])), []).append("best-small")
-        roles.setdefault(id(min(chosen, key=lambda r: r["val_std"])), []).append("most-stable")
+        smaller = [r for r in rest if r["cfg"]["params"] < top1["cfg"]["params"]]
+        if smaller:
+            roles.setdefault(id(min(smaller, key=lambda r: r["cfg"]["params"])), []).append(
+                "best-small"
+            )
+        if all(r["n_seeds"] >= 2 for r in chosen):
+            roles.setdefault(id(min(chosen, key=lambda r: r["val_std"])), []).append("most-stable")
         diff = [r for r in rest if r["cfg"]["family"] != top1["cfg"]["family"]]
         if diff:
             roles.setdefault(id(diff[0]), []).append("most-different")
