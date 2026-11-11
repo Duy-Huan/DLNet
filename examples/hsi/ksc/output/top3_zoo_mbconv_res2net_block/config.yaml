@@ -1,0 +1,132 @@
+{
+  "plugin": "hsi",
+  "task": "classification",
+  "split_seed": 0,
+  "in_dim": 30,
+  "out_dim": 13,
+  "primary_metric": "accuracy",
+  "arch": {
+    "family": "zoo_mbconv_res2net_block",
+    "spec": {
+      "op": "seq",
+      "body": [
+        {
+          "op": "conv_bn_act",
+          "out": 16,
+          "k": 3,
+          "s": 1,
+          "groups": 1,
+          "dilation": 2,
+          "act": "identity",
+          "norm": "frn",
+          "pad": "same"
+        },
+        {
+          "op": "seq",
+          "body": [
+            {
+              "op": "mbconv",
+              "out": 16,
+              "expand": 6,
+              "k": 3,
+              "s": 1,
+              "se": 0,
+              "act": "hswish"
+            }
+          ]
+        },
+        {
+          "op": "seq",
+          "body": [
+            {
+              "op": "res2net_block",
+              "out": 32,
+              "s": 2,
+              "scale": 4,
+              "base_width": 26
+            }
+          ]
+        }
+      ]
+    },
+    "input": {
+      "kind": "map",
+      "dims": [
+        30,
+        9,
+        9
+      ]
+    },
+    "out_dim": 13,
+    "head": "cls",
+    "dropout": 0.0,
+    "origin": "random",
+    "lr": 0.003,
+    "wd": 0.01,
+    "batch": 64,
+    "flops": 1426358,
+    "act_mb": 0.238204,
+    "vram_mb": 30.660528,
+    "seed_prior": 0.0,
+    "seed_rank": 66,
+    "seed_score": 154.0,
+    "seed_traits": [
+      "light",
+      "local_conv",
+      "multi_scale"
+    ]
+  },
+  "hyperparameters": {
+    "optimizer": "AdamW",
+    "lr": 0.003,
+    "weight_decay": 0.01,
+    "batch_size": 64,
+    "epochs": 100,
+    "lr_schedule": "cosine",
+    "grad_clip_norm": 5.0,
+    "dropout": 0.0,
+    "source": {
+      "adopted": "searched",
+      "searched": {
+        "lr": 0.003,
+        "batch": 64,
+        "wd": 0.01
+      },
+      "estimated": null,
+      "val_searched": 0.9532051282051283,
+      "val_estimated": null,
+      "methods": [
+        "LR range test (Smith 1506.01186)",
+        "gradient noise scale B_simple (McCandlish 1812.06162)",
+        "normalized weight decay (Loshchilov & Hutter 1711.05101)"
+      ]
+    }
+  },
+  "data": {
+    "split": "pixel",
+    "frac": [
+      0.1,
+      0.1,
+      0.8
+    ],
+    "patch": 9,
+    "pca": 30,
+    "block": 16
+  },
+  "recipe": {
+    "epochs": 100,
+    "schedule": "linear warm-up (5 %) then cosine",
+    "select": "best-val checkpoint",
+    "name": "modern",
+    "augment": true,
+    "label_smoothing": 0.1
+  },
+  "search_result": {
+    "val_mean": 0.9532051282051283,
+    "val_std": 0.0063458300875716064,
+    "epochs_used": 30,
+    "seeds": 3,
+    "splits": 1,
+    "test_std": 0.004200010658825509
+  }
+}

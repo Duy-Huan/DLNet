@@ -1,0 +1,35 @@
+$ /usr/local/bin/python -m dlnet design --data /home/user/DLNet/examples/hsi/pavia_university/input/PaviaU.mat --gt /home/user/DLNet/examples/hsi/pavia_university/input/PaviaU_gt.mat --plugin hsi --out /home/user/DLNet/examples/hsi/pavia_university/output --budget 10m --topk 3 --seed 0 --threads 2 --no-cache --split pixel --pca 30 --frac 0.02,0.02,0.96
+[device] cpu, precision float32 (--device, --amp)
+[threads] 2 (of 4 CPUs; --threads to change)
+[plugin] hsi  data=/home/user/DLNet/examples/hsi/pavia_university/input/PaviaU.mat
+[warning] --split pixel with --patch 9: validation/test pixels sit inside the patches of training pixels, so scores are optimistic (spatial leakage). Use --split block for an honest estimate of performance on new areas.
+[load] task=classification features=30 classes=9 seed=0
+[profile] {'primary_metric': 'accuracy (OA); also AA, Kappa', 'cube_shape': [610, 340, 103], 'n_classes': 9, 'n_train': 857, 'n_val': 857, 'n_test': 41062, 'n_features': 30, 'patch': 9, 'split': 'pixel', 'frac': [0.02, 0.02, 0.96], 'dropped_by_margin': 0, 'pca_energy_kept': 0.9997, 'multilinear_rank_99': [266, 204, 4], 'multilinear_rank_levels': {'0.9': [91, 72, 2], '0.95': [137, 108, 3], '0.99': [266, 204, 4]}, 'intrinsic_dim': 17.56, 'scaling_exponent_hat': 0.228, 'intrinsic_dim_estimators': {'twonn': {'mean': 17.428, 'std': 0.505}, 'mle': {'mean': 16.286, 'std': 0.062}, 'value': 16.857, 'rel_disagreement': 0.068, 'stable': True}, 'capacity_hint': {'min_width': 32, 'scaling_exponent': 0.237, 'used_for_pruning': False}, 'classes_missing_train': [], 'classes_missing_test': [], 'max_params': 428500}
+[reference] classical baselines on the same split(s)
+[reference] random_forest_spectral_spatial val=0.9510
+[reference] svm_rbf_spectral_spatial   val=0.9288
+[reference] svm_rbf_spectral           val=0.8705
+[reference] random_forest_spectral     val=0.8180
+[zoo] 12 architectures from the module zoo (preset, random)
+[cost] 188 candidates; FLOPs/sample min 82,176 median 7,455,936 max 53,395,200
+[generate] 188 valid candidates from families ['afno2d', 'cnn1d', 'cnn2d', 'cnn3d', 'composed', 'convnext2d', 'dwsep2d', 'fahm', 'fcanet2d', 'ffc2d', 'fno2d', 'fourier_ss', 'gfnet2d', 'hybridsn', 'mambahsi', 'mambahsi_plus', 'resnet2d', 'spec_fft2d', 'spec_transformer', 'ssftt', 'ssrn', 'tucker_cnn2d', 'zoo_basic_block', 'zoo_basic_block_eca', 'zoo_bottleneck_dw_sep_mambahsi_plus_block', 'zoo_convnext_block', 'zoo_coord_attn_fused_mbconv_split_attn', 'zoo_ffn_gated_attn_block_gfnet_block', 'zoo_mamba_block_patchify_wukong', 'zoo_mbconv_res2net_block', 'zoo_mlstm_block_patchify', 'zoo_preact_block', 'zoo_regnet_block', 'zoo_unet_res_block']
+[seeds] -1 global_attention: 857 training images (1000000000 per class at least): global attention needs much data
+[seeds] 188/188 candidates, rankers ['prior']; first: ['cnn1d', 'cnn1d', 'cnn1d', 'cnn1d', 'cnn1d']
+[search] 188 candidates, rungs=(4, 12, 30)
+[search] rung 1 (4 ep): kept 6; best val=0.9895
+[search] rung 2 (12 ep): kept 6; best val=0.9930
+[search] rung 3 (30 ep): kept 6; best val=0.9953
+[cost] 8 candidates; FLOPs/sample min 2,727,360 median 5,658,176 max 10,358,208
+[evolve] generation 1: 8 children of ['ffc2d', 'cnn2d', 'resnet2d']
+[search] 8 candidates, rungs=(4, 12, 30)
+[search] rung 1 (4 ep): kept 6; best val=0.9860
+[search] rung 2 (12 ep): kept 6; best val=0.9895
+[search] rung 3 (30 ep): kept 6; best val=0.9907
+[runs] ffc2d: 2 runs, val=0.9918 +/- 0.0023
+[hparams] estimating lr / batch size / weight decay for the finalists
+[warning] --split pixel with --patch 9: validation/test pixels sit inside the patches of training pixels, so scores are optimistic (spatial leakage). Use --split block for an honest estimate of performance on new areas.
+[warning] Only 18 of 188 candidates could be trained within the budget; raise --budget, or lower --zoo / --per-family, or use --seeds N.
+[proxies] Spearman with rung-1 validation (n=18): {'naswot': -0.181, 'synflow': 0.096, 'grad_norm': 0.471, 'snip': 0.534, 'zico': 0.397, 'params': 0.614, 'seed_prior': None}
+[budget] load 4.8s/0ep, reference 16.2s/0ep, generate 20.5s/0ep, proxies 72.5s/0ep, seed_selection 0.0s/0ep, search 207.2s/318ep, evolution 231.0s/248ep, runs 68.9s/30ep, hparams 0.0s/0ep, export 0.0s/0ep
+[done] 621s  -> /home/user/DLNet/examples/hsi/pavia_university/output/leaderboard.md
+[verdict] beats_reference=True val_margin=0.04278 test_margin=0.03747

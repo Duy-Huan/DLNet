@@ -60,5 +60,8 @@ Ket qua: `dlnet_out/leaderboard.md` va `dlnet_out/top1_*/ ...` (moi goi doc lap:
 - `--split block`: chia theo khoi khong chong lan, bo pixel ma patch cham vung split khac. So lieu trung thuc hon.
 - Thu hang chi la uoc luong tu ngan sach nho; cac hang cung `group` co the doi cho sau khi train day du.
 
+## Phát triển
+Trước khi push: `python scripts/ci_local.py` chạy các cổng của CI trên máy (`--quick` vài giây, `--full` toàn bộ test). Cài hook một lần: `python scripts/ci_local.py --install`, từ đó mọi `git push` tự kiểm trước.
+
 ## Phiên bản
 Xem [CHANGELOG.md](CHANGELOG.md) và trang Releases (tag `vX.Y.Z`). Quy trình phát hành: `agent.md` §11.2.

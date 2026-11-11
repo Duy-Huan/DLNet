@@ -17,3 +17,21 @@ $ /usr/local/bin/python -m dlnet design --data /home/user/DLNet/examples/hsi/ind
 [seeds] 188/188 candidates, rankers ['prior']; first: ['cnn1d', 'cnn1d', 'cnn1d', 'cnn1d', 'cnn1d']
 [search] 188 candidates, rungs=(4, 12, 30)
 [search] rung 1 (4 ep): kept 6; best val=0.9493
+[search] rung 2 (12 ep): kept 6; best val=0.9824
+[search] rung 3 (30 ep): kept 6; best val=0.9863
+[cost] 8 candidates; FLOPs/sample min 5,285,376 median 10,578,240 max 25,362,176
+[evolve] generation 1: 8 children of ['cnn2d', 'ffc2d', 'fourier_ss']
+[search] 8 candidates, rungs=(4, 12, 30)
+[search] rung 1 (4 ep): kept 6; best val=0.9668
+[search] rung 2 (12 ep): kept 6; best val=0.9805
+[search] rung 3 (30 ep): kept 6; best val=0.9854
+[runs] spec_fft2d: 3 runs, val=0.9828 +/- 0.0038
+[runs] zoo_gfnet_block_spectral_gf_vgg_stage: 2 runs, val=0.9849 +/- 0.0005
+[runs] resnet2d: 3 runs, val=0.9811 +/- 0.0017
+[hparams] estimating lr / batch size / weight decay for the finalists
+[warning] --split pixel with --patch 9: validation/test pixels sit inside the patches of training pixels, so scores are optimistic (spatial leakage). Use --split block for an honest estimate of performance on new areas.
+[warning] Only 16 of 188 candidates could be trained within the budget; raise --budget, or lower --zoo / --per-family, or use --seeds N.
+[proxies] Spearman with rung-1 validation (n=16): {'naswot': -0.124, 'synflow': 0.055, 'grad_norm': 0.673, 'snip': 0.673, 'zico': 0.194, 'params': 0.786, 'seed_prior': None}
+[budget] load 1.4s/0ep, reference 6.8s/0ep, generate 20.9s/0ep, proxies 63.2s/0ep, seed_selection 0.0s/0ep, search 218.0s/310ep, evolution 177.8s/248ep, runs 104.2s/150ep, hparams 0.0s/0ep, export 0.0s/0ep
+[done] 592s  -> /home/user/DLNet/examples/hsi/indian_pines/output/leaderboard.md
+[verdict] beats_reference=True val_margin=0.02504 test_margin=0.03269

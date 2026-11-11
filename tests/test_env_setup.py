@@ -9,6 +9,7 @@ from __future__ import annotations
 import os
 import re
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -17,6 +18,10 @@ pytestmark = pytest.mark.regression
 
 ROOT = Path(__file__).resolve().parent.parent
 MAX_TRACKED_MB = 50  # GitHub hard limit is 100 MB per file
+# examples/<domain>/<case>/input/ holds the publishers' dataset files unchanged (examples/prepare_data.py,
+# sha256 in SOURCE.md); Botswana.mat is 75 MB and losslessly compressed still 73 MB. Allowed up to
+# 95 MB there, below GitHub's 100 MB hard limit; everything else stays under 50 MB.
+MAX_DATASET_MB = 95
 
 
 def tracked():
@@ -35,12 +40,18 @@ def test_no_virtualenv_or_oversized_file_is_tracked():
         p for _, p in tracked() if re.search(r"(^|/)(\.venv|venv|site-packages)/|pyvenv\.cfg$", p)
     ]
     assert not bad, f"virtualenv files are tracked: {bad[:5]}"
+
+    def limit(p):
+        return MAX_DATASET_MB if re.match(r"examples/[^/]+/[^/]+/input/", p) else MAX_TRACKED_MB
+
     big = [
         p
         for _, p in tracked()
-        if (ROOT / p).is_file() and (ROOT / p).stat().st_size > MAX_TRACKED_MB * 2**20
+        if (ROOT / p).is_file() and (ROOT / p).stat().st_size > limit(p) * 2**20
     ]
-    assert not big, f"files over {MAX_TRACKED_MB} MB are tracked: {big}"
+    assert not big, (
+        f"files over the size limit ({MAX_TRACKED_MB} MB, {MAX_DATASET_MB} MB for example datasets): {big}"
+    )
 
 
 def test_gitignore_blocks_the_venv():
@@ -102,3 +113,22 @@ def test_cli_selfcheck_and_version():
     with pytest.raises(SystemExit) as e:
         cli.main(["--version"])
     assert e.value.code == 0 and __version__
+
+
+def test_local_ci_runs_the_gates_of_the_lint_job_and_the_hook_is_executable():
+    """Runs failed on GitHub for what a local check finds in seconds (unformatted file, oversized
+    file): scripts/ci_local.py must keep every command of the CI lint job, and the hook must run."""
+    import os
+
+    sys.path.insert(0, str(ROOT / "scripts"))
+    import ci_local
+
+    quick = [" ".join(c[1:]) for _, c in ci_local.QUICK]
+    ci = (ROOT / ".github" / "workflows" / "ci.yml").read_text()
+    for cmd in ("ruff check .", "ruff format --check .", "scripts/release.py docs"):
+        assert cmd in ci and any(cmd.removeprefix("ruff ") in q for q in quick), cmd
+    assert set(map(str, ci_local.QUICK)) <= set(map(str, ci_local.DEFAULT))
+    hook = ROOT / "scripts" / "hooks" / "pre-push"
+    assert "ci_local.py" in hook.read_text()
+    if os.name != "nt":
+        assert os.access(hook, os.X_OK)

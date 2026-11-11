@@ -1,0 +1,38 @@
+$ /usr/local/bin/python -m dlnet design --data /home/user/DLNet/examples/hsi/ksc/input/KSC.mat --gt /home/user/DLNet/examples/hsi/ksc/input/KSC_gt.mat --plugin hsi --out /home/user/DLNet/examples/hsi/ksc/output --budget 10m --topk 3 --seed 0 --threads 2 --no-cache --split pixel --pca 30
+[device] cpu, precision float32 (--device, --amp)
+[threads] 2 (of 4 CPUs; --threads to change)
+[plugin] hsi  data=/home/user/DLNet/examples/hsi/ksc/input/KSC.mat
+[warning] --split pixel with --patch 9: validation/test pixels sit inside the patches of training pixels, so scores are optimistic (spatial leakage). Use --split block for an honest estimate of performance on new areas.
+[load] task=classification features=30 classes=13 seed=0
+[profile] {'primary_metric': 'accuracy (OA); also AA, Kappa', 'cube_shape': [512, 614, 176], 'n_classes': 13, 'n_train': 520, 'n_val': 520, 'n_test': 4171, 'n_features': 30, 'patch': 9, 'split': 'pixel', 'frac': [0.1, 0.1, 0.8], 'dropped_by_margin': 0, 'pca_energy_kept': 0.9988, 'multilinear_rank_99': [291, 311, 52], 'multilinear_rank_levels': {'0.9': [159, 176, 29], '0.95': [204, 223, 37], '0.99': [291, 311, 52]}, 'intrinsic_dim': 12.57, 'scaling_exponent_hat': 0.318, 'intrinsic_dim_estimators': {'twonn': {'mean': 12.497, 'std': 0.745}, 'mle': {'mean': 11.891, 'std': 0.074}, 'value': 12.194, 'rel_disagreement': 0.05, 'stable': True}, 'capacity_hint': {'min_width': 32, 'scaling_exponent': 0.328, 'used_for_pruning': False}, 'classes_missing_train': [], 'classes_missing_test': [], 'max_params': 260000}
+[reference] classical baselines on the same split(s)
+[reference] random_forest_spectral_spatial val=0.9673
+[reference] random_forest_spectral     val=0.9000
+[reference] svm_rbf_spectral           val=0.8904
+[reference] svm_rbf_spectral_spatial   val=0.6692
+[zoo] 12 architectures from the module zoo (preset, random)
+[cost] 188 candidates; FLOPs/sample min 82,432 median 7,456,448 max 38,819,456
+[generate] 188 valid candidates from families ['afno2d', 'cnn1d', 'cnn2d', 'cnn3d', 'composed', 'convnext2d', 'dwsep2d', 'fahm', 'fcanet2d', 'ffc2d', 'fno2d', 'fourier_ss', 'gfnet2d', 'hybridsn', 'mambahsi', 'mambahsi_plus', 'resnet2d', 'spec_fft2d', 'spec_transformer', 'ssftt', 'ssrn', 'tucker_cnn2d', 'zoo_basic_block', 'zoo_basic_block_eca', 'zoo_bottleneck_dw_sep_mambahsi_plus_block', 'zoo_convnext_block', 'zoo_coord_attn_fused_mbconv_split_attn', 'zoo_ffn_gated_attn_block_gfnet_block', 'zoo_mamba_block_patchify_wukong', 'zoo_mbconv_res2net_block', 'zoo_mlstm_block_patchify', 'zoo_preact_block', 'zoo_regnet_block', 'zoo_unet_res_block']
+[seeds] -1 global_attention: 520 training images (1000000000 per class at least): global attention needs much data
+[seeds] 188/188 candidates, rankers ['prior']; first: ['cnn1d', 'cnn1d', 'cnn1d', 'cnn1d', 'cnn2d']
+[search] 188 candidates, rungs=(4, 12, 30)
+[search] rung 1 (4 ep): kept 10; best val=0.9019
+[search] rung 2 (12 ep): kept 6; best val=0.9442
+[search] rung 3 (30 ep): kept 5; best val=0.9635
+[cost] 8 candidates; FLOPs/sample min 1,442,746 median 6,874,816 max 8,478,080
+[evolve] generation 1: 8 children of ['mambahsi', 'zoo_convnext_block', 'zoo_bottleneck_dw_sep_mambahsi_plus_block']
+[search] 8 candidates, rungs=(4, 12, 30)
+[search] rung 1 (4 ep): kept 6; best val=0.9269
+[search] rung 2 (12 ep): kept 5; best val=0.9423
+[search] rung 3 (30 ep): kept 4; best val=0.9519
+[equalize] zoo_bottleneck_fused_mbconv_mambahsi_plus_block: trained on to 30 epochs, val=0.9346
+[runs] zoo_mbconv_res2net_block: 3 runs, val=0.9532 +/- 0.0063
+[runs] afno2d: 2 runs, val=0.9529 +/- 0.0010
+[hparams] estimating lr / batch size / weight decay for the finalists
+[warning] --split pixel with --patch 9: validation/test pixels sit inside the patches of training pixels, so scores are optimistic (spatial leakage). Use --split block for an honest estimate of performance on new areas.
+[warning] Some models were trained only once: their +/- is the sampling error of the validation set, not run-to-run noise. A larger --budget repeats the finalists.
+[warning] Only 30 of 188 candidates could be trained within the budget; raise --budget, or lower --zoo / --per-family, or use --seeds N.
+[proxies] Spearman with rung-1 validation (n=30): {'naswot': 0.088, 'synflow': -0.184, 'grad_norm': 0.143, 'snip': 0.04, 'zico': 0.194, 'params': -0.404, 'seed_prior': 0.229}
+[budget] load 10.0s/0ep, reference 2.8s/0ep, generate 21.8s/0ep, proxies 60.1s/0ep, seed_selection 0.0s/0ep, search 228.9s/290ep, evolution 165.1s/264ep, equalize 75.9s/18ep, runs 28.1s/90ep, hparams 0.0s/0ep, export 0.0s/0ep
+[done] 593s  -> /home/user/DLNet/examples/hsi/ksc/output/leaderboard.md
+[verdict] beats_reference=False val_margin=-0.00385 test_margin=-0.0211

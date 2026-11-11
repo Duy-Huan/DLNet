@@ -1,0 +1,13 @@
+#!/bin/sh
+# Installed by `python scripts/ci_local.py --install`. Runs the CI gates before every push.
+root=$(git rev-parse --show-toplevel)
+mode=""
+while read -r _local_ref local_sha _remote_ref remote_sha; do
+  case "$remote_sha" in *[!0]*) base=$remote_sha ;; *) base=$(git merge-base "$local_sha" origin/main 2>/dev/null) ;; esac
+  [ -n "$base" ] || { mode=""; break; }
+  if git diff --name-only "$base" "$local_sha" | grep -qvE '^examples/[^/]+/[^/]+/(input|output|qc)/'; then
+    mode=""; break
+  fi
+  mode="--quick"   # only example data / results changed
+done
+exec "${PYTHON:-python}" "$root/scripts/ci_local.py" $mode

@@ -1,0 +1,475 @@
+{
+  "task": "classification",
+  "metric": "accuracy",
+  "verdict": {
+    "beats_reference": true,
+    "val_margin": 0.02504,
+    "val_noise": 0.00379,
+    "test_margin": 0.03269,
+    "test_noise": 0.00129,
+    "top1_val": 0.98504,
+    "best_reference": "random_forest_spectral_spatial",
+    "best_reference_val": 0.96
+  },
+  "top_k": [
+    {
+      "rank": 1,
+      "name": "top1_zoo_gfnet_block_spectral_gf",
+      "roles": [
+        "top1"
+      ],
+      "group": 0,
+      "params": 57584,
+      "hyperparameters": {
+        "optimizer": "AdamW",
+        "lr": 0.001,
+        "weight_decay": 0.001,
+        "batch_size": 32,
+        "epochs": 100,
+        "lr_schedule": "cosine",
+        "grad_clip_norm": 5.0,
+        "dropout": 0.0,
+        "source": {
+          "adopted": "searched",
+          "searched": {
+            "lr": 0.001,
+            "batch": 32,
+            "wd": 0.001
+          },
+          "estimated": null,
+          "val_searched": 0.985040650406504,
+          "val_estimated": null,
+          "methods": [
+            "LR range test (Smith 1506.01186)",
+            "gradient noise scale B_simple (McCandlish 1812.06162)",
+            "normalized weight decay (Loshchilov & Hutter 1711.05101)"
+          ]
+        }
+      },
+      "val_mean": 0.98504,
+      "val_std": 0.00122,
+      "val_noise": 0.00379,
+      "noise_source": "validation sampling",
+      "epochs": 30,
+      "origin": "delete<-fourier_ss",
+      "flops": 8109824,
+      "vram_mb": 28.139,
+      "n_runs": 3,
+      "n_splits": 1,
+      "test_std": 0.00138,
+      "test": {
+        "accuracy": 0.98609,
+        "balanced_accuracy": 0.98352,
+        "kappa": 0.98414,
+        "score": 0.98609
+      }
+    },
+    {
+      "rank": 2,
+      "name": "top2_zoo_gfnet_block_spectral_gf_vgg_stage",
+      "roles": [
+        "most-stable",
+        "most-different"
+      ],
+      "group": 0,
+      "params": 170672,
+      "hyperparameters": {
+        "optimizer": "AdamW",
+        "lr": 0.001,
+        "weight_decay": 0.001,
+        "batch_size": 32,
+        "epochs": 100,
+        "lr_schedule": "cosine",
+        "grad_clip_norm": 5.0,
+        "dropout": 0.0,
+        "source": {
+          "adopted": "searched",
+          "searched": {
+            "lr": 0.001,
+            "batch": 32,
+            "wd": 0.001
+          },
+          "estimated": null,
+          "val_searched": 0.9848780487804878,
+          "val_estimated": null,
+          "methods": [
+            "LR range test (Smith 1506.01186)",
+            "gradient noise scale B_simple (McCandlish 1812.06162)",
+            "normalized weight decay (Loshchilov & Hutter 1711.05101)"
+          ]
+        }
+      },
+      "val_mean": 0.98488,
+      "val_std": 0.00049,
+      "val_noise": 0.00381,
+      "noise_source": "validation sampling",
+      "epochs": 30,
+      "origin": "swap<-fourier_ss",
+      "flops": 25362176,
+      "vram_mb": 61.799,
+      "n_runs": 2,
+      "n_splits": 1,
+      "test_std": 0.00012,
+      "test": {
+        "accuracy": 0.9867,
+        "balanced_accuracy": 0.98635,
+        "kappa": 0.98484,
+        "score": 0.9867
+      }
+    },
+    {
+      "rank": 3,
+      "name": "top3_spec_fft2d",
+      "roles": [],
+      "group": 0,
+      "params": 65488,
+      "hyperparameters": {
+        "optimizer": "AdamW",
+        "lr": 0.003,
+        "weight_decay": 0.0001,
+        "batch_size": 32,
+        "epochs": 100,
+        "lr_schedule": "cosine",
+        "grad_clip_norm": 5.0,
+        "dropout": 0.2,
+        "width": 32,
+        "depth": 3,
+        "patch": 9,
+        "source": {
+          "adopted": "searched",
+          "searched": {
+            "lr": 0.003,
+            "batch": 32,
+            "wd": 0.0001
+          },
+          "estimated": null,
+          "val_searched": 0.9827642276422764,
+          "val_estimated": null,
+          "methods": [
+            "LR range test (Smith 1506.01186)",
+            "gradient noise scale B_simple (McCandlish 1812.06162)",
+            "normalized weight decay (Loshchilov & Hutter 1711.05101)"
+          ]
+        }
+      },
+      "val_mean": 0.98276,
+      "val_std": 0.00376,
+      "val_noise": 0.00407,
+      "noise_source": "validation sampling",
+      "epochs": 30,
+      "origin": null,
+      "flops": 10451968,
+      "vram_mb": 13.684,
+      "n_runs": 3,
+      "n_splits": 1,
+      "test_std": 0.00209,
+      "test": {
+        "accuracy": 0.98349,
+        "balanced_accuracy": 0.929,
+        "kappa": 0.98117,
+        "score": 0.98349
+      }
+    }
+  ],
+  "reference": [
+    {
+      "name": "random_forest_spectral_spatial",
+      "val": 0.96,
+      "test": {
+        "accuracy": 0.9534,
+        "balanced_accuracy": 0.89898,
+        "kappa": 0.9467,
+        "score": 0.9534
+      }
+    },
+    {
+      "name": "svm_rbf_spectral_spatial",
+      "val": 0.84488,
+      "test": {
+        "accuracy": 0.83728,
+        "balanced_accuracy": 0.71824,
+        "kappa": 0.81369,
+        "score": 0.83728
+      }
+    },
+    {
+      "name": "random_forest_spectral",
+      "val": 0.69854,
+      "test": {
+        "accuracy": 0.70188,
+        "balanced_accuracy": 0.5439,
+        "kappa": 0.65137,
+        "score": 0.70188
+      }
+    },
+    {
+      "name": "svm_rbf_spectral",
+      "val": 0.68488,
+      "test": {
+        "accuracy": 0.68309,
+        "balanced_accuracy": 0.57623,
+        "kappa": 0.63614,
+        "score": 0.68309
+      }
+    }
+  ],
+  "warnings": [
+    "--split pixel with --patch 9: validation/test pixels sit inside the patches of training pixels, so scores are optimistic (spatial leakage). Use --split block for an honest estimate of performance on new areas.",
+    "Only 16 of 188 candidates could be trained within the budget; raise --budget, or lower --zoo / --per-family, or use --seeds N."
+  ],
+  "search_coverage": {
+    "candidates": 188,
+    "trained": 16,
+    "top_k_requested": 3,
+    "top_k_exported": 3
+  },
+  "objective": {
+    "objective": "accuracy",
+    "cost": "params",
+    "tolerance": 0.01,
+    "target_cost": null,
+    "cost_weight": -0.07,
+    "pareto_front": [
+      {
+        "family": "gfnet2d",
+        "val_mean": 0.98049,
+        "params": 31952,
+        "flops": 4054912
+      },
+      {
+        "family": "resnet2d",
+        "val_mean": 0.98114,
+        "params": 46352,
+        "flops": 7372672
+      },
+      {
+        "family": "zoo_gfnet_block_spectral_gf",
+        "val_mean": 0.98504,
+        "params": 57584,
+        "flops": 8109824
+      }
+    ]
+  },
+  "module_zoo": {
+    "initial_candidates": 12,
+    "evolution": [
+      {
+        "generation": 1,
+        "children": 8,
+        "best_rung1_val": 0.9668292682926829
+      }
+    ],
+    "top_origins": [
+      "delete<-fourier_ss",
+      "swap<-fourier_ss",
+      "legacy family"
+    ],
+    "ops_registered": 133
+  },
+  "seed_selection": {
+    "rules_fired": [
+      "-1 global_attention: 1026 training images (1000000000 per class at least): global attention needs much data"
+    ],
+    "rankers": [
+      "prior"
+    ],
+    "weights": {
+      "prior": 1.0,
+      "meta": 1.0,
+      "proxies": 0.0
+    },
+    "kept": 188,
+    "pool": 188,
+    "top": [
+      {
+        "family": "cnn1d",
+        "origin": "family",
+        "traits": [
+          "local_conv"
+        ],
+        "score": 134.0
+      },
+      {
+        "family": "cnn1d",
+        "origin": "family",
+        "traits": [
+          "local_conv"
+        ],
+        "score": 134.0
+      },
+      {
+        "family": "cnn1d",
+        "origin": "family",
+        "traits": [
+          "local_conv"
+        ],
+        "score": 134.0
+      },
+      {
+        "family": "cnn1d",
+        "origin": "family",
+        "traits": [
+          "local_conv"
+        ],
+        "score": 134.0
+      },
+      {
+        "family": "cnn1d",
+        "origin": "family",
+        "traits": [
+          "local_conv"
+        ],
+        "score": 134.0
+      },
+      {
+        "family": "cnn1d",
+        "origin": "family",
+        "traits": [
+          "local_conv"
+        ],
+        "score": 134.0
+      },
+      {
+        "family": "cnn1d",
+        "origin": "family",
+        "traits": [
+          "local_conv"
+        ],
+        "score": 134.0
+      },
+      {
+        "family": "cnn2d",
+        "origin": "family",
+        "traits": [
+          "local_conv",
+          "position_aware"
+        ],
+        "score": 134.0
+      },
+      {
+        "family": "cnn2d",
+        "origin": "family",
+        "traits": [
+          "local_conv",
+          "position_aware"
+        ],
+        "score": 134.0
+      },
+      {
+        "family": "cnn2d",
+        "origin": "family",
+        "traits": [
+          "local_conv",
+          "position_aware"
+        ],
+        "score": 134.0
+      }
+    ],
+    "used_for_pruning": false,
+    "data_card": {
+      "n_train": 1026
+    },
+    "context": "",
+    "goal": "accuracy",
+    "portfolio": null,
+    "scheduler": "sh"
+  },
+  "zero_cost_proxies": {
+    "target": "validation score after 4 epochs (rung 1)",
+    "proxies": {
+      "naswot": {
+        "spearman": -0.124,
+        "n": 14
+      },
+      "synflow": {
+        "spearman": 0.055,
+        "n": 13
+      },
+      "grad_norm": {
+        "spearman": 0.673,
+        "n": 14
+      },
+      "snip": {
+        "spearman": 0.673,
+        "n": 14
+      },
+      "zico": {
+        "spearman": 0.194,
+        "n": 14
+      },
+      "params": {
+        "spearman": 0.786,
+        "n": 16
+      },
+      "seed_prior": {
+        "spearman": null,
+        "n": 16
+      }
+    },
+    "better_than_param_count": [],
+    "used_for_pruning": false,
+    "note": "information only: one dataset and short training are not enough evidence to prune"
+  },
+  "budget": {
+    "budget": "10m",
+    "mode": "time",
+    "threads": 2,
+    "device": "cpu",
+    "amp": "auto",
+    "wall_seconds": 592.5,
+    "epochs_trained": 708.0,
+    "stages": [
+      {
+        "stage": "load",
+        "seconds": 1.44,
+        "epochs": 0.0
+      },
+      {
+        "stage": "reference",
+        "seconds": 6.75,
+        "epochs": 0.0
+      },
+      {
+        "stage": "generate",
+        "seconds": 20.91,
+        "epochs": 0.0
+      },
+      {
+        "stage": "proxies",
+        "seconds": 63.19,
+        "epochs": 0.0
+      },
+      {
+        "stage": "seed_selection",
+        "seconds": 0.0,
+        "epochs": 0.0
+      },
+      {
+        "stage": "search",
+        "seconds": 217.96,
+        "epochs": 310.0
+      },
+      {
+        "stage": "evolution",
+        "seconds": 177.85,
+        "epochs": 248.0
+      },
+      {
+        "stage": "runs",
+        "seconds": 104.24,
+        "epochs": 150.0
+      },
+      {
+        "stage": "hparams",
+        "seconds": 0.0,
+        "epochs": 0.0
+      },
+      {
+        "stage": "export",
+        "seconds": 0.0,
+        "epochs": 0.0
+      }
+    ],
+    "overrun_pct": -1.3
+  }
+}

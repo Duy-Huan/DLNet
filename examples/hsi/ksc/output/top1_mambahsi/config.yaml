@@ -1,0 +1,126 @@
+{
+  "plugin": "hsi",
+  "task": "classification",
+  "split_seed": 0,
+  "in_dim": 30,
+  "out_dim": 13,
+  "primary_metric": "accuracy",
+  "arch": {
+    "family": "mambahsi",
+    "patch": 9,
+    "width": 32,
+    "depth": 2,
+    "dropout": 0.0,
+    "lr": 0.003,
+    "wd": 0.0001,
+    "batch": 64,
+    "spec": {
+      "op": "seq",
+      "body": [
+        {
+          "op": "conv_bn_act",
+          "out": 32,
+          "k": 1,
+          "s": 1,
+          "act": "swish",
+          "norm": "group"
+        },
+        {
+          "op": "mambahsi_block",
+          "token_num": 4,
+          "group_num": 4
+        },
+        {
+          "op": "pool",
+          "mode": "avg",
+          "k": 2,
+          "s": 2
+        },
+        {
+          "op": "mambahsi_block",
+          "token_num": 4,
+          "group_num": 4
+        },
+        {
+          "op": "gap",
+          "mode": "avg"
+        }
+      ]
+    },
+    "input": {
+      "kind": "map",
+      "dims": [
+        30,
+        9,
+        9
+      ]
+    },
+    "head": "cls",
+    "out_dim": 13,
+    "flops": 3320768,
+    "act_mb": 0.425508,
+    "vram_mb": 54.851344,
+    "seed_prior": 0.0,
+    "seed_rank": 53,
+    "seed_score": 154.0,
+    "seed_traits": [
+      "local_conv"
+    ]
+  },
+  "hyperparameters": {
+    "optimizer": "AdamW",
+    "lr": 0.003,
+    "weight_decay": 0.0001,
+    "batch_size": 64,
+    "epochs": 100,
+    "lr_schedule": "cosine",
+    "grad_clip_norm": 5.0,
+    "dropout": 0.0,
+    "width": 32,
+    "depth": 2,
+    "patch": 9,
+    "source": {
+      "adopted": "searched",
+      "searched": {
+        "lr": 0.003,
+        "batch": 64,
+        "wd": 0.0001
+      },
+      "estimated": null,
+      "val_searched": 0.9634615384615385,
+      "val_estimated": null,
+      "methods": [
+        "LR range test (Smith 1506.01186)",
+        "gradient noise scale B_simple (McCandlish 1812.06162)",
+        "normalized weight decay (Loshchilov & Hutter 1711.05101)"
+      ]
+    }
+  },
+  "data": {
+    "split": "pixel",
+    "frac": [
+      0.1,
+      0.1,
+      0.8
+    ],
+    "patch": 9,
+    "pca": 30,
+    "block": 16
+  },
+  "recipe": {
+    "epochs": 100,
+    "schedule": "linear warm-up (5 %) then cosine",
+    "select": "best-val checkpoint",
+    "name": "modern",
+    "augment": true,
+    "label_smoothing": 0.1
+  },
+  "search_result": {
+    "val_mean": 0.9634615384615385,
+    "val_std": 0.0,
+    "epochs_used": 30,
+    "seeds": 1,
+    "splits": 1,
+    "test_std": 0.0
+  }
+}
