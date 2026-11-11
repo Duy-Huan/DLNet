@@ -77,6 +77,37 @@ CAMVID11 = {
 }
 
 
+class Archive:
+    """A .tgz read ONCE, front to back (random access re-decompresses from the start for every
+    file: hours on an 800 MB archive). Keeps the files whose name passes `keep` in memory."""
+
+    class _Member:
+        def __init__(self, name):
+            self.name = name
+
+        def isfile(self):
+            return True
+
+    def __init__(self, path, keep=lambda name: True):
+        self.files = {}
+        with tarfile.open(path, "r|gz") as t:
+            for m in t:
+                if m.isfile() and keep(m.name):
+                    self.files[m.name] = t.extractfile(m).read()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def getmembers(self):
+        return [self._Member(n) for n in self.files]
+
+    def extractfile(self, member):
+        return io.BytesIO(self.files[getattr(member, "name", member)])
+
+
 def sha256(path: Path) -> str:
     h = hashlib.sha256()
     with open(path, "rb") as f:
@@ -167,7 +198,7 @@ def mnist_like(case: str, prefix: str, classes: list[str], cache: Path, n=600) -
 
 def folders(tgz: Path, split: str, size, n: int):
     """ImageFolder-style archive: <root>/<split>/<class>/<file>; first n files per class (sorted)."""
-    with tarfile.open(tgz) as t:
+    with Archive(tgz, lambda n: f"/{split}/" in n) as t:
         members = sorted(
             (m for m in t.getmembers() if m.isfile() and f"/{split}/" in m.name and not m.name.split("/")[-1].startswith(".")),
             key=lambda m: m.name,
@@ -192,7 +223,9 @@ def pets_list(t: tarfile.TarFile) -> list[tuple[str, int, str]]:
 
 
 def pets_breeds(case: str, cache: Path, n=100, size=(64, 64)) -> None:
-    with tarfile.open(fetch("oxford-iiit-pet.tgz", cache)) as t:
+    with Archive(
+        fetch("oxford-iiit-pet.tgz", cache), lambda n: n.endswith((".jpg", ".png", "list.txt"))
+    ) as t:
         rows = pets_list(t)
         classes = [b for _, b in sorted({(c, b) for _, c, b in rows})]
         X, y = [], []
@@ -235,7 +268,9 @@ def isbi(case: str, cache: Path, size=(256, 256)) -> None:
 def pets_trimap(case: str, cache: Path, n=40, size=(96, 96)) -> None:
     from PIL import Image
 
-    with tarfile.open(fetch("oxford-iiit-pet.tgz", cache)) as t:
+    with Archive(
+        fetch("oxford-iiit-pet.tgz", cache), lambda n: n.endswith((".jpg", ".png", "list.txt"))
+    ) as t:
         rows = pets_list(t)
         X, y = [], []
         for c in range(37):
@@ -259,7 +294,7 @@ def pets_trimap(case: str, cache: Path, n=40, size=(96, 96)) -> None:
 def camvid(case: str, cache: Path, size=(120, 90)) -> None:
     from PIL import Image
 
-    with tarfile.open(fetch("camvid.tgz", cache)) as t:
+    with Archive(fetch("camvid.tgz", cache)) as t:
         codes = t.extractfile("camvid/codes.txt").read().decode().split()
         lut = np.full(256, -100, np.int64)
         for k, (_, members) in enumerate(CAMVID11.items()):
