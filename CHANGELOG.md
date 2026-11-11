@@ -6,6 +6,8 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+- Sửa ngân sách thời gian (phát hiện khi chạy QA `examples/`): `--budget 90s` chạy hơn 12 phút. Ứng viên đầu tiên luôn được train, và ứng viên chưa train được định giá theo FLOPs, mà FLOPs không tính chi phí vòng lặp Python (MambaVision, KAT, xLSTM chậm 10–100 lần so với FLOPs). Nay `Trainer.probe_epoch_seconds` đo thật một bước forward+backward (giữ nguyên trọng số, buffer, RNG) để định giá; rung 1 chỉ chạy ứng viên vừa ngân sách, hết chỗ thì train ứng viên rẻ nhất. Cùng lệnh nay xong trong 85 s. Có regression test.
+
 - Sửa hiệu năng: vòng quét của Mamba (`selective_scan`) và Gated DeltaNet dùng `unbind` thay cho chỉ số từng bước; backward trước đây cấp phát một tensor 0 bằng cả khối cho mỗi bước (O(L²)). Bước huấn luyện FAHM 13,8 s → 2,1 s, MambaHSI 5,3 s → 1,3 s, MambaHSI+ 23,1 s → 5,8 s (batch 64, 1 luồng CPU); kết quả số học không đổi. Có regression test.
 
 - Quy tắc tài liệu: mọi thay đổi hay nâng cấp phải cập nhật `README.md` và `doc/` (agent.md §17 quy tắc 0); `python scripts/release.py docs` kiểm trong job `lint` (lỗi trên commit phát hành, cảnh báo trên commit thường); `tests/test_docs.py` kiểm số module trong README và link README.
