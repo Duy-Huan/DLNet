@@ -28,7 +28,7 @@ jobs:
       - name: Install DLNet (CPU torch)
         run: |
           pip install torch --index-url https://download.pytorch.org/whl/cpu
-          pip install -e .
+          pip install -e . numpy
       - name: Official code (pinned)
         run: |
           pip install --target /tmp/m --no-deps tabm==0.0.3 rtdl_num_embeddings==0.0.12
