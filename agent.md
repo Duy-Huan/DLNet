@@ -283,6 +283,7 @@ Nguyên tắc: lõi **tổng quát trước**, kiểm chứng end-to-end sớm t
 | **M8** | Deep unfolding (khi có mô hình thuận) | **Xong cho bài toán thưa tuyến tính (v0.7.0)**, xem "Kết quả đo M8" ở §5: lệnh `dlnet unfold`, LISTA-CP hơn ISTA và FISTA (λ đã tune) 3,3–6,3 dB ở cùng số vòng K trên dữ liệu tổng hợp. Chưa có: ADMM/AMP, support selection, toán tử A không tường minh (ảnh), dữ liệu thật |
 | **M13** | Port nhóm còn thiếu: đồ thị, id/recommender, autoencoder/VAE, GAN, Mamba-2; cost model; hợp nhất họ cũ | **Xong (v0.11.0–v0.12.0)**, xem §13.7. Chưa có: CVAE, loss cặp (BPR), GAN có điều kiện/FID, đồ thị lớn (dense), graph cạnh học được |
 | **M14** | Khối ảnh từ thư viện chính thống (timm, smp, MONAI, torchvision); đối chiếu số học các khối viết từ trí nhớ | **Xong (v0.13.0)**, xem §13.8 |
+| **M24** | Mốc 3 sau kiểm định: công thức huấn luyện hiện đại, gói có `model.pt`/`predict.py`/export, thông báo lỗi | **Xong (v0.22.0)**, xem §9.6 |
 | **M23** | Mốc 2 sau kiểm định: phân bổ ngân sách (SH chia đều theo rung, chặn tiến hóa, chạy lại finalist, `--hparams auto`, bỏ prior tay) | **Xong (v0.21.0)**, xem §9.5 |
 | **M22** | Mốc 1 sau kiểm định: sửa kết quả sai (Hyperband, ứng viên lỗi, xếp hạng cùng epoch, nhiễu một lần chạy, vai trò, verdict, cảnh báo) | **Xong (v0.20.0)**, xem §9.4 |
 | **M21** | GPU: `--device`, mixed precision (`--amp`), `channels_last`, gói xuất ra dùng GPU (§18 P1 mục 1) | **Xong phần mã (v0.19.0), chưa đo trên GPU thật**, xem §9.3 |
@@ -358,6 +359,21 @@ Thay đổi: mỗi rung của successive halving một phần ngân sách bằng
 | test của top-1, chênh new − old | | +0,005, −0,022, +0,039, +0,010, −0,003, +0,003 (TB **+0,005**, sd 0,02; 4/6 dương) |
 
 Kết luận trung thực: Top-K được huấn luyện sâu gấp 2,5 lần nên thứ hạng gần kết quả huấn luyện đầy đủ hơn; độ chính xác test **không khác biệt có ý nghĩa** ở ngân sách này. Phiên bản đầu (chưa bù finalist) chỉ xuất 1 mô hình: đã sửa trước khi phát hành. Với ngân sách 150 epoch, `more_runs` thường không còn chỗ (top-1 vẫn 1 lần chạy).
+
+### 9.6 Mốc 3 sau kiểm định (M24, v0.22): mạng đầu ra tốt hơn, gói dùng được ngay
+- **Công thức huấn luyện** (`--recipe modern`, mặc định): augmentation cho ảnh (dịch tối đa 1/8 cạnh; lật ngang cho ảnh màu và phân đoạn, mask lật cùng ảnh; một phép lấy mẫu affine theo số nguyên pixel trên thiết bị) và label smoothing 0,1; `train_full` warm-up 5 % rồi cosine. Chưa làm: EMA, mixup/cutmix, augmentation cho chuỗi thời gian.
+- **Đo A/B** `--recipe plain` so với `modern`, mặc định, `--budget 150ep --threads 1`, test của top-1:
+
+  | | seed 0 | seed 1 |
+  |---|---|---|
+  | CIFAR-10 3k (màu 32×32) | 0,479 → **0,584** (+0,105) | 0,487 → **0,587** (+0,100) |
+  | fashion14 (xám 14×14) | 0,863 → 0,836 (−0,027) | 0,821 → 0,828 (+0,007) |
+  | digits (8×8) | 0,997 → 1,000 | 1,000 → 0,995 |
+
+  Kết luận: +10 điểm, ổn định, trên ảnh màu tự nhiên; trên ảnh xám rất nhỏ thì trung tính (trong nhiễu). Mặc định `modern` vì không thấy thiệt hại có ý nghĩa.
+- **Gói xuất ra**: `train.py` chạy từ mọi thư mục, lưu `model.pt` + `preprocess.json` (mỗi hàm dựng dữ liệu ghi khối `preprocess`); `predict.py` + `inference.py` dự đoán file mới theo đơn vị nhãn gốc cho cả 8 loại dữ liệu (`tests/test_package_inference.py`); `--export model.pt2` (torch.export, không cần gói thêm) hoặc `.onnx` (cần onnx, onnxscript).
+- **Thông báo lỗi**: router không đưa `.npz` dạng mẫu/nhãn sang HSI và liệt kê các mảng; file không tồn tại; `--max-*` sai định dạng; giới hạn loại hết ứng viên (nêu ứng viên nhỏ nhất); `--target` sai gợi ý cột gần đúng; leaderboard ghi số ứng viên thật sự được huấn luyện (`search_coverage`) và cảnh báo khi Top-K thiếu.
+- Tài liệu: thứ tự cài torch CPU trước, Python 3.10–3.13, yêu cầu của từng loại gói (F1, F3).
 
 ## 10. Quy ước cho agent (người/AI) phát triển repo
 
@@ -829,7 +845,7 @@ Chưa làm: epochs (hiện là công thức mặc định 100 epoch, cosine, ch�
 Đội 4 agent kiểm định (`qa/`, skill `quality-audit`) chấm 34 tiêu chí: 6 ĐẠT, 17 MỘT PHẦN, 11 KHÔNG ĐẠT. Chi tiết, bằng chứng và nguồn: `qa/reports/v0.19.0/SUMMARY.md`.
 - ~~**Mốc 1 (P0, sửa kết quả sai)**~~ (xong v0.20.0, §9.4): Hyperband sập khi chạm đúng hạn; cô lập ứng viên lỗi hoặc NaN; chỉ xếp hạng cùng số epoch, có cột epoch; nhiễu trung thực khi chỉ có 1 lần chạy; sửa `best-small` và `most-stable`; verdict có ngưỡng nhiễu trên test; cảnh báo one-hot bất thường và HSI chia pixel.
 - ~~**Mốc 2 (P1, ngân sách)**~~ (xong v0.21.0, §9.5): pool ứng viên theo ngân sách (finalist ≥ rung 2–3); giai đoạn hyperparameter tắt ở ngân sách nhỏ và tính cả giờ thực; bỏ prior tay khỏi Borda; tiến hóa và Hyperband chỉ bật khi đủ ngân sách, về lâu dài dùng ASHA.
-- **Mốc 3 (P1, mạng đầu ra)**: công thức huấn luyện hiện đại (augmentation, label smoothing, warmup, EMA, mixup; ablation cho thấy tới 17 điểm trên CIFAR); gói xuất ra có `model.pt`, `preprocess.json`, `predict.py`, ONNX; thông báo lỗi và kiểm tra đầu vào.
+- ~~**Mốc 3 (P1, mạng đầu ra)**~~ (xong v0.22.0, §9.6; còn EMA, mixup): công thức huấn luyện hiện đại (augmentation, label smoothing, warmup, EMA, mixup; ablation cho thấy tới 17 điểm trên CIFAR); gói xuất ra có `model.pt`, `preprocess.json`, `predict.py`, ONNX; thông báo lỗi và kiểm tra đầu vào.
 - **Mốc 4 (P2, cutting edge)**: pretrained (timm/DINOv2, TabPFN v2); TabM/PLR, PatchTST/iTransformer, Mamba-HSI, graph transformer; DEHB/PriorBand/LC-PFN; đo trên GPU.
 Mỗi mốc kết thúc bằng một lần chạy lại đội kiểm định.
 

@@ -6,6 +6,21 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-11-11
+
+Mốc M24 (Mốc 3 của lộ trình sau kiểm định, `agent.md` §9.6).
+
+### Thêm
+- **`--recipe modern|plain`** (mặc định `modern`): augmentation cho ảnh (dịch, lật ngang cho ảnh màu và phân đoạn) và label smoothing 0,1; huấn luyện đầy đủ có warm-up rồi cosine. Đo: CIFAR-10 3k +10 điểm test (2/2 seed); ảnh xám nhỏ không đổi có ý nghĩa.
+- Gói xuất ra dùng được ngay: `train.py` lưu `model.pt` và `preprocess.json`; **`predict.py`** dự đoán file mới (CSV / `.npz` / cube) theo nhãn gốc cho mọi loại dữ liệu; `--export model.pt2` (torch.export) hoặc `model.onnx`; `inference.py` để dùng trong mã Python.
+- Leaderboard: `search_coverage` (số ứng viên được huấn luyện) và cảnh báo khi Top-K thiếu.
+
+### Sửa
+- `train.py` chạy được từ bất kỳ thư mục nào.
+- `.npz` có tên mảng khác `X`/`y` không còn bị đưa nhầm sang plugin HSI; thông báo liệt kê các mảng và cách đặt tên.
+- Thông báo rõ cho: file không tồn tại, `--max-params abc`, giới hạn loại hết ứng viên, `--target` sai (gợi ý cột gần đúng).
+- Tài liệu cài đặt: torch CPU trước `requirements.txt`, Python 3.10–3.13; yêu cầu của từng loại gói.
+
 ## [0.21.0] - 2026-11-11
 
 Mốc M23 (Mốc 2 của lộ trình sau kiểm định, `agent.md` §9.5).
@@ -363,7 +378,8 @@ Bản đầu tiên: prototype chạy được từ dữ liệu đến Top-K base
 - Chưa có zero-cost proxy, cost model FLOPs/VRAM, Tensor-LoRA, deep unfolding; chưa có plugin image và timeseries.
 - Kết quả trên Indian Pines và Pavia University là một lần chạy ngắn trên CPU: với chia theo khối, mạng sâu chưa vượt rõ baseline cổ điển.
 
-[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v0.21.0...HEAD
+[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v0.22.0...HEAD
+[0.22.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.22.0
 [0.21.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.21.0
 [0.20.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.20.0
 [0.19.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.19.0
