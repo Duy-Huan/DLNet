@@ -56,7 +56,7 @@ Preset (kiểm tra cờ với phiên bản CLI của bạn):
 | `dlnet_candidates` | pool hạt giống DLNet sẽ tìm (đặc tính, kích thước, điểm prior, spec) |
 | `dlnet_zoo` | danh mục module (kiểu đầu vào, tham số, nguồn) để viết kiến trúc |
 | `dlnet_check_spec` | kiểm tra tĩnh một spec: số tham số, shape đầu ra hoặc lỗi |
-| `dlnet_design` | chạy `dlnet design` (chặn tới hết `budget`), có thể kèm `extra_specs` do AI viết |
+| `dlnet_design` | chạy `dlnet design` (chặn tới hết `budget`), có thể kèm `extra_specs` do AI viết; `device`, `threads` như tùy chọn CLI |
 | `dlnet_leaderboard` | đọc kết quả của một lần chạy |
 
 Vòng làm việc gợi ý cho AI: `dlnet_profile` → `dlnet_candidates` → viết vài spec, kiểm bằng `dlnet_check_spec` → `dlnet_design` với `extra_specs` → `dlnet_leaderboard` → lặp lại.

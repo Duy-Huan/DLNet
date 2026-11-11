@@ -244,8 +244,11 @@ def test_mcp_profile_design_and_leaderboard_round_trip(tmp_path, tabular_csv):
     assert prof["plugin"] == "tabular" and prof["profile"]["n_train"] > 0
     spec = {"op": "seq", "body": [{"op": "linear_act", "out": 16}]}
     res = call("dlnet_design", {"data": str(tabular_csv), "target": "y", "out": str(tmp_path / "o"),
-                                "budget": "20ep", "topk": 1, "objective": "params", "extra_specs": [spec]})  # fmt: skip
+                                "budget": "20ep", "topk": 1, "objective": "params", "extra_specs": [spec],
+                                "device": "cpu", "threads": 1})  # fmt: skip
     body = json.loads(res["content"][0]["text"])
+    board = json.loads((tmp_path / "o" / "leaderboard.json").read_text())["budget"]
+    assert board["device"] == "cpu" and board["threads"] == 1
     assert body["ok"] and body["top_k"] and "Leaderboard" in body["leaderboard_md"]
     assert (tmp_path / "o.extra_specs.json").exists()
     bad = call("dlnet_leaderboard", {"out": str(tmp_path / "missing")})

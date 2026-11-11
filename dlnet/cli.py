@@ -32,7 +32,9 @@ def _budget_report(text, mode, budget, wall, threads) -> dict:
     from . import clock
 
     stages = clock.breakdown()
-    rep = {"budget": text, "mode": mode, "threads": threads, "wall_seconds": round(wall, 1),
+    from . import core
+
+    rep = {"budget": text, "mode": mode, "threads": threads, "device": core.DEVICE, "amp": core.AMP, "wall_seconds": round(wall, 1),
            "epochs_trained": round(clock.epochs(), 1), "stages": stages}  # fmt: skip
     spent = wall if mode == "time" else clock.epochs()
     rep["overrun_pct"] = round(100 * (spent - budget) / budget, 1) if budget else 0.0
@@ -82,11 +84,29 @@ def _apply_cost_model(plugin, data, cands, args):
 
 
 def design(args) -> int:
-    from . import threads
+    from . import core, threads
 
-    with threads.limit(threads.resolve(args.threads)) as n:
-        print(f"[threads] {n} (of {threads.available_cpus()} CPUs; --threads to change)")
-        return _design(args, n)
+    try:
+        dev = core.pick_device(args.device)
+    except ValueError as e:
+        raise SystemExit(f"--device: {e}") from None
+    amp = core.amp_dtype(dev, args.amp)
+    saved = core.DEVICE, core.AMP
+    core.DEVICE, core.AMP = str(dev), args.amp  # every Trainer of this run
+    print(f"[device] {dev}" + (f" ({torch_name(dev)})" if dev.type == "cuda" else "")
+          + f", precision {'float32' if amp is None else str(amp).split('.')[-1]} (--device, --amp)")  # fmt: skip
+    try:
+        with threads.limit(threads.resolve(args.threads)) as n:
+            print(f"[threads] {n} (of {threads.available_cpus()} CPUs; --threads to change)")
+            return _design(args, n)
+    finally:
+        core.DEVICE, core.AMP = saved
+
+
+def torch_name(dev) -> str:
+    import torch
+
+    return torch.cuda.get_device_name(dev)
 
 
 def _design(args, n_threads) -> int:
@@ -479,6 +499,14 @@ def main(argv=None) -> int:
         help="budget of the whole run: wall clock (90s, 10m, 2h) or training epochs (400ep, reproducible)",
     )  # fmt: skip
     d.add_argument("--topk", type=int, default=3, help="number of exported baselines")
+    d.add_argument(
+        "--device", default="auto",
+        help="auto (CUDA GPU, else Apple MPS, else CPU) | cpu | cuda | cuda:1 | mps",
+    )  # fmt: skip
+    d.add_argument(
+        "--amp", default="auto", choices=["auto", "off", "bf16", "fp16"],
+        help="mixed precision: auto = bf16 (or fp16) on a CUDA GPU, float32 elsewhere",
+    )  # fmt: skip
     d.add_argument(
         "--threads", type=int, default=0,
         help="CPU threads for torch, BLAS and OpenMP (0 = auto: free CPUs; fix it for identical reruns)",

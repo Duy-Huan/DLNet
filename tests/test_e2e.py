@@ -38,7 +38,7 @@ def check_package(pkg, train_args):
     assert cfg["arch"]["family"] in pkg.name
     t = run(["-m", "pytest", "-q", "-p", "no:cacheprovider", "tests"], pkg)
     assert t.returncode == 0, t.stdout + t.stderr
-    r = run(["train.py", *train_args, "--epochs", "2"], pkg)
+    r = run(["train.py", *train_args, "--epochs", "2", "--device", "cpu", "--amp", "off"], pkg)
     assert r.returncode == 0, r.stdout + r.stderr
     assert "test:" in r.stdout and "val :" in r.stdout
 
