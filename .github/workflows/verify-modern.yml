@@ -1,0 +1,42 @@
+name: Verify modern families against official code
+
+# Numerical equivalence of dlnet/zoo/ops_modern.py (TabM, PLR, PatchTST, iTransformer) with the
+# authors' code: scripts/verify_modern.py. The official code is pinned (PyPI versions, git commits)
+# and only installed on this runner; it is not a dependency of DLNet.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [dev]
+    paths:
+      - dlnet/zoo/ops_modern.py
+      - scripts/verify_modern.py
+      - .github/workflows/verify-modern.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install DLNet (CPU torch)
+        run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -e . numpy
+      - name: Official code (pinned)
+        run: |
+          pip install --target /tmp/m --no-deps tabm==0.0.3 rtdl_num_embeddings==0.0.12
+          git clone https://github.com/yuqinie98/PatchTST /tmp/PatchTST
+          git -C /tmp/PatchTST checkout 204c21efe0b39603ad6e2ca640ef5896646ab1a9
+          git clone https://github.com/thuml/iTransformer /tmp/iTransformer
+          git -C /tmp/iTransformer checkout c2426e68ca13f74aaec08045c5c724d8ad328124
+      - name: Compare outputs
+        run: |
+          PYTHONPATH=/tmp/m python scripts/verify_modern.py \
+            --patchtst /tmp/PatchTST --itransformer /tmp/iTransformer

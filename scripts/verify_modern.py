@@ -76,6 +76,39 @@ def _bn_same_random_stats(ref, mine):
             s.running_var.copy_(t.running_var)
 
 
+# official PatchTST_backbone state_dict name -> dlnet name (named_parameters() lists a module's own
+# parameters before its children's, so the two modules list them in different orders)
+PATCHTST_NAMES = (
+    ("revin_layer.", "revin."), ("backbone.encoder.", ""), ("backbone.", ""),
+    ("self_attn.sdp_attn.scale", "scale"), ("self_attn.to_out.0.", "to_out."), ("self_attn.", ""),
+    ("norm_attn.1.", "norm_attn.bn."), ("norm_ffn.1.", "norm_ffn.bn."),
+)  # fmt: skip
+
+
+ITRANSFORMER_NAMES = (
+    ("enc_embedding.", ""), ("encoder.attn_layers.", "layers."), ("attention.", ""), ("encoder.", ""),
+)  # fmt: skip
+
+
+def copy_by_name(src, dst, rules):
+    """Copy a state_dict into `dst` after renaming; every tensor of `dst` must be filled."""
+    mine = dst.state_dict()
+    done = set()
+    with torch.no_grad():
+        for n, x in src.items():
+            if n.startswith(("head.", "projector.")):
+                continue
+            for a, b in rules:
+                n = n.replace(a, b)
+            if n not in mine or mine[n].shape != x.shape:
+                raise ValueError(f"no matching tensor for {n} {tuple(x.shape)}")
+            mine[n].copy_(x)
+            done.add(n)
+    missing = set(mine) - done
+    if missing:
+        raise ValueError(f"not copied: {sorted(missing)}")
+
+
 def check_patchtst(repo):
     sys.path.insert(0, f"{repo}/PatchTST_supervised")
     from layers.PatchTST_backbone import PatchTST_backbone
@@ -87,12 +120,8 @@ def check_patchtst(repo):
                                 n_layers=layers, d_model=d, n_heads=heads, d_ff=2 * d, dropout=0.1,
                                 head_dropout=0, revin=True, affine=True).eval()  # fmt: skip
         mine = PatchTST(c, t, d, layers, heads, p, p // 2, 2 * d, 0.1).eval()
-        a = [x for n, x in ref.named_parameters() if not n.startswith("head")]
-        a += [
-            x for n, x in ref.named_buffers() if "num_batches" not in n and not n.startswith("head")
-        ]
-        copy_list(a, tensors(mine))
         _bn_same_random_stats(ref, mine)
+        copy_by_name(ref.state_dict(), mine, PATCHTST_NAMES)
         x = torch.randn(4, c, t)
         z = ref.revin_layer(x.permute(0, 2, 1), "norm").permute(0, 2, 1)
         z = ref.backbone(z.unfold(-1, p, p // 2).permute(0, 1, 3, 2))  # (B, C, d, n)
@@ -123,9 +152,7 @@ def check_itransformer(repo):
                               n_heads=heads, e_layers=layers, d_ff=2 * d, activation="gelu")  # fmt: skip
         ref = Model(cfg).eval()
         mine = ITransformer(t, d, layers, heads, 2 * d, 0.1).eval()
-        copy_list(
-            [x for n, x in ref.named_parameters() if not n.startswith("projector")], tensors(mine)
-        )
+        copy_by_name(ref.state_dict(), mine, ITRANSFORMER_NAMES)
         x = torch.randn(3, c, t)
         xe = x.transpose(1, 2)  # official input (B, T, C), normalised as in Model.forecast
         xe = xe - xe.mean(1, keepdim=True)

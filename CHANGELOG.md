@@ -6,6 +6,9 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+### Thêm
+- CI `verify-modern.yml`: chạy `scripts/verify_modern.py` trên GitHub Actions với mã gốc ghim phiên bản (tabm 0.0.3, rtdl_num_embeddings 0.0.12, commit PatchTST/iTransformer).
+
 ## [0.23.0] - 2026-11-11
 
 Mốc M25 (Mốc 4 của lộ trình sau kiểm định, `agent.md` §9.7).
