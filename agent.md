@@ -802,6 +802,14 @@ Chưa làm: epochs (hiện là công thức mặc định 100 epoch, cosine, ch�
 3. **Đề xuất cấu hình có mô hình** (BOHB, arXiv:1807.01774; TPE): sinh kiến trúc từ phân phối học được thay vì lấy mẫu ngẫu nhiên trong ngữ pháp.
 4. **Đo AI advisor** trên dữ liệu thật, nhiều seed, cùng ngân sách epoch; chỉ tăng trọng số khi thắng rõ.
 
+### 18.1 Thứ tự mới sau kiểm định chất lượng v0.19 (thay thế thứ tự ở trên)
+Đội 4 agent kiểm định (`qa/`, skill `quality-audit`) chấm 34 tiêu chí: 6 ĐẠT, 17 MỘT PHẦN, 11 KHÔNG ĐẠT. Chi tiết, bằng chứng và nguồn: `qa/reports/v0.19.0/SUMMARY.md`.
+- **Mốc 1 (P0, sửa kết quả sai)**: Hyperband sập khi chạm đúng hạn; cô lập ứng viên lỗi hoặc NaN; chỉ xếp hạng cùng số epoch, có cột epoch; nhiễu trung thực khi chỉ có 1 lần chạy; sửa `best-small` và `most-stable`; verdict có ngưỡng nhiễu trên test; cảnh báo one-hot bất thường và HSI chia pixel.
+- **Mốc 2 (P1, ngân sách)**: pool ứng viên theo ngân sách (finalist ≥ rung 2–3); giai đoạn hyperparameter tắt ở ngân sách nhỏ và tính cả giờ thực; bỏ prior tay khỏi Borda; tiến hóa và Hyperband chỉ bật khi đủ ngân sách, về lâu dài dùng ASHA.
+- **Mốc 3 (P1, mạng đầu ra)**: công thức huấn luyện hiện đại (augmentation, label smoothing, warmup, EMA, mixup; ablation cho thấy tới 17 điểm trên CIFAR); gói xuất ra có `model.pt`, `preprocess.json`, `predict.py`, ONNX; thông báo lỗi và kiểm tra đầu vào.
+- **Mốc 4 (P2, cutting edge)**: pretrained (timm/DINOv2, TabPFN v2); TabM/PLR, PatchTST/iTransformer, Mamba-HSI, graph transformer; DEHB/PriorBand/LC-PFN; đo trên GPU.
+Mỗi mốc kết thúc bằng một lần chạy lại đội kiểm định.
+
 ## Tài liệu tham khảo
 Toàn bộ PDF nằm trong `ref/` (mục lục: `ref/README.md`); thuật toán ước lượng chất lượng và hyperparameter trong `ref/optimazeDL/` (§16).
 
