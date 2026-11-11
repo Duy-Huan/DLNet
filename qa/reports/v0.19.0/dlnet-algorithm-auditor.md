@@ -6,7 +6,7 @@
 - Mọi lệnh: `--threads 1 --no-cache`, ngân sách `--budget 150ep`, chạy tuần tự.
 - Dữ liệu thật (chỉ đọc): `mnist14` (2000 ảnh 14×14), `fashion14` (2000 ảnh 14×14), `digits` (1797 ảnh 8×8); meta-dataset có sẵn `dlnet/data/meta_image.jsonl` (14 bộ) cho A7.
 - Thư mục làm việc: `$QA_WORK/algorithm/` (`runs/`, `scripts/`, `pilot/`, `bench_surrogate.json`, `hb_crash_mnist14_s0.log`).
-- Tổng thời gian khoảng 80 phút; 27 lần chạy `design` + 1 lần `bench_surrogate.py` + 1 bản LODO bổ sung.
+- Tổng thời gian khoảng 70 phút đo (04:01–05:07 UTC); 26 lần chạy `design` hoàn tất (1 pilot, 20 A/B, 1 chạy lại nhánh hb, 4 lần mặc định/objective), 1 lần sập (Hyperband), 1 lần dừng giữa chừng (fashion14 seed 1, bị cắt vì hết giờ); 1 lần `bench_surrogate.py`; 1 bản LODO bổ sung.
 
 **Thiết kế thí nghiệm A/B (A2, A3, A4).** Cấu hình gốc `base` = `--seeds 16 --seed-order data --scheduler sh --evolve 0 --no-proxies`; mỗi nhánh đổi đúng một yếu tố: `random` (`--seed-order random`), `hb` (`--scheduler hyperband`), `evo2` (`--evolve 2`). Ghép cặp theo (bộ dữ liệu, `--seed`), vì `--seed` đổi cả cách chia dữ liệu. Để đủ số lần lặp, giai đoạn ước lượng hyperparameter được thay bằng hàm giữ nguyên (cùng cho mọi nhánh) qua `scripts/driver.py` trong thư mục làm việc — không sửa repo. Giai đoạn này được đo riêng ở A5 bằng lệnh mặc định. Nhánh `hb` cần thêm một **lớp chặn lỗi** trong driver (xem phát hiện N1); không có lớp chặn thì nhánh này sập.
 
@@ -17,26 +17,58 @@
 | ID | Kết quả | Bằng chứng (lệnh, số đo, file:dòng) |
 |---|---|---|
 | A1 | MỘT PHẦN | Đã đối chiếu 7 thuật toán với PDF trong `ref/` hoặc mã chính thức: Hyperband (Algorithm 1 và Table 1 trong `ref/optimazeDL/hp_hyperband_1603.06560.pdf`), aging evolution (Algorithm 1 trong `ref/02_regularized-evolution_1802.01548.pdf`), MnasNet reward (pt. 2, α = β = −0,07), crowding distance của NSGA-II, gradient noise scale (McCandlish phụ lục A.1), ZiCo (`official_code/ZiCo/compute_zico.py`), NASWOT (`official_code/nas-without-training`). Công thức đúng ở cả 7; các sai lệch đều đã ghi trong docstring. Còn 2 sai lệch **chưa ghi**: (1) LR range test lấy lr_max = **cực tiểu** của loss rồi đề xuất lr_max/2 (`hparams.py:157-161`); Smith định nghĩa max_lr là mức LR mà độ chính xác bắt đầu giảm (cho SGD + CLR), còn quy tắc fastai thường dùng LR thấp hơn cực tiểu khoảng 10 lần. Áp nguyên cho AdamW sinh ra lr 0,013–0,056, gấp 5–56 lần lr đã tìm (xem A5). (2) `run_search` không phải SH của Jamieson & Talwalkar: rung 30 thay vì 36 = 4·3², và luôn giữ ít nhất `2·topk` = 6 ứng viên (`search.py:195`), nên với 16 ứng viên rung 2 không loại ai |
-| A2 | KHÔNG ĐẠT | `--seeds 16`, data so với random, 150ep, mnist14 và digits × seed 0/1: val top-1 random − data = +0,0101, 0, −0,0028, −0,0028 (TB +0,0011, sd 0,0053); test: 0, 0, 0, +0,0081. Random thắng hoặc hòa ở 3/4 cặp trên val và 4/4 trên test. fashion14 seed 0: xem bảng A/B. Không có chênh lệch nào vượt nhiễu |
-| A3 | MỘT PHẦN (số đo có; Hyperband **sập**) | `--scheduler hyperband` sập với `KeyError: 'val0'` ở `search.py:305` (`hb_crash_mnist14_s0.log`). Lớp chặn lỗi cũng bật ở 4/4 lần chạy còn lại, tức là cả 4 sẽ sập. Khi đã chặn lỗi: hb − sh: val +0,0177, −0,0253, −0,0028, −0,0141 (TB −0,0061); test +0,0074, −0,0123, 0, 0. Hyperband chỉ xuất **1** mô hình thay vì 3 ở mọi lần chạy. Khuyến nghị: giữ `sh` làm mặc định |
-| A4 | KHÔNG ĐẠT | `--evolve 2` so với 0, cùng 150ep: val +0,0050, −0,0354, +0,0028, +0,0056; **test −0,0098, −0,0368, 0, −0,0027** (TB −0,0123; không thắng test lần nào trong 4). Top-1 của nhánh evo2 luôn chỉ được huấn luyện **4 epoch** (nhánh base: 12), vì chia 55/45 ngân sách khiến không rung nào vượt quá rung 1 (`cli.py:292`) |
+| A2 | KHÔNG ĐẠT | `--seeds 16`, data so với random, 150ep, 5 cặp (mnist14 s0/s1, digits s0/s1, fashion14 s0). Val top-1 random − data = +0,0101, 0, −0,0028, −0,0028, −0,0025 (TB +0,0004, sd 0,0050); test 0, 0, 0, +0,0081, −0,0123 (TB −0,0008). Bộ chọn chỉ hơn ngẫu nhiên ở 3/5 cặp trên val (mỗi lần dưới 0,003, tức 1 ảnh val) và 1/5 trên test. Không có chênh lệch nào vượt nhiễu (≈ 0,01) |
+| A3 | MỘT PHẦN (số đo có; Hyperband **sập**) | `--scheduler hyperband` sập với `KeyError: 'val0'` ở `search.py:305` (`hb_crash_mnist14_s0.log`). Lớp chặn lỗi của QA bật ở **5/5** lần chạy, tức là không có lớp chặn thì cả 5 đều sập. Khi đã chặn lỗi, hb − sh: val +0,0177, −0,0253, −0,1058, −0,0028, −0,0141 (TB −0,026, sd 0,042); test +0,0074, −0,0123, −0,0711, 0, 0 (TB −0,015). HB thắng 1/5. Hyperband chỉ xuất **1** mô hình thay vì 3 ở mọi lần chạy. Khuyến nghị: giữ `sh` làm mặc định |
+| A4 | KHÔNG ĐẠT | `--evolve 2` so với 0, cùng 150ep, 5 cặp: val +0,0050, −0,0354, −0,0050, +0,0028, +0,0056; **test −0,0098, −0,0368, −0,0441, 0, −0,0027** (TB −0,0187, sd 0,018; thắng test **0/5**, vượt nhiễu ≈ 0,01). Top-1 của nhánh evo2 luôn chỉ được huấn luyện **4 epoch** (nhánh base: 12), vì chia 55/45 ngân sách khiến không rung nào vượt quá rung 1 (`cli.py:292`) |
 | A5 | KHÔNG ĐẠT | 5 lần chạy mặc định (mnist14, fashion14, digits ×3): **0/15** đề xuất được nhận; val của đề xuất luôn thấp hơn, có lần rất xa (0,957→0,922; 0,809→0,655; 0,778→0,458; 0,986→0,870). lr đề xuất 0,013–0,056 so với lr đã tìm 0,001–0,003. Giai đoạn này tốn 39–50 % thời gian thực (100,9/261 s; 191,3/381 s; 53,4/130 s) mà chỉ chiếm 24/144 epoch. Top-1 không lần nào được ước lượng (hết ngân sách). Ngưỡng nhận `v − val > max(sd, val_std, 1e-9)` (`hparams.py:248`) thành 1e-9 khi chỉ có 1 seed, tức là không tính nhiễu |
 | A6 | ĐẠT (đo được, kết quả xấu cho proxy) | Spearman với val ở rung 1 (n = 16), 3 bộ: grad_norm 0,67 / 0,73 / 0,56; snip 0,70 / 0,73 / 0,59; **params 0,70 / 0,60 / 0,78**; naswot −0,17 / −0,11 / 0,05; synflow −0,05 / 0,06 / 0,12; zico −0,15 / −0,13 / −0,31; vote 0,14 / 0,27 / 0,20; **seed_prior −0,35 / −0,37 / −0,25** (thứ tự mnist14 / fashion14 / digits). Chỉ grad_norm và snip nhỉnh hơn đếm tham số trên fashion14, ngang trên mnist14, thua trên digits. Prior tay **âm** trên cả 3 bộ |
 | A7 | ĐẠT | `scripts/bench_surrogate.py --store dlnet/data/meta_image.jsonl` (28 s): Borda +0,668 / 0,0607 / 4/14; ZAP +0,536 / 0,0608 / 3/14; ZAP không φ +0,687 / 0,0745 / 5/14; kNN +0,553 / 0,0963 / 9/14; prior +0,192 / 0,1037; params +0,329 / 0,1084; random 0 / 0,175. Khớp `doc/algorithms.md` §3 tới chữ số thứ 2. Lưu ý: tổ hợp mà `design` thật sự dùng (Borda của prior và ZAP, `cli.py:262`, `surrogate.py:188-190`) **không** được đo trong bench; đo bổ sung (`scripts/lodo_design_combo.py`): Spearman +0,540, regret@1 0,048, hit@3 4/14, so với ZAP-Borda đơn thuần +0,659 / 0,051 / 2/14 |
 | A8 | ĐẠT (có lưu ý) | digits 150ep: `--objective params --tolerance 0.01` → top-1 37 628 tham số, val 0,99155 = val tốt nhất (vgg cùng val nhưng 103 466 tham số đứng thứ 3), đúng định nghĩa ε-ràng buộc. `--objective pareto` → top-1 vgg (0,99155; 103 466) và top-2 res2net (0,8845; 2 043): cả hai là điểm biên có crowding vô hạn, đúng NSGA-II. Lưu ý: mặt Pareto và thứ tự trộn mô hình 4 và 12 epoch (xem N2) |
-| A9 | KHÔNG ĐẠT (đã ghi số đo) | Trong 27 lần chạy 150ep: **0** ứng viên chạm rung 30 epoch; epoch tối đa của mọi top-1 là 12 (SH) hoặc 36 (một ứng viên duy nhất của HB). Mặc định (evolve 1): giai đoạn search chỉ hết rung 1 (64 ep), rồi "time budget reached"; thời gian không huấn luyện (load, reference, generate, proxies, seed) = 13–14 % thời gian thực; hparams 39–50 % thời gian thực và 17 % epoch, 0 lợi ích. HB: ngoặc 2 tiêu 36 ep mà không ứng viên nào tới R = 36 ⇒ bị loại khỏi xếp hạng cuối (30 % ngân sách search bị bỏ). Nhánh base không dùng 38/150 ep (25 %) vì driver bỏ hparams; ở chế độ mặc định phần này đi vào hparams |
+| A9 | KHÔNG ĐẠT (đã ghi số đo) | Trong 26 lần chạy 150ep: **0** ứng viên chạm rung 30 epoch; epoch tối đa của mọi top-1 là 12 (SH) hoặc 36 (một ứng viên duy nhất của HB). Mặc định (evolve 1): giai đoạn search chỉ hết rung 1 (64 ep), rồi "time budget reached"; thời gian không huấn luyện (load, reference, generate, proxies, seed) = 13–14 % thời gian thực; hparams 39–50 % thời gian thực và 17 % epoch, 0 lợi ích. HB: ngoặc 2 tiêu 36 ep mà không ứng viên nào tới R = 36 ⇒ bị loại khỏi xếp hạng cuối (30 % ngân sách search bị bỏ). Nhánh base không dùng 38/150 ep (25 %) vì driver bỏ hparams; ở chế độ mặc định phần này đi vào hparams |
 
 ## Kết quả các thí nghiệm A/B
 
 Top-1 (theo val) của từng lần chạy, `--budget 150ep --threads 1 --seeds 16 --no-proxies`, hparams bỏ qua như nhau ở mọi nhánh. "epoch" = số epoch mà top-1 thực sự được huấn luyện.
 
-FASHION_TABLE
+| bộ | seed | arm | top-1 | epoch | val | test | số mô hình xuất |
+|---|---|---|---|---|---|---|---|
+| digits | 0 | base | cnn | 12 | 0.9944 | 1.0000 | 3 |
+| digits | 0 | evo2 | zoo_regnet_block | 4 | 0.9972 | 1.0000 | 3 |
+| digits | 0 | hb | vgg | 36 | 0.9916 | 1.0000 | 1 |
+| digits | 0 | random | cnn | 12 | 0.9916 | 1.0000 | 3 |
+| digits | 1 | base | vgg | 12 | 0.9944 | 0.9919 | 3 |
+| digits | 1 | evo2 | zoo_conv_bn_act_pool | 4 | 1.0000 | 0.9891 | 3 |
+| digits | 1 | hb | vgg | 36 | 0.9803 | 0.9919 | 1 |
+| digits | 1 | random | cnn | 12 | 0.9916 | 1.0000 | 3 |
+| fashion14 | 0 | base | mobilenetv2 | 12 | 0.8237 | 0.8407 | 3 |
+| fashion14 | 0 | evo2 | zoo_conv_bn_act_pool | 4 | 0.8186 | 0.7966 | 3 |
+| fashion14 | 0 | hb | allconv | 36 | 0.7179 | 0.7696 | 1 |
+| fashion14 | 0 | random | mobilenetv2 | 12 | 0.8212 | 0.8284 | 3 |
+| mnist14 | 0 | base | vgg | 12 | 0.9596 | 0.9583 | 3 |
+| mnist14 | 0 | evo2 | vgg | 4 | 0.9647 | 0.9485 | 3 |
+| mnist14 | 0 | hb | vgg | 36 | 0.9773 | 0.9657 | 1 |
+| mnist14 | 0 | random | resnet | 12 | 0.9697 | 0.9583 | 3 |
+| mnist14 | 1 | base | cnn | 12 | 0.9697 | 0.9706 | 3 |
+| mnist14 | 1 | evo2 | allconv | 4 | 0.9343 | 0.9338 | 3 |
+| mnist14 | 1 | hb | allconv | 36 | 0.9444 | 0.9583 | 1 |
+| mnist14 | 1 | random | cnn | 12 | 0.9697 | 0.9706 | 3 |
+
+Hiệu số so với `base` (cùng bộ, cùng seed), 5 cặp (mnist14 s0/s1, digits s0/s1, fashion14 s0):
+
+| Nhánh − base | Δval TB (sd) | Δtest TB (sd) | thắng val | thắng test | Δtest từng cặp (mnist14 s0, s1, fashion14 s0, digits s0, s1) |
+|---|---|---|---|---|---|
+| random (A2) | +0,0004 (0,0050) | −0,0008 (0,0065) | 1/5 | 1/5 | 0; 0; −0,0123; 0; +0,0081 |
+| hyperband (A3) | −0,0261 (0,0423) | −0,0152 (0,0286) | 1/5 | 1/5 | +0,0074; −0,0123; −0,0711; 0; 0 |
+| evolve 2 (A4) | −0,0054 (0,0155) | **−0,0187 (0,0182)** | 3/5 | **0/5** | −0,0098; −0,0368; −0,0441; 0; −0,0027 |
+
+Nhiễu tham chiếu (base, seed 0 so với 1): mnist14 0,010 val / 0,012 test; digits 0 / 0,008. Chỉ tiến hóa thua test nhất quán (0/5, TB −0,019 > nhiễu ≈ 0,01); random và hyperband nằm trong nhiễu, trừ một lần hyperband thua lớn trên fashion14 (−0,106 val), vì top-1 duy nhất ở 36 epoch là allconv kém.
+
 
 ## Phát hiện
 
 ### Nghiêm trọng
 
-**N1. `--scheduler hyperband` sập với ngân sách epoch (KeyError 'val0').** `run_hyperband` (`dlnet/search.py:275`) mở ngoặc mới khi `clock.now() == deadline`, vì phép thử là `>` chứ không phải `>=`. Khi đó không ứng viên nào vừa ngân sách (`clock.fits` sai), `finished` rỗng, vòng rung `break`, rồi dòng log `alive[0]['val0']` truy cập ứng viên chưa huấn luyện. Nếu không sập, `done += full or alive[:1]` cũng sẽ đưa một ứng viên **chưa huấn luyện** vào xếp hạng. Tái hiện: `python -m dlnet design --data mnist14.npz --budget 150ep --threads 1 --no-cache --no-proxies --seeds 16 --seed 0 --scheduler hyperband --evolve 0 --out X` (log: `hb_crash_mnist14_s0.log`). Gặp ở 4/4 lần chạy (mnist14 s0/s1, digits s0/s1). Ngân sách epoch là chế độ được khuyến nghị cho tái lập, nên tùy chọn `--scheduler hyperband` thực tế không dùng được. Sửa: thử `>=`, và bỏ qua ngoặc không có ứng viên nào hoàn thành rung 0.
+**N1. `--scheduler hyperband` sập với ngân sách epoch (KeyError 'val0').** `run_hyperband` (`dlnet/search.py:275`) mở ngoặc mới khi `clock.now() == deadline`, vì phép thử là `>` chứ không phải `>=`. Khi đó không ứng viên nào vừa ngân sách (`clock.fits` sai), `finished` rỗng, vòng rung `break`, rồi dòng log `alive[0]['val0']` truy cập ứng viên chưa huấn luyện. Nếu không sập, `done += full or alive[:1]` cũng sẽ đưa một ứng viên **chưa huấn luyện** vào xếp hạng. Tái hiện: `python -m dlnet design --data mnist14.npz --budget 150ep --threads 1 --no-cache --no-proxies --seeds 16 --seed 0 --scheduler hyperband --evolve 0 --out X` (log: `hb_crash_mnist14_s0.log`). Gặp ở 5/5 lần chạy (mnist14 s0/s1, digits s0/s1, fashion14 s0). Ngân sách epoch là chế độ được khuyến nghị cho tái lập, nên tùy chọn `--scheduler hyperband` thực tế không dùng được. Sửa: thử `>=`, và bỏ qua ngoặc không có ứng viên nào hoàn thành rung 0.
 
 **N2. Xếp hạng cuối trộn mô hình huấn luyện số epoch khác nhau.** Kết quả của thế hệ 0 (dừng ở rung 1 = 4 epoch) và của tiến hóa (có lúc tới 12 epoch) được gộp (`cli.py:355`) rồi sắp theo `val_mean` (`search.assign_groups`, `hparams.refine`). Ví dụ lần chạy mặc định mnist14 (`pilot/`): top-1 `zoo_vgg_stage` có `epochs_used` 12, top-2 `vgg` có 4. Mặt Pareto ở A8 cũng trộn như vậy. Điều này trái với nguyên tắc ghi trong mã ("never rank different epoch counts", `search.py:193`). Hệ quả: tiến hóa được lợi vì được huấn luyện lâu hơn, và hạng top-1 bị lệch.
 
@@ -65,18 +97,18 @@ FASHION_TABLE
 
 | Đề xuất | Vì sao (bằng chứng) | Nguồn (paper / mã chuẩn) | Công sức S/M/L | Lợi ích kỳ vọng |
 |---|---|---|---|---|
-| Sửa Hyperband: `>=` deadline, bỏ ngoặc rỗng, cho ngoặc dở dang vào xếp hạng theo rung chung lớn nhất; thêm test với ngân sách epoch | N1, Q5: sập 4/4; chỉ 1 mô hình xuất | Li et al. arXiv:1603.06560 Alg. 1 | S | Dùng được `--scheduler hyperband` |
+| Sửa Hyperband: `>=` deadline, bỏ ngoặc rỗng, cho ngoặc dở dang vào xếp hạng theo rung chung lớn nhất; thêm test với ngân sách epoch | N1, Q5: sập 5/5; chỉ 1 mô hình xuất | Li et al. arXiv:1603.06560 Alg. 1 | S | Dùng được `--scheduler hyperband` |
 | Thay SH/HB đồng bộ bằng **ASHA** (thăng hạng bất đồng bộ, không cần ngoặc đầy đủ) | N3, Q4, Q5: ngân sách nhỏ không bao giờ chạm rung trên | Li et al., ASHA, arXiv:1810.05934 (PDF có ở `ref/optimazeDL/hp_asha_1810.05934.pdf`) | M | Không lãng phí ngoặc dở; luôn có ứng viên ở rung cao |
 | Xếp hạng cuối chỉ trên cùng số epoch: huấn luyện tiếp (resume) top-K tới cùng rung trước khi so, hoặc so theo rung chung | N2: top-1 12 ep so với top-2 4 ep | nguyên tắc của SH (Jamieson & Talwalkar arXiv:1502.07943) | S | Thứ hạng công bằng; đánh giá tiến hóa không bị thiên lệch |
 | Bỏ prior tay khỏi Borda (trọng số 0) hoặc học trọng số trên LODO; dùng ZAP-Borda + kNN | Q1: prior ρ âm trên 3/3 bộ; LODO tổ hợp 0,54 < 0,66 | ZAP arXiv:2206.08476; Feurer et al. AAAI 2015 | S | Bộ chọn hạt giống ít nhất không thua ngẫu nhiên |
 | Thay LR range test bằng quy tắc chuẩn cho Adam (lr ≈ cực tiểu/10, hoặc "steepest slope"), hoặc bỏ giai đoạn hparams khi ngân sách < ~500 ep; nhận đề xuất chỉ khi `n_seeds ≥ 2` | Q2: 0/15 nhận, 39–50 % thời gian thực | Smith arXiv:1506.01186 §3.3; fastai `lr_find` (suggestion = min/10) | S | Lấy lại 40 % thời gian thực cho search |
 | Thay tìm hyperparameter bằng **BOHB** hoặc **DEHB** kết hợp kiến trúc + lr/wd | A5 không đem lợi ích; HB/SH thiếu mô hình | Falkner et al. arXiv:1807.01774 (PDF có ở `ref/`); Awad et al. DEHB arXiv:2105.09821 | L | Học hyperparameter thay vì heuristic một bước |
-| Tiến hóa chỉ bật khi ngân sách đủ để C ≫ P (ví dụ ≥ 600 ep), hoặc dùng mutation có định hướng (REA + predictor) | Q3: test −0,012 TB, 0/4 thắng | Real et al. arXiv:1802.01548 §Discussion; White et al. BANANAS arXiv:1910.11858 | M | Tránh mất rung 12 epoch ở ngân sách nhỏ |
+| Tiến hóa chỉ bật khi ngân sách đủ để C ≫ P (ví dụ ≥ 600 ep), hoặc dùng mutation có định hướng (REA + predictor) | Q3: test −0,019 TB, 0/5 thắng | Real et al. arXiv:1802.01548 §Discussion; White et al. BANANAS arXiv:1910.11858 | M | Tránh mất rung 12 epoch ở ngân sách nhỏ |
 
 ## Giới hạn của lần kiểm định này
 
 - Chỉ CPU, không GPU; máy bị chia sẻ, nên giây là số đo nhiễu (epoch thì không).
-- Mỗi so sánh A/B: mnist14 và digits × seed 0/1 (đúng ngưỡng tối thiểu), cộng fashion14 seed 0. Bộ digits gần bão hòa (val 0,98–1,0), ít khả năng phân biệt. Với 4–5 cặp, chỉ phát hiện được chênh lệch lớn hơn khoảng 0,01–0,015; các kết luận "không hơn" nghĩa là "không phát hiện được lợi ích ở ngân sách 150ep", **không** khái quát cho ngân sách lớn.
+- Mỗi so sánh A/B: mnist14 và digits × seed 0/1 (đúng ngưỡng tối thiểu), cộng fashion14 seed 0 (seed 1 của fashion14 không chạy kịp). Chưa chạy cifar10gray_3k và breast_cancer. Bộ digits gần bão hòa (val 0,98–1,0), ít khả năng phân biệt. Với 4–5 cặp, chỉ phát hiện được chênh lệch lớn hơn khoảng 0,01–0,015; các kết luận "không hơn" nghĩa là "không phát hiện được lợi ích ở ngân sách 150ep", **không** khái quát cho ngân sách lớn.
 - Ngân sách 150ep rất nhỏ so với cấu hình rung (4/12/30) và R = 36 của Hyperband; ở ngân sách lớn (≥ 600ep) kết quả A3/A4 có thể khác. Chưa đo do giới hạn thời gian.
 - A2–A4 chạy với giai đoạn hparams bị bỏ qua (giống nhau ở mọi nhánh) và lớp chặn lỗi Hyperband trong driver của QA; mã repo không bị sửa.
 - A1 đối chiếu 7 thuật toán bằng đọc mã so với PDF/mã gốc, chưa chạy lại test số học riêng.
