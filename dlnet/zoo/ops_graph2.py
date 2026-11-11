@@ -69,16 +69,16 @@ class DenseGATConv(nn.Module):
         super().__init__()
         self.h, self.o = heads, o
         self.lin = nn.Linear(i, heads * o, bias=False)
-        self.att_src = nn.Parameter(torch.empty(1, 1, heads, o))
-        self.att_dst = nn.Parameter(torch.empty(1, 1, heads, o))
+        self.att_src = nn.Parameter(torch.empty(1, heads, o))  # PyG layout (1, heads, out)
+        self.att_dst = nn.Parameter(torch.empty(1, heads, o))
         nn.init.xavier_uniform_(self.att_src)
         nn.init.xavier_uniform_(self.att_dst)
 
     def forward(self, x, a):
         b, n, _ = x.shape
         z = self.lin(x).view(b, n, self.h, self.o)
-        s = (z * self.att_src).sum(-1)  # (b, n, h) source scores
-        d = (z * self.att_dst).sum(-1)
+        s = (z * self.att_src.unsqueeze(0)).sum(-1)  # (b, n, h) source scores
+        d = (z * self.att_dst.unsqueeze(0)).sum(-1)
         e = F.leaky_relu(d.unsqueeze(2) + s.unsqueeze(1), 0.2)  # (b, i, j, h)
         e = e.masked_fill(~(a > 0).unsqueeze(-1), float("-inf"))
         w = torch.nan_to_num(torch.softmax(e, dim=2), nan=0.0)

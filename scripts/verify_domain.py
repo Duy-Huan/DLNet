@@ -154,6 +154,7 @@ def check_timemixer(root):
 
 def check_timexer(root):
     drop_modules("layers")
+    sys.modules.setdefault("reformer_pytorch", MagicMock())  # only for the Reformer attention variant
     sys.path.insert(0, f"{root}/TimeXer")
     m = load(f"{root}/TimeXer/models/TimeXer.py", "timexer_official")
     ok = True
@@ -220,7 +221,7 @@ def check_gps(root):
         ).eval()
         mine = og.GPSLayer(7, dim, heads).eval()
         perturb(ref)
-        copy(ref, mine)
+        copy(ref, mine, skip=("local_model.eps",))  # GINConv's eps buffer (0, not trained)
         graphs = [_graph(7, dim, 0.4, s) for s in (0, 1)]
         batch = Batch.from_data_list([Data(x=x, edge_index=_edge_index(a)) for x, a in graphs])
         y = ref(batch).x.view(2, 7, dim)

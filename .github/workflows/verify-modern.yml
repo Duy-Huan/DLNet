@@ -145,8 +145,8 @@ jobs:
           python-version: "3.12"
       - name: Install DLNet (CPU torch) and what the official files import
         run: |
-          pip install torch --index-url https://download.pytorch.org/whl/cpu
-          pip install -e . numpy einops beartype
+          pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+          pip install -e . numpy einops beartype pillow
       - name: Official code (pinned)
         run: |
           set -e

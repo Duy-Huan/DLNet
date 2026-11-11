@@ -106,8 +106,10 @@ def _gn_ok(c, token_num, groups):
 @op("mambahsi_block", "map", space={"token_num": [4, 8, 2], "group_num": [4, 2]}, tags={"block"},
     source="li-yapeng/MambaHSI model/MambaHSI.py BothMamba (Li et al., TGRS 2024), per-patch scan")  # fmt: skip
 def _mambahsi(dims, kind, token_num, group_num):
-    if not _gn_ok(dims[0], token_num, group_num):
-        raise ValueError(f"MambaHSI: {dims[0]} channels do not split into {group_num} groups")
+    if dims[0] % token_num or not _gn_ok(dims[0], token_num, group_num):  # the original's residual
+        raise ValueError(
+            f"MambaHSI: {dims[0]} channels must split into {token_num} tokens and {group_num} groups"
+        )
     return BothMamba(dims[0], token_num, True, group_num, True)
 
 

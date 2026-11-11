@@ -72,7 +72,7 @@ def check_mambahsi(root):
     m = load(f"{root}/MambaHSI/model/MambaHSI.py", "mambahsi_official")
     ok = True
     torch.manual_seed(0)
-    for c, tok, g in ((32, 4, 4), (30, 8, 2)):
+    for c, tok, g in ((32, 4, 4), (24, 8, 2)):
         ref = m.BothMamba(c, tok, True, g, True).eval()
         mine = hs.BothMamba(c, tok, True, g, True).eval()
         perturb(ref)
@@ -145,7 +145,13 @@ def check_fahm(root):
         ).eval()
         mine = hs.FAHM(c, p, (2, 2, 2), e).eval()
         perturb(ref)
-        copy(ref, mine, skip=("head.", "rope.", "pre_conv.bn4."))
+        skip = (
+            "head.",
+            "rope.",
+            "pre_conv.bn4.",
+            *(f"merge.{i}.batch_norm." for i in range(3)),
+        )  # unused in its forward
+        copy(ref, mine, skip=skip)
         x = torch.randn(2, c, p, p)
         y = ref.forward_features(x.flatten(2)).mean(dim=1)
         ok &= report(f"FAHM bands={c} patch={p} dims={e}", y, mine(x), 1e-4)
