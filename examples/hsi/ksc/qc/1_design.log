@@ -1,0 +1,13 @@
+$ /usr/local/bin/python -m dlnet design --data /home/user/DLNet/examples/hsi/ksc/input/KSC.mat --gt /home/user/DLNet/examples/hsi/ksc/input/KSC_gt.mat --plugin hsi --out /home/user/DLNet/examples/hsi/ksc/output --budget 10m --topk 3 --seed 0 --threads 2 --no-cache --split pixel --pca 30
+[device] cpu, precision float32 (--device, --amp)
+[threads] 2 (of 4 CPUs; --threads to change)
+[plugin] hsi  data=/home/user/DLNet/examples/hsi/ksc/input/KSC.mat
+[warning] --split pixel with --patch 9: validation/test pixels sit inside the patches of training pixels, so scores are optimistic (spatial leakage). Use --split block for an honest estimate of performance on new areas.
+[load] task=classification features=30 classes=13 seed=0
+[profile] {'primary_metric': 'accuracy (OA); also AA, Kappa', 'cube_shape': [512, 614, 176], 'n_classes': 13, 'n_train': 520, 'n_val': 520, 'n_test': 4171, 'n_features': 30, 'patch': 9, 'split': 'pixel', 'frac': [0.1, 0.1, 0.8], 'dropped_by_margin': 0, 'pca_energy_kept': 0.9988, 'multilinear_rank_99': [291, 311, 52], 'multilinear_rank_levels': {'0.9': [159, 176, 29], '0.95': [204, 223, 37], '0.99': [291, 311, 52]}, 'intrinsic_dim': 12.57, 'scaling_exponent_hat': 0.318, 'intrinsic_dim_estimators': {'twonn': {'mean': 12.497, 'std': 0.745}, 'mle': {'mean': 11.891, 'std': 0.074}, 'value': 12.194, 'rel_disagreement': 0.05, 'stable': True}, 'capacity_hint': {'min_width': 32, 'scaling_exponent': 0.328, 'used_for_pruning': False}, 'classes_missing_train': [], 'classes_missing_test': [], 'max_params': 260000}
+[reference] classical baselines on the same split(s)
+[reference] random_forest_spectral_spatial val=0.9673
+[reference] random_forest_spectral     val=0.9000
+[reference] svm_rbf_spectral           val=0.8904
+[reference] svm_rbf_spectral_spatial   val=0.6692
+[zoo] 12 architectures from the module zoo (preset, random)
