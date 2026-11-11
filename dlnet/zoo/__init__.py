@@ -8,6 +8,7 @@ Importing this package registers every op. Layout:
   ops_img      image blocks ported from timm, smp and MONAI
   ops_domain   RealMLP (tabular), TimeMixer, TimeXer (time series)
   ops_graph2   GraphGPS + RWSE, Polynormer, SGFormer; FinalMLP, DCNv3, WuKong (CTR)
+  ops_seq2     Gated DeltaNet, mLSTM, GR-KAN / KAT, MambaVision (reference implementations)
   ops_hsi      HSI networks: MambaHSI, MambaHSI+, SSFTT, FAHM
   ops_next     2023-2025 drop-ins: gated/diff attention, DyT, 2-D RoPE, WTConv, UIB, MQA, LSNet, StarNet, EfficientViT, MSCA
   ops_freq     frequency domain (FFT/iFFT): GFNet, AFNO, FNO, FFC, FcaNet, FNet, spectral filters
@@ -30,6 +31,7 @@ from . import (  # noqa: F401  (registers the ops)
     ops_modern,
     ops_next,
     ops_seq,
+    ops_seq2,
     ops_vec,
 )
 from .core import (

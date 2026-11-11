@@ -158,3 +158,29 @@ jobs:
           clone zhangxc0105/FAHM FAHM 6a3049e
       - name: Compare outputs
         run: python scripts/verify_hsi.py --root /tmp/hsi
+
+  verify-seq2:
+    # v1.0 sequence mixers and rational KAN (dlnet/zoo/ops_seq2.py)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Official code (pinned)
+        run: |
+          set -e
+          mkdir -p /tmp/seq && cd /tmp/seq
+          clone() { git clone -q "https://github.com/$1" "$2" && git -C "$2" checkout -q "$3"; }
+          clone NVlabs/GatedDeltaNet GatedDeltaNet b53d6d3
+          clone NX-AI/xlstm xlstm ab22ead
+          clone Adamdad/kat kat d254de7
+          clone Adamdad/rational_kat_cu rational_kat_cu 181bae8
+          clone NVlabs/MambaVision MambaVision 7860a50
+      - name: Install DLNet (CPU torch) and what the official files import
+        run: |
+          pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+          pip install -e . numpy einops "timm==1.0.31" dacite omegaconf
+      - name: Compare outputs
+        run: python scripts/verify_seq2.py --root /tmp/seq
