@@ -25,3 +25,5 @@ $ /usr/local/bin/python -m dlnet design --data /home/user/DLNet/examples/hsi/ksc
 [search] rung 1 (4 ep): kept 6; best val=0.9269
 [search] rung 2 (12 ep): kept 5; best val=0.9423
 [search] rung 3 (30 ep): kept 4; best val=0.9519
+[equalize] zoo_bottleneck_fused_mbconv_mambahsi_plus_block: trained on to 30 epochs, val=0.9346
+[runs] zoo_mbconv_res2net_block: 3 runs, val=0.9532 +/- 0.0063
