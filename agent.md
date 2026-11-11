@@ -283,6 +283,7 @@ Nguyên tắc: lõi **tổng quát trước**, kiểm chứng end-to-end sớm t
 | **M8** | Deep unfolding (khi có mô hình thuận) | **Xong cho bài toán thưa tuyến tính (v0.7.0)**, xem "Kết quả đo M8" ở §5: lệnh `dlnet unfold`, LISTA-CP hơn ISTA và FISTA (λ đã tune) 3,3–6,3 dB ở cùng số vòng K trên dữ liệu tổng hợp. Chưa có: ADMM/AMP, support selection, toán tử A không tường minh (ảnh), dữ liệu thật |
 | **M13** | Port nhóm còn thiếu: đồ thị, id/recommender, autoencoder/VAE, GAN, Mamba-2; cost model; hợp nhất họ cũ | **Xong (v0.11.0–v0.12.0)**, xem §13.7. Chưa có: CVAE, loss cặp (BPR), GAN có điều kiện/FID, đồ thị lớn (dense), graph cạnh học được |
 | **M14** | Khối ảnh từ thư viện chính thống (timm, smp, MONAI, torchvision); đối chiếu số học các khối viết từ trí nhớ | **Xong (v0.13.0)**, xem §13.8 |
+| **M20** | Ổn định (§18 P0 mục 1–3): ngân sách giây được tôn trọng, `--threads`, JSON chuẩn | **Xong (v0.18.0)**, xem §9.2 |
 | **M19** | Regression test toàn bộ dlnet (coverage 90% → 97%, CI có sàn 95%), ngân sách theo epoch tái lập được, sửa lỗi tìm thấy; lộ trình nâng cấp | **Xong (v0.17.0)**, xem §9.1, §18 |
 | **M17** | Học ánh xạ đặc trưng dữ liệu → hạt giống: surrogate zero-shot ZAP, meta-dataset 14 bộ ảnh có sẵn | **Xong (v0.16.0)**, xem §16.6 |
 | **M18** | Tùy chọn AI: advisor gọi Claude Code / Codex / Gemini CLI; MCP server `dlnet mcp` | **Xong (v0.16.0)**, xem `doc/ai-advisor.md`. Chưa đo hiệu quả với AI thật |
@@ -317,6 +318,14 @@ Nguyên tắc: lõi **tổng quát trước**, kiểm chứng end-to-end sớm t
 - **Sai lệch tài liệu/mã (đã sửa)**: trợ giúp CLI nói `autoencoder` nhưng alias không có.
 - **Cảnh báo số học (đã sửa)**: dữ liệu hằng / trùng điểm cho 0/0 trong TwoNN và `pca_dims_for_95pct_energy` > số đặc trưng.
 - **Còn mở** (đưa vào §18): ngân sách giây bị vượt (30 s chạy 35–138 s: baseline, data card, proxy không bị giới hạn; HistGradientBoosting 0,07 s lúc rảnh nhưng 11,6 s khi máy bận vì OpenMP tranh luồng); `NaN` được ghi vào `profile.json` (JSON không chuẩn); không dùng GPU; `gan_data.py` là bản sao của `gan_run.py` trong gói GAN (có test so khớp, vẫn dễ lệch).
+
+### 9.2 Ổn định v0.18 (M20): đo trước, sửa, đo lại
+Máy 4 CPU; dữ liệu ảnh 600 mẫu 16×16 và bảng 2000×20 (`--budget 30s`).
+- **Treo do tranh luồng OpenMP (đã sửa)**: 4 lệnh `design --budget 30s` chạy cùng lúc trên v0.17 vẫn kẹt trong `HistGradientBoosting` sau **10 phút** (py-spy: `run_reference` → `TreePredictor.predict` / `TreeGrower`). Đo riêng: 4 tiến trình × 4 luồng không xong trong 300 s; 4 × 2 luồng 1,0–1,3 s; 4 × 1 luồng **0,2 s**. `OMP_WAIT_POLICY=PASSIVE` cũng gỡ treo (0,8–1,6 s) nhưng làm chậm khi máy rảnh (HistGradientBoosting 0,69 → 5,7 s, torch 0,57 → 1,0 s) nên không dùng. Sửa: `--threads` (`dlnet/threads.py`) giới hạn torch, OpenBLAS, cả hai OpenMP (threadpoolctl) và `n_jobs` của random forest cho cả lần chạy; mặc định = số CPU được cấp trừ số CPU tiến trình khác đang dùng (`/proc/loadavg`), tối thiểu 1. Sau sửa: 4 lệnh cùng lúc mất **30,2–31,3 s**.
+- **Lần huấn luyện bắt đầu sát hạn (đã sửa)**: trước đây một lần chạy được bắt đầu nếu đồng hồ còn trước hạn, nên có thể kết thúc rất xa sau hạn (rung 30 epoch, giai đoạn nhiều seed, ước lượng hyperparameter 11,8 s khi phần còn lại ~6 s). Nay `search.Pace` dự báo chi phí (giây/epoch đo trên chính trainer; ứng viên chưa train thì theo FLOPs) và chỉ bắt đầu khi dự báo kết thúc trước hạn; lần chạy đầu tiên vẫn luôn chạy. Với `--budget 60ep` số epoch đã train ≤ 60 (trước: ≤ 96).
+- **Báo cáo ngân sách**: `leaderboard.json` khối `budget` và mục "Budget" trong `leaderboard.md`: giây và epoch theo giai đoạn (load, reference, generate, proxies, seed_selection, search, evolution, hparams, export), số luồng, % vượt; cảnh báo khi vượt > 10%. Đo: ở 30 s, các bước trước tìm kiếm chiếm ~13 s (sinh + tính chi phí ứng viên ~5 s); đây là chỗ cần tối ưu tiếp.
+- **JSON chuẩn (đã sửa)**: mẫu trùng nhau cho intrinsic dimension `NaN`, ghi ra `profile.json` thành token `NaN` (không phải JSON). Mọi file DLNet ghi đi qua `dlnet/jsonsafe.py` (`NaN`/`inf` → `null`, `allow_nan=False`).
+- Test: `tests/test_stability.py` (3 test đỏ trên mã v0.17, xanh sau sửa).
 
 ## 10. Quy ước cho agent (người/AI) phát triển repo
 
@@ -760,9 +769,9 @@ Chưa làm: epochs (hiện là công thức mặc định 100 epoch, cosine, ch�
 Ưu tiên theo (lợi ích cho người dùng) / (công sức). P0 = ổn định, nên làm trước; P1 = hiệu quả; P2 = thông minh hơn. Mỗi mục có bằng chứng từ §9.1 hoặc các phép đo trước.
 
 ### P0. Ổn định và tái lập
-1. **Ngân sách giây phải được tôn trọng**: hạn giờ cho từng giai đoạn trước tìm kiếm (data card, baseline, proxy), ghi bảng "ngân sách đã tiêu theo giai đoạn" vào leaderboard, cảnh báo khi vượt > 10%. Bằng chứng: 30 s chạy 35–138 s.
-2. **Kiểm soát số luồng** (`--threads`, `threadpoolctl` cho sklearn/OpenMP + `torch.set_num_threads`): tránh tranh luồng (HistGradientBoosting 0,07 s → 11,6 s khi máy bận) và crash đa luồng kiểu torch 2.15 (§16.5).
-3. **JSON hợp lệ**: ghi `NaN`/`inf` thành `null` (`allow_nan=False` + làm sạch), có test; hiện `profile.json` có thể chứa `NaN`.
+1. ~~**Ngân sách giây phải được tôn trọng**~~ (xong v0.18.0, §9.2): hạn giờ cho từng giai đoạn trước tìm kiếm (data card, baseline, proxy), ghi bảng "ngân sách đã tiêu theo giai đoạn" vào leaderboard, cảnh báo khi vượt > 10%. Bằng chứng: 30 s chạy 35–138 s.
+2. ~~**Kiểm soát số luồng**~~ (xong v0.18.0, §9.2) (`--threads`, `threadpoolctl` cho sklearn/OpenMP + `torch.set_num_threads`): tránh tranh luồng (HistGradientBoosting 0,07 s → 11,6 s khi máy bận) và crash đa luồng kiểu torch 2.15 (§16.5).
+3. ~~**JSON hợp lệ**~~ (xong v0.18.0): ghi `NaN`/`inf` thành `null` (`allow_nan=False` + làm sạch), có test; hiện `profile.json` có thể chứa `NaN`.
 4. **Manifest tái lập** trong `leaderboard.json`: phiên bản DLNet, torch, numpy, số luồng, thiết bị, seed, chế độ ngân sách, dấu vân tay dữ liệu; `--deterministic` bật `torch.use_deterministic_algorithms`.
 5. **Tiếp tục sau khi bị ngắt**: nhật ký từng bước (journal) để `design` chạy lại tiếp từ rung đang dở, không chỉ từ cache giai đoạn 2.
 6. **Kiểm tra dữ liệu đầu vào sớm**: lớp có < 3 mẫu, mất cân bằng cực đoan, ảnh quá lớn so với RAM, nhãn phân đoạn ngoài dải: báo lỗi rõ trước khi tiêu ngân sách.

@@ -7,10 +7,11 @@ is on the held-out test split.
 
 from __future__ import annotations
 
-import json
 import shutil
 import time
 from pathlib import Path
+
+from . import jsonsafe
 
 HERE = Path(__file__).parent
 
@@ -143,7 +144,7 @@ def run(args) -> int:
             "recipe": {"epochs": args.epochs, "schedule": "cosine", "select": "best-val weights"},
             "search_result": {k: r[k] for k in ("val_mean", "val_std", "test_mean", "test_std")},
         }  # fmt: skip
-        (d / "config.yaml").write_text(json.dumps(cfg, indent=2))
+        (d / "config.yaml").write_text(jsonsafe.dumps(cfg, indent=2))
         (d / "train.py").write_text(TRAIN_PY)
         (d / "tests" / "test_model.py").write_text(TEST_PY)
     for r in rows:
@@ -152,7 +153,7 @@ def run(args) -> int:
         "task": "unfold", "metric": "NMSE in dB (lower is better)", "top_k": rows,
         "verdict": {"beats_iterative_at_every_K": all(r["beats_iterative"] for r in rows)},
     }  # fmt: skip
-    (out / "leaderboard.json").write_text(json.dumps(board, indent=2))
+    (out / "leaderboard.json").write_text(jsonsafe.dumps(board, indent=2))
     md = [
         "# Leaderboard (deep unfolding, NMSE in dB on the test split, lower is better)\n",
         "| rank | model | params | LISTA (mean ± std) | ISTA, same K | FISTA, same K | gain | beats both |",

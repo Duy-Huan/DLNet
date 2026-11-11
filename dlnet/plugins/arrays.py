@@ -11,7 +11,7 @@ from typing import ClassVar
 
 import numpy as np
 
-from .. import array_data, core, profile, reference, zoo
+from .. import array_data, core, profile, reference, threads, zoo
 from ..zoo import families as recipes
 from . import DomainPlugin
 
@@ -519,7 +519,10 @@ class ImageSegmentationPlugin(ArrayPlugin):
         out = []
         for name, m in (
             ("pixel_logistic_regression_5x5", LogisticRegression(max_iter=500)),
-            ("pixel_random_forest_5x5", RandomForestClassifier(100, n_jobs=-1, random_state=0)),
+            (
+                "pixel_random_forest_5x5",
+                RandomForestClassifier(100, n_jobs=threads.current(), random_state=0),
+            ),
         ):
             t0 = time.time()
             m.fit(Ftr, ltr)

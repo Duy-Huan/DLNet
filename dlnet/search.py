@@ -10,7 +10,7 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from . import clock
+from . import clock, jsonsafe
 from .core import Trainer
 
 
@@ -18,6 +18,39 @@ def _new_trainer(cfg, data, seed, build_fn):
     torch.manual_seed(seed)  # the seed must control the weight init too, not only the batch order
     m = build_fn(cfg, data["in_dim"], data["out_dim"])
     return Trainer(m, data, lr=cfg["lr"], wd=cfg["wd"], batch=cfg["batch"], seed=seed)
+
+
+class Pace:
+    """Predicts what training a candidate for some epochs will cost on the budget clock.
+
+    Work mode: the number of epochs (exact). Time mode: seconds per epoch measured on this
+    trainer, or, for an untrained candidate, the median seconds per epoch and per FLOP of the
+    candidates trained so far times its FLOPs (the median seconds per epoch without FLOPs).
+    0 before anything was measured, so the very first run always starts. A run is only started
+    when it is predicted to end before its deadline (agent.md 9.2: budgets were overrun by
+    runs started a moment before the deadline).
+    """
+
+    def __init__(self):
+        self.per_epoch, self.per_flop = [], []
+
+    def record(self, tr, cfg):
+        if tr.epochs_done:
+            sec = tr.seconds / tr.epochs_done
+            self.per_epoch.append(sec)
+            if cfg.get("flops"):
+                self.per_flop.append(sec / cfg["flops"])
+
+    def cost(self, cfg, epochs, tr=None) -> float:
+        if epochs <= 0:
+            return 0.0
+        if clock.mode() == "work":
+            return float(epochs)
+        if tr is not None and tr.epochs_done:
+            return epochs * tr.seconds / tr.epochs_done
+        if cfg.get("flops") and self.per_flop:
+            return epochs * float(np.median(self.per_flop)) * cfg["flops"]
+        return epochs * float(np.median(self.per_epoch)) if self.per_epoch else 0.0
 
 
 def _ranked(items, rank=None):
@@ -75,27 +108,29 @@ class RunCache:
         self.d[key] = value
         self.path.parent.mkdir(parents=True, exist_ok=True)
         tmp = self.path.with_suffix(".tmp")
-        tmp.write_text(json.dumps(self.d))
+        tmp.write_text(jsonsafe.dumps(self.d))
         tmp.replace(self.path)
 
 
-def eval_runs(cfg, folds, build_fn, epochs, n_runs, deadline, first=None, cache=None):
+def eval_runs(cfg, folds, build_fn, epochs, n_runs, deadline, first=None, cache=None, run_cost=0.0):
     """Train `cfg` n_runs times: run i uses seed i on split folds[i % len(folds)].
 
     With one fold this is plain multi-seed evaluation; with several folds (repeated splits) the
     spread also contains the split noise, which seed std alone misses (agent.md sec. 9 item 7).
     `first` is an already trained seed-0 trainer on folds[0], reused as run 0.
     `cache` (RunCache) returns stored results of identical runs instead of training again.
+    `run_cost`: predicted cost of one run on the budget clock; a run that would end after
+    `deadline` is not started (cached runs are always used: they cost nothing).
     Returns (val scores, test metric dicts, seconds, number of distinct splits used).
     """
     vals, tests, secs = [], [], 0.0
     for i in range(n_runs):
-        if vals and clock.now() > deadline:
-            break
         t = first if i == 0 and first is not None else None
         fold = folds[i % len(folds)]
         key = cache and RunCache.key(cfg, fold, i, epochs)
         hit = cache.get(key) if cache and t is None else None
+        if hit is None and vals and not clock.fits(0.0 if t else run_cost, deadline):
+            break
         if hit is None:
             if t is None:
                 t = _new_trainer(cfg, fold, i, build_fn)
@@ -135,13 +170,19 @@ def run_search(
     cands = interleave(cands)
     alive = [{"cfg": c, "tr": _new_trainer(c, data, 0, build_fn)} for c in cands]
     log(f"[search] {len(alive)} candidates, rungs={rungs}")
+    pace = Pace()
     for r, ep in enumerate(rungs):
         finished = []
         for i, a in enumerate(alive):
             # The very first candidate always trains, so even a spent budget yields a result.
             if clock.now() > deadline and not (r == 0 and i == 0):
                 break
+            if (r or i) and not clock.fits(
+                pace.cost(a["cfg"], ep - a["tr"].epochs_done, a["tr"]), deadline
+            ):
+                continue  # would end after the deadline; a cheaper candidate may still fit
             a["tr"].fit(ep - a["tr"].epochs_done)
+            pace.record(a["tr"], a["cfg"])
             a["val0"] = a["tr"].evaluate("va")["score"]
             finished.append(a)
         if not finished:  # budget spent before this rung started: rank what the last rung left
@@ -168,8 +209,9 @@ def stage2(finalists, folds, build_fn, seeds, deadline, cache=None):
     n_runs = max(seeds, len(folds))
     for a in finalists:
         cfg, ep = a["cfg"], a["tr"].epochs_done
+        cost = float(ep) if clock.mode() == "work" else a["tr"].seconds
         vals, tests, secs, n_splits = eval_runs(
-            cfg, folds, build_fn, ep, n_runs, deadline, first=a["tr"], cache=cache
+            cfg, folds, build_fn, ep, n_runs, deadline, first=a["tr"], cache=cache, run_cost=cost
         )
         results.append(
             {
@@ -226,7 +268,7 @@ def run_hyperband(
     pool = list(cands)
     brackets = hyperband_brackets(R, eta, unit)
     log(f"[hyperband] {len(pool)} candidates; brackets (n, epochs): {brackets}")
-    done, first_rung, it = [], [], 0
+    done, first_rung, it, pace = [], [], 0, Pace()
     while pool and (clock.now() < deadline or not done):  # a spent budget still yields one result
         it += 1
         for b, rungs in enumerate(brackets):
@@ -241,7 +283,13 @@ def run_hyperband(
                 for a in alive[: max(n_i, 1)]:
                     if clock.now() > deadline and (done or finished):
                         break
-                    a["tr"].fit(ep - a["tr"].epochs_done)
+                    left = ep - a["tr"].epochs_done
+                    if (done or finished) and not clock.fits(
+                        pace.cost(a["cfg"], left, a["tr"]), deadline
+                    ):
+                        continue
+                    a["tr"].fit(left)
+                    pace.record(a["tr"], a["cfg"])
                     a["val0"] = a["tr"].evaluate("va")["score"]
                     finished.append(a)
                 if not finished:

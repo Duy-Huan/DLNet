@@ -175,6 +175,21 @@ def estimate(r: dict, data: dict, build_fn, epochs_recipe: int = 100, seed: int 
     }
 
 
+def _refine_cost(r, data) -> tuple[float, float]:
+    """Budget-clock cost of refining finalist `r`: (estimate, re-training all its runs).
+
+    The estimate is the gradient-noise scale (16 x (256 + 16 x 16) samples) plus the LR range test
+    (80 batches), scaled by r's measured seconds per epoch; it trains nothing, so it is free in
+    work mode, where the re-training costs its epochs."""
+    rerun_epochs = r["epochs"] * r["n_seeds"]
+    if clock.mode() == "work":
+        return 0.0, float(rerun_epochs)
+    tr = r.get("trainer")
+    per_epoch = tr.seconds / tr.epochs_done if tr is not None and tr.epochs_done else 0.0
+    est = per_epoch * (16 * 512 + 80 * r["cfg"]["batch"]) / max(len(data["ytr"]), 1)
+    return est, per_epoch * rerun_epochs
+
+
 def refine(results, data, build_fn, deadline, epochs_recipe=100, log=print, folds=None, cache=None):
     """Estimate hyperparameters per finalist; adopt them only when clearly better on validation.
 
@@ -195,7 +210,8 @@ def refine(results, data, build_fn, deadline, epochs_recipe=100, log=print, fold
             "val_searched": r["val_mean"],
             "val_estimated": None,
         }
-        if clock.now() > deadline:
+        if not clock.fits(sum(_refine_cost(r, data)), deadline):  # would end after the budget
+            r["hparams"]["skipped"] = "budget"
             continue
         try:
             est = estimate(r, data, build_fn, epochs_recipe)
@@ -210,8 +226,9 @@ def refine(results, data, build_fn, deadline, epochs_recipe=100, log=print, fold
             continue
         cand = {**cfg, "lr": est["lr"], "batch": est["batch"], "wd": est["wd"]}
         vals, tests, _, _ = eval_runs(
-            cand, folds, build_fn, r["epochs"], r["n_seeds"], deadline, cache=cache
-        )
+            cand, folds, build_fn, r["epochs"], r["n_seeds"], deadline, cache=cache,
+            run_cost=_refine_cost(r, data)[1] / max(r["n_seeds"], 1),
+        )  # fmt: skip
         new = summarize(vals, tests)
         v, sd = new["val_mean"], new["val_std"]
         r["hparams"]["val_estimated"] = v

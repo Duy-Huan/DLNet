@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-import json
 import shutil
 from pathlib import Path
+
+from . import jsonsafe
 
 HERE = Path(__file__).parent
 
@@ -181,9 +182,9 @@ def export(out_dir, plugin, data, prof, chosen, reference, seed, epochs_recipe=1
     if fair is not reference:
         v["reference_matched_to"] = [r["name"] for r in fair]
 
-    (out / "profile.json").write_text(json.dumps(prof, indent=2))
+    (out / "profile.json").write_text(jsonsafe.dumps(prof, indent=2))
     (out / "reference").mkdir()
-    (out / "reference" / "results.json").write_text(json.dumps(reference, indent=2))
+    (out / "reference" / "results.json").write_text(jsonsafe.dumps(reference, indent=2))
 
     rows = []
     for i, r in enumerate(chosen, 1):
@@ -223,7 +224,7 @@ def export(out_dir, plugin, data, prof, chosen, reference, seed, epochs_recipe=1
                 "test_std": r.get("test_std"),
             },
         }
-        (d / "config.yaml").write_text(json.dumps(config, indent=2))
+        (d / "config.yaml").write_text(jsonsafe.dumps(config, indent=2))
         (d / "train.py").write_text(plugin.train_template)
         (d / "tests" / "test_model.py").write_text(plugin.test_template)
         (d / "report.md").write_text(
@@ -272,7 +273,7 @@ def export(out_dir, plugin, data, prof, chosen, reference, seed, epochs_recipe=1
         for x in reference
     ]
     (out / "leaderboard.json").write_text(
-        json.dumps(
+        jsonsafe.dumps(
             {
                 "task": task,
                 "metric": data["primary"],
@@ -341,5 +342,13 @@ def export(out_dir, plugin, data, prof, chosen, reference, seed, epochs_recipe=1
         md.append(
             f"\nClearly better than the parameter count: {zc['better_than_param_count'] or 'none'}."
         )
+    bu = (extras or {}).get("budget")
+    if bu:
+        unit = "seconds" if bu["mode"] == "time" else "training epochs"
+        md.append(f"\n## Budget: {bu['budget']} ({unit})\n")
+        md.append(f"Wall clock {bu['wall_seconds']} s, {bu['epochs_trained']} epochs trained, "
+                  f"overrun {bu['overrun_pct']}%.\n")  # fmt: skip
+        md.append("| stage | seconds | epochs |\n|---|---|---|")
+        md += [f"| {d['stage']} | {d['seconds']} | {d['epochs']:.0f} |" for d in bu["stages"]]
     (out / "leaderboard.md").write_text("\n".join(md) + "\n")
     return v

@@ -6,6 +6,7 @@ import time
 
 import numpy as np
 
+from . import threads
 from .core import compute_metrics
 
 
@@ -22,13 +23,13 @@ def run_reference(data: dict) -> list[dict]:
     models = (
         {
             "logistic_regression": LogisticRegression(max_iter=3000),
-            "random_forest": RandomForestClassifier(300, n_jobs=-1, random_state=0),
+            "random_forest": RandomForestClassifier(300, n_jobs=threads.current(), random_state=0),
             "hist_gradient_boosting": HistGradientBoostingClassifier(random_state=0),
         }
         if clf
         else {
             "ridge": Ridge(),
-            "random_forest": RandomForestRegressor(300, n_jobs=-1, random_state=0),
+            "random_forest": RandomForestRegressor(300, n_jobs=threads.current(), random_state=0),
             "hist_gradient_boosting": HistGradientBoostingRegressor(random_state=0),
         }
     )

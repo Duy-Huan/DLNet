@@ -23,7 +23,9 @@ flowchart TD
     E --> O
 ```
 
-Ngân sách (`--budget`, giây hoặc epoch, `dlnet/clock.py`) chia: tối đa 10% cho proxy (tính từ lúc bắt đầu bước proxy), 80% đầu cho tìm kiếm và tiến hóa, 20% cuối cho hyperparameter. Hết giờ giữa chừng thì DLNet vẫn xếp hạng những gì đã xong và luôn có ít nhất một kết quả.
+Ngân sách (`--budget`, giây hoặc epoch, `dlnet/clock.py`) chia: tối đa 10% cho proxy (tính từ lúc bắt đầu bước proxy), 80% đầu cho tìm kiếm và tiến hóa, 20% cuối cho hyperparameter. Một lần huấn luyện chỉ được bắt đầu khi dự báo xong trước hạn của giai đoạn (`search.Pace`: giây/epoch đo trên trainer, hoặc theo FLOPs cho ứng viên chưa train; ngân sách epoch thì đúng bằng số epoch). Hết giờ giữa chừng thì DLNet vẫn xếp hạng những gì đã xong và luôn có ít nhất một kết quả. `clock.stage()` ghi giây và epoch của từng giai đoạn vào khối `budget` của leaderboard.
+
+Cả lần chạy nằm trong `threads.limit(n)` (`--threads`): torch, OpenBLAS và hai runtime OpenMP (torch, scikit-learn) bị giới hạn cùng một số luồng, tránh treo khi nhiều tiến trình tranh CPU.
 
 ## 2. Thư mục mã
 
@@ -39,6 +41,7 @@ Ngân sách (`--budget`, giây hoặc epoch, `dlnet/clock.py`) chia: tối đa 1
 | `dlnet/advisor.py`, `mcp_server.py` | Tùy chọn AI: advisor gọi AI CLI; MCP server `dlnet mcp` ([ai-advisor.md](ai-advisor.md)) |
 | `dlnet/proxies.py`, `hparams.py`, `profile.py` | Zero-cost proxy; lr / batch / weight decay; intrinsic dimension |
 | `dlnet/export.py`, `reference.py` | Gói đầu ra, leaderboard, quy tắc kết luận; baseline cổ điển |
+| `dlnet/clock.py`, `threads.py`, `jsonsafe.py` | Đồng hồ ngân sách và báo cáo theo giai đoạn; giới hạn luồng; ghi JSON chuẩn (`NaN` → `null`) |
 | `dlnet/unfold*.py`, `gan_*.py` | Lệnh `unfold` (LISTA) và `gan` (DCGAN) |
 | `scripts/` | Đối chiếu với mã gốc (`verify_*.py`), đo đạc (`bench_*.py`), phát hành, sinh tài liệu |
 
@@ -75,7 +78,7 @@ Một plugin (`dlnet/plugins/__init__.py: DomainPlugin`) cài: `detect` (độ t
 
 ```
 dlnet_out/
-  leaderboard.md, leaderboard.json   xếp hạng, baseline, kết luận, Pareto front, proxy, data card
+  leaderboard.md, leaderboard.json   xếp hạng, baseline, kết luận, Pareto front, proxy, data card, ngân sách
   profile.json                       hồ sơ dữ liệu
   reference/results.json             baseline cổ điển
   top1_<họ>/                         một gói độc lập cho mỗi baseline

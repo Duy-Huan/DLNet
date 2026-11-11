@@ -8,7 +8,7 @@ from typing import ClassVar
 
 import numpy as np
 
-from .. import hsi_data, zoo
+from .. import hsi_data, threads, zoo
 from ..core import compute_metrics
 from ..profile import capacity_hint, intrinsic_dim_report, rounded, twonn_intrinsic_dim
 from ..zoo import families
@@ -239,7 +239,7 @@ class HSIPlugin(DomainPlugin):
         for fname, F in feats.items():
             fits = {f"svm_rbf_{fname}": [SVC(C=c, gamma="scale") for c in (1, 10, 100)]}
             fits[f"random_forest_{fname}"] = [
-                RandomForestClassifier(300, n_jobs=-1, random_state=0)
+                RandomForestClassifier(300, n_jobs=threads.current(), random_state=0)
             ]
             for name, models in fits.items():
                 t0, best = time.time(), None

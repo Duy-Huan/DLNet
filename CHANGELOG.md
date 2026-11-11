@@ -6,6 +6,19 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-11-11
+
+Mốc M20 (xem `agent.md` §9.2): ổn định khi chạy song song và ngân sách được tôn trọng.
+
+### Thêm
+- **`--threads N`** (`dlnet/threads.py`): giới hạn luồng của torch, BLAS và OpenMP (scikit-learn, torch) cho cả lần chạy. Mặc định `0` = số CPU còn rảnh. Phụ thuộc mới: `threadpoolctl` (vốn đi kèm scikit-learn).
+- Báo cáo ngân sách theo giai đoạn: khối `budget` trong `leaderboard.json`, mục "Budget" trong `leaderboard.md`, dòng `[budget]` trên màn hình; cảnh báo khi vượt quá 10%.
+
+### Sửa
+- Nhiều lệnh `design` chạy cùng lúc có thể treo hàng chục phút trong baseline HistGradientBoosting do OpenMP tranh luồng (4 lệnh 30 s: > 10 phút; nay 30–31 s).
+- Ngân sách không còn bị vượt bởi một lần huấn luyện bắt đầu sát hạn: DLNet chỉ bắt đầu một lần chạy khi dự báo nó xong trước hạn (tìm kiếm, Hyperband, giai đoạn nhiều seed, ước lượng hyperparameter). Với ngân sách epoch, số epoch đã train không vượt ngân sách.
+- File JSON luôn hợp lệ: `NaN`/`inf` (ví dụ intrinsic dimension của dữ liệu trùng mẫu trong `profile.json`) được ghi thành `null`.
+
 ## [0.17.0] - 2026-11-11
 
 Mốc M19 (xem `agent.md` §9.1, §18): regression test toàn bộ, ngân sách tái lập được.
@@ -306,7 +319,8 @@ Bản đầu tiên: prototype chạy được từ dữ liệu đến Top-K base
 - Chưa có zero-cost proxy, cost model FLOPs/VRAM, Tensor-LoRA, deep unfolding; chưa có plugin image và timeseries.
 - Kết quả trên Indian Pines và Pavia University là một lần chạy ngắn trên CPU: với chia theo khối, mạng sâu chưa vượt rõ baseline cổ điển.
 
-[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v0.17.0...HEAD
+[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v0.18.0...HEAD
+[0.18.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.18.0
 [0.17.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.17.0
 [0.16.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.16.0
 [0.15.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.15.0

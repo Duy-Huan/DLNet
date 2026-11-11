@@ -27,6 +27,22 @@ def parse_budget_mode(s: str) -> tuple[float, str]:
     return float(m.group(1)) * {"s": 1, "m": 60, "h": 3600}[unit], "time"
 
 
+def _budget_report(text, mode, budget, wall, threads) -> dict:
+    """Where the budget went: seconds and epochs per stage, and the overrun of a seconds budget."""
+    from . import clock
+
+    stages = clock.breakdown()
+    rep = {"budget": text, "mode": mode, "threads": threads, "wall_seconds": round(wall, 1),
+           "epochs_trained": round(clock.epochs(), 1), "stages": stages}  # fmt: skip
+    spent = wall if mode == "time" else clock.epochs()
+    rep["overrun_pct"] = round(100 * (spent - budget) / budget, 1) if budget else 0.0
+    shown = ", ".join(f"{d['stage']} {d['seconds']:.1f}s/{d['epochs']:.0f}ep" for d in stages)
+    print(f"[budget] {shown}")
+    if rep["overrun_pct"] > 10:
+        print(f"[budget] WARNING: spent {spent:.0f} of a {text} budget (+{rep['overrun_pct']}%)")
+    return rep
+
+
 def _apply_cost_model(plugin, data, cands, args):
     """Measure params / FLOPs / VRAM of every candidate; drop the ones over the limits."""
     from .zoo import cost
@@ -66,6 +82,14 @@ def _apply_cost_model(plugin, data, cands, args):
 
 
 def design(args) -> int:
+    from . import threads
+
+    with threads.limit(threads.resolve(args.threads)) as n:
+        print(f"[threads] {n} (of {threads.available_cpus()} CPUs; --threads to change)")
+        return _design(args, n)
+
+
+def _design(args, n_threads) -> int:
     import functools
     from pathlib import Path
 
@@ -90,6 +114,7 @@ def design(args) -> int:
     t_wall = time.time()
     budget, clock_mode = parse_budget_mode(args.budget)
     t0 = clock.start(clock_mode)
+    clock.stage("load")
     deadline = t0 + budget
     search_deadline = t0 + 0.8 * budget  # the last 20% goes to hyperparameter estimation
     export.check_out_dir(args.out)  # fail before spending the budget, not after
@@ -128,11 +153,13 @@ def design(args) -> int:
     if n_cv > 1:
         print(f"[cv] ranking finalists on {len(folds)} different splits")
 
+    clock.stage("reference")
     print("[reference] classical baselines on the same split(s)")
     ref = export.mean_reference([plugin.reference(f) for f in folds])
     for r in ref:
         print(f"[reference] {r['name']:<26} val={r['va']['score']:.4f}")
 
+    clock.stage("generate")
     cands = plugin.generate(prof, args.per_family, args.seed)
     zoo_cands = plugin.generate_zoo(
         data, prof, args.zoo, args.seed, not args.no_zoo_presets, args.zoo_width
@@ -159,6 +186,7 @@ def design(args) -> int:
 
     # Zero-cost proxies of the untrained candidates: measured against real training below; they
     # vote in the seed selection only with --seed-proxies (agent.md 16.1). At most 10% of the budget.
+    clock.stage("proxies")
     zc, t_px = {}, time.time()  # the proxy stage gets 10% of the budget from ITS start
     px_limit = 0.1 * budget if clock_mode == "time" else float("inf")  # proxies train nothing
     for c in cands:
@@ -168,6 +196,7 @@ def design(args) -> int:
         zc[id(c)] = proxies.score(
             plugin.build_model(c, data["in_dim"], data["out_dim"]), data, seed=args.seed
         )
+    clock.stage("seed_selection")
     zinp = plugin.zoo_input(data)
     if args.extra_specs and zinp:  # user- or AI-written architectures (JSON list of zoo specs)
         import json as _json
@@ -237,6 +266,7 @@ def design(args) -> int:
         target=objectives.parse_target(args.target_cost), weight=args.cost_weight,
     )  # fmt: skip
     trace = {}
+    clock.stage("search")
     t_search = clock.now()
     gens = args.evolve if any(c.get("spec") for c in cands) else 0
     gen0_deadline = t_search + (0.55 if gens else 1.0) * (search_deadline - t_search)
@@ -250,6 +280,8 @@ def design(args) -> int:
     # aging evolution (Real et al. 2019): population = the last P evaluated models, oldest first
     pop_size = args.evolve_population or max(len(trace.get("rung1", [])), 4)
     population = [cv for cv in trace.get("rung1", []) if cv[0].get("spec")][-pop_size:]
+    if gens:
+        clock.stage("evolution")
     for g in range(1, gens + 1):
         if clock.now() > search_deadline - (5 if clock_mode == "time" else 1) or not population:
             break
@@ -304,6 +336,7 @@ def design(args) -> int:
         population = (population + sub.get("rung1", []))[-pop_size:]  # the oldest die
         best = max((v for _, v in sub.get("rung1", [])), default=None)
         evolution.append({"generation": g, "children": len(kids), "best_rung1_val": best})
+    clock.stage("hparams")
     print("[hparams] estimating lr / batch size / weight decay for the finalists")
     results = hparams.refine(
         results, data, plugin.build_model, deadline, log=print, folds=folds, cache=cache
@@ -366,6 +399,10 @@ def design(args) -> int:
         print(f"[proxies] Spearman with rung-1 validation (n={len(pairs)}): {shown}")
     if cache and cache.hits:
         print(f"[cache] reused {cache.hits} finished runs from {cache.path}")
+    clock.stage("export")
+    extras["budget"] = _budget_report(
+        args.budget, clock_mode, budget, time.time() - t_wall, n_threads
+    )
     v = export.export(args.out, plugin, data, prof, chosen, ref, args.seed, extras=extras)
     spent = f"{clock.now() - t0:.0f} epochs, " if clock_mode == "work" else ""
     print(f"[done] {spent}{time.time() - t_wall:.0f}s  -> {args.out}/leaderboard.md")
@@ -442,6 +479,10 @@ def main(argv=None) -> int:
         help="budget of the whole run: wall clock (90s, 10m, 2h) or training epochs (400ep, reproducible)",
     )  # fmt: skip
     d.add_argument("--topk", type=int, default=3, help="number of exported baselines")
+    d.add_argument(
+        "--threads", type=int, default=0,
+        help="CPU threads for torch, BLAS and OpenMP (0 = auto: free CPUs; fix it for identical reruns)",
+    )  # fmt: skip
     d.add_argument(
         "--per-family", type=int, default=8, help="random configurations per model family"
     )
