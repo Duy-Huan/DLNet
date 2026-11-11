@@ -101,3 +101,33 @@ jobs:
           git -C unilm sparse-checkout set Diff-Transformer && git -C unilm checkout -q 31c5b90
       - name: Compare outputs
         run: python scripts/verify_next.py --root /tmp/v1
+
+  verify-domain:
+    # v1.0 tabular / time-series / graph / CTR networks (ops_domain.py, ops_graph2.py)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Official code (pinned)
+        run: |
+          set -e
+          mkdir -p /tmp/dom && cd /tmp/dom
+          clone() { git clone -q "https://github.com/$1" "$2" && git -C "$2" checkout -q "$3"; }
+          clone dholzmueller/pytabkit pytabkit d232eec
+          clone kwuking/TimeMixer TimeMixer e246105
+          clone thuml/TimeXer TimeXer 7601190
+          clone rampasek/GraphGPS GraphGPS 2801570
+          clone cornell-zhang/Polynormer Polynormer fc8c276
+          clone qitianwu/SGFormer SGFormer 87d36a9
+          clone reczoo/FuxiCTR FuxiCTR 183da1c
+          clone salmon1802/FCN FCN 8eaa864
+      - name: Install DLNet (CPU torch), torch_geometric and pytabkit
+        run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -e . numpy einops scipy "torch_geometric==2.6.1"
+          pip install -e /tmp/dom/pytabkit
+      - name: Compare outputs
+        run: python scripts/verify_domain.py --root /tmp/dom

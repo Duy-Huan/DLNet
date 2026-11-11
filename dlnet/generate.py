@@ -19,6 +19,8 @@ SPACE = {
     "tabm": {"width": [128, 256], "depth": [2, 3], "dropout": [0.0, 0.1], "k": [8, 16]},
     "tabm_plr": {"width": [128, 256], "depth": [2], "dropout": [0.0, 0.1], "k": [8, 16], "emb": [8, 16],
                  "sigma": [0.01, 0.1]},
+    # RealMLP-TD (NeurIPS 2024): 256 x 3 with SELU / Mish as in its defaults
+    "realmlp": {"width": [256, 128], "depth": [3, 2], "dropout": [0.15, 0.0], "act": ["selu", "mish"]},
 }  # fmt: skip
 TRAIN = {"lr": [1e-3, 3e-3], "wd": [1e-4, 1e-2], "batch": [64, 128]}
 
