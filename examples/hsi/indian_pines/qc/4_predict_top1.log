@@ -1,0 +1,3 @@
+$ /usr/local/bin/python predict.py --data /home/user/DLNet/examples/hsi/indian_pines/input/Indian_pines_corrected.mat --out /home/user/DLNet/examples/hsi/indian_pines/qc/predictions.npy --export /home/user/DLNet/examples/hsi/indian_pines/output/top1_zoo_gfnet_block_spectral_gf/model.pt2
+145 predictions -> /home/user/DLNet/examples/hsi/indian_pines/qc/predictions.npy
+exported /home/user/DLNet/examples/hsi/indian_pines/output/top1_zoo_gfnet_block_spectral_gf/model.pt2
