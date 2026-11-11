@@ -6,6 +6,9 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+### Thêm
+- Đội agent kiểm định chất lượng: `qa/CHECKLIST.md` (34 tiêu chí: độ tin cậy, mức hiện đại, tính khả thi, thuật toán), 4 agent trong `.claude/agents/`, skill `quality-audit`. Kết quả kiểm định v0.19.0 và lộ trình: `qa/reports/v0.19.0/SUMMARY.md`, `agent.md` §18.1.
+
 ## [0.19.0] - 2026-11-11
 
 Mốc M21 (xem `agent.md` §9.3): huấn luyện trên GPU.
