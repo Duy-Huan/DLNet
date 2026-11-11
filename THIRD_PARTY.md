@@ -148,7 +148,7 @@ Khác với gốc (có chủ ý, ghi trong docstring từng lớp):
   - Gated Attention ×3 lệch ≤ 4,8e-7; Mobile MQA ×2 lệch ≤ 3,9e-7.
 - `verify-hsi` **8/8**, trùng từng bit: MambaHSI ×2, MambaHSI+ ×2, SSFTT ×2, FAHM ×2.
 - `verify-domain` **19/19**: RealMLP ×2, TimeMixer ×2, RWSE, GPSLayer ×2, FinalMLP ×2, WuKong ×2, DCNv3 ×2 trùng từng bit; TimeXer ×2 ≤ 8,3e-7; Polynormer ≤ 3,6e-7; SGFormer ≤ 1,2e-7.
-- `verify-seq2`: Gated DeltaNet (phép truy hồi trùng bit, lớp ≤ 2,4e-7) ×3, mLSTM ×2 trùng từng bit, GR-KAN ×2 (x ≥ 0), MambaVision ×2: SEQ2_PLACEHOLDER.
+- `verify-seq2` **9/9** (run 12): Gated DeltaNet: phép truy hồi trùng từng bit, lớp ×2 ≤ 2,4e-7; mLSTM ×2 trùng từng bit; GR-KAN ×2 ≤ 7,2e-7 (đầu vào x ≥ 0, vì đường torch của repo dùng lũy thừa có dấu ở mẫu số còn kernel Triton dùng |x|, DLNet theo kernel); MambaVision mixer ×2 trùng từng bit (bias của dt cộng hai lần như bản gốc).
 
 **Chưa port**: OverLoCK (CVPR 2025) cần kernel NATTEN và kiến trúc ba mạng con truyền ngữ cảnh cho nhau, không lắp vào ngữ pháp tuần tự; xLSTM-Mixer cần sLSTM (chưa port, có mLSTM); TabR/ModernNCA cần truy hồi kNN trên tập train trong mỗi batch (vòng huấn luyện khác); mô hình pretrained (proxy chặn trọng số).
 

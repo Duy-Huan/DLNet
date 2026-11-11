@@ -6,6 +6,8 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+- Sửa hiệu năng: vòng quét của Mamba (`selective_scan`) và Gated DeltaNet dùng `unbind` thay cho chỉ số từng bước; backward trước đây cấp phát một tensor 0 bằng cả khối cho mỗi bước (O(L²)). Bước huấn luyện FAHM 13,8 s → 2,1 s, MambaHSI 5,3 s → 1,3 s, MambaHSI+ 23,1 s → 5,8 s (batch 64, 1 luồng CPU); kết quả số học không đổi. Có regression test.
+
 - Quy tắc tài liệu: mọi thay đổi hay nâng cấp phải cập nhật `README.md` và `doc/` (agent.md §17 quy tắc 0); `python scripts/release.py docs` kiểm trong job `lint` (lỗi trên commit phát hành, cảnh báo trên commit thường); `tests/test_docs.py` kiểm số module trong README và link README.
 
 Mốc M27: **v1.0**, làm đầy kho khối theo khảo sát `qa/reports/v0.24.0/module-survey.md`; `agent.md` §9.9.

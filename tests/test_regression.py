@@ -600,3 +600,35 @@ def test_profile_of_constant_or_duplicated_data_has_no_warnings_and_valid_bounds
                              "classes": [0, 1], "primary": "accuracy"})  # fmt: skip
         assert np.isnan(profile.twonn_intrinsic_dim(np.ones((30, 2))))
     assert p["pca_dims_for_95pct_energy"] <= 3 and p["scaling_exponent_hat"] is None
+
+
+def test_recurrent_scans_backward_has_no_per_step_index_nodes():
+    """FAHM / MambaHSI / Gated DeltaNet trained 40x slower than they ran: `dA[:, :, i]` in the scan
+    loop makes autograd allocate a zero tensor as large as dA for every step (O(L^2) traffic; FAHM
+    step 13.8 s -> 2.1 s with unbind). The graph must hold one UnbindBackward, no SelectBackward."""
+    torch = pytest.importorskip("torch")
+    from dlnet.zoo import ops_seq2
+    from dlnet.zoo.ops_seq import selective_scan
+
+    def names(t):
+        seen, todo, out = set(), [t.grad_fn], set()
+        while todo:
+            f = todo.pop()
+            if f is None or f in seen:
+                continue
+            seen.add(f)
+            out.add(type(f).__name__)
+            todo.extend(g for g, _ in f.next_functions)
+        return out
+
+    b, d, n, L = 2, 3, 4, 7
+    u, delta = torch.randn(b, d, L, requires_grad=True), torch.rand(b, d, L)
+    y = selective_scan(
+        u, delta, -torch.rand(d, n), torch.randn(b, n, L), torch.randn(b, n, L), torch.randn(d)
+    )
+    q = torch.randn(1, 2, L, 4, requires_grad=True)
+    o = ops_seq2.recurrent_gated_delta_rule(q, torch.randn(1, 2, L, 4), torch.randn(1, 2, L, 3),
+                                            torch.rand(1, 2, L), -torch.rand(1, 2, L))  # fmt: skip
+    for out in (y, o):
+        assert "SelectBackward0" not in names(out.sum())
+        assert "UnbindBackward0" in names(out.sum())
