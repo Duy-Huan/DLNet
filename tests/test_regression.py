@@ -335,11 +335,15 @@ def test_parse_budget_rejects_garbage(bad):
         cli.parse_budget(bad)
 
 
-def test_router_picks_plugin_by_extension():
-    assert plugins.route("a.csv").name == "tabular"
-    assert plugins.route("a.mat").name == "hsi"
+def test_router_picks_plugin_by_extension(tmp_path):
+    for name in ("a.csv", "a.mat", "a.unknown"):
+        (tmp_path / name).write_text("x")
+    assert plugins.route(str(tmp_path / "a.csv")).name == "tabular"
+    assert plugins.route(str(tmp_path / "a.mat")).name == "hsi"
     with pytest.raises(SystemExit):
-        plugins.route("a.unknown")
+        plugins.route(str(tmp_path / "a.unknown"))
+    with pytest.raises(SystemExit, match="file not found"):
+        plugins.route(str(tmp_path / "missing.csv"))
 
 
 def test_cli_without_candidates_fails_with_a_clear_message(tabular_csv, tmp_path):

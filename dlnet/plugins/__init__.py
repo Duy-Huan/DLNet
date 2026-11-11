@@ -127,9 +127,21 @@ def get_plugin(name: str) -> DomainPlugin:
 
 def route(path: str) -> DomainPlugin:
     """Plugin router: pick the plugin with the highest detect() confidence."""
+    from pathlib import Path
+
+    if not Path(path).exists():
+        raise SystemExit(f"--data {path!r}: file not found")
     scored = sorted(((p.detect(path), p.name) for p in _registry().values()), reverse=True)
-    if scored[0][0] <= 0:
+    if scored[0][0] < 0.1:
+        hint = ""
+        if str(path).lower().endswith(".npz"):
+            import numpy as np
+
+            with np.load(path) as z:
+                hint = (f" Arrays in the file: {', '.join(f'{k} {z[k].shape}' for k in z.files)}. Name them "
+                        "X and y (or pass --x-key/--y-key with --plugin image_classification / timeseries / "
+                        "image_segmentation), and check that X and y have one row per sample.")  # fmt: skip
         raise SystemExit(
-            f"cannot tell the data type of {path!r}; pass --plugin {sorted(_registry())}"
+            f"cannot tell the data type of {path!r}; pass --plugin {sorted(_registry())}.{hint}"
         )
     return get_plugin(scored[0][1])

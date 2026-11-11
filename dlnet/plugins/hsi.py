@@ -22,12 +22,14 @@ Requires: torch, numpy, scipy.
 """
 import argparse
 import json
+from pathlib import Path
 
 import core
 import hsi_data
 from model import build_model, count_params
 
-cfg = json.load(open("config.yaml"))  # JSON is valid YAML
+HERE = Path(__file__).resolve().parent  # runs from any folder
+cfg = json.load(open(HERE / "config.yaml"))  # JSON is valid YAML
 ap = argparse.ArgumentParser()
 ap.add_argument("--data", required=True)
 ap.add_argument("--gt")
@@ -50,10 +52,12 @@ model = build_model(cfg["arch"], data["in_dim"], data["out_dim"])
 print(f"params={count_params(model):,} epochs={a.epochs}")
 tr, best_val = core.train_full(
     model, data, cfg["arch"]["lr"], cfg["arch"]["wd"], cfg["arch"]["batch"], a.epochs, seed=a.seed,
-    device=a.device, amp=a.amp,
+    device=a.device, amp=a.amp, recipe=cfg["recipe"].get("name"),
 )
 print("val :", tr.evaluate("va"))
 print("test:", tr.evaluate("te"))
+core.save_artifacts(model, data, HERE)
+print(f"saved {HERE / 'model.pt'} and preprocess.json; predict with: python predict.py --data <new file>")
 '''
 
 TEST_PY = """import json
@@ -123,7 +127,19 @@ class HSIPlugin(DomainPlugin):
         return 3 if args.split == "block" else 1
 
     def detect(self, path):
-        return 0.9 if str(path).lower().endswith((".mat", ".npz", ".npy")) else 0.0
+        p = str(path).lower()
+        if p.endswith((".mat", ".npy")):
+            return 0.9
+        if not p.endswith(".npz"):
+            return 0.0
+        try:  # a scene: a cube (H, W, B), and no per-sample label vector next to it
+            with np.load(path) as z:
+                shapes = {k: z[k].shape for k in z.files}
+        except (OSError, ValueError):
+            return 0.0
+        n_first = {sh[0] for sh in shapes.values() if len(sh) >= 2}
+        per_sample = any(len(sh) == 1 and sh[0] in n_first for sh in shapes.values())
+        return 0.05 if per_sample or not any(len(sh) == 3 for sh in shapes.values()) else 0.9
 
     def prepare(self, args):
         if args.patch % 2 == 0:

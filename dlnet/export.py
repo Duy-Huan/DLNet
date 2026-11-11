@@ -9,6 +9,55 @@ from . import jsonsafe
 
 HERE = Path(__file__).parent
 
+PREDICT_PY = '''"""Predict with this baseline after `python train.py` (which writes model.pt, preprocess.json).
+
+    python predict.py --data new_file [--out predictions.npy|.csv] [--export model.pt2|model.onnx]
+
+new_file has the same format as the training data, without labels (CSV: the same columns;
+.npz: the same array names; HSI: a cube). Output: class labels / target values in the original
+units (segmentation: masks, reconstruction: images, HSI: a class map). Requires: torch, numpy.
+"""
+import argparse
+from pathlib import Path
+
+import numpy as np
+
+import inference
+
+HERE = Path(__file__).resolve().parent
+ap = argparse.ArgumentParser()
+ap.add_argument("--data", required=True)
+ap.add_argument("--out", default="predictions.npy", help=".npy, or .csv for one value per row")
+ap.add_argument("--device", default="cpu")
+ap.add_argument("--export", help="also save a deployable graph: model.pt2 (torch.export) or model.onnx")
+a = ap.parse_args()
+
+model, meta, cfg = inference.load(HERE, a.device)
+X = inference.prepare_input(meta, cfg, a.data)
+pred = inference.predict(model, meta, X, device=a.device)
+if a.out.endswith(".csv"):
+    np.savetxt(a.out, np.asarray(pred).reshape(len(pred), -1), delimiter=",", fmt="%s")
+else:
+    np.save(a.out, pred)
+print(f"{len(pred)} predictions -> {a.out}")
+if a.export:
+    idx = np.arange(min(2, len(X)))
+    sample = X[idx] if hasattr(X, "map_shape") else X[: len(idx)]
+    print("exported", inference.export(model, sample.to(a.device), a.export))
+'''
+
+
+def core_recipe() -> str:
+    from . import core
+
+    return core.RECIPE
+
+
+def core_recipe_detail() -> dict:
+    from . import core
+
+    return dict(core.RECIPES[core.RECIPE])
+
 
 def _fmt(m: dict, task: str) -> str:
     if task == "reconstruction":
@@ -196,6 +245,7 @@ def export(out_dir, plugin, data, prof, chosen, reference, seed, epochs_recipe=1
         (d / "tests").mkdir(parents=True)
         shutil.copy(plugin.model_file, d / "model.py")
         shutil.copy(HERE / "core.py", d / "core.py")
+        shutil.copy(HERE / "inference.py", d / "inference.py")
         for name, src in plugin.extra_files.items():
             shutil.copy(src, d / name)
         if cfg.get("spec"):  # a zoo architecture needs the zoo next to model.py
@@ -215,8 +265,10 @@ def export(out_dir, plugin, data, prof, chosen, reference, seed, epochs_recipe=1
             "data": plugin.data_config(data),
             "recipe": {
                 "epochs": epochs_recipe,
-                "schedule": "cosine",
+                "schedule": "linear warm-up (5 %) then cosine",
                 "select": "best-val checkpoint",
+                "name": core_recipe(),
+                **core_recipe_detail(),
             },
             "search_result": {
                 "val_mean": r["val_mean"],
@@ -229,6 +281,7 @@ def export(out_dir, plugin, data, prof, chosen, reference, seed, epochs_recipe=1
         }
         (d / "config.yaml").write_text(jsonsafe.dumps(config, indent=2))
         (d / "train.py").write_text(plugin.train_template)
+        (d / "predict.py").write_text(PREDICT_PY)
         (d / "tests" / "test_model.py").write_text(plugin.test_template)
         (d / "report.md").write_text(
             f"# top{i}: {cfg['family']}  {r['roles']}\n\n"
@@ -245,7 +298,11 @@ def export(out_dir, plugin, data, prof, chosen, reference, seed, epochs_recipe=1
             f"- Search time spent on this candidate: {r['train_seconds']}s\n"
             f"- Indistinguishable-group id: {r['group']} (same id = difference within run-to-run noise)\n\n"
             f"Short search budget only. Re-train with the full recipe (see `python train.py -h`); "
-            f"neighbouring ranks may reorder.\n"
+            f"neighbouring ranks may reorder.\n\n"
+            f"Use: `python train.py --data ...` writes model.pt and preprocess.json; then "
+            f"`python predict.py --data new_file` predicts in the original label units "
+            f"(`--export model.pt2` saves a deployable graph). Training recipe: {core_recipe()} "
+            f"{core_recipe_detail()}.\n"
         )
         rows.append(
             {

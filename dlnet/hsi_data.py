@@ -56,6 +56,17 @@ def load(
     return cube.astype(np.float32), np.rint(gt).astype(np.int64)
 
 
+def load_cube(path: str, cube_key: str | None = None) -> np.ndarray:
+    """Only the cube (no ground truth): for predicting a class map of a new scene."""
+    arrs = _arrays(path)
+    cubes = {k: v for k, v in arrs.items() if v.ndim == 3}
+    if cube_key:
+        return arrs[cube_key].astype(np.float32)
+    if len(cubes) != 1:
+        raise ValueError(f"cannot pick the cube among {sorted(arrs)}; pass --cube-key")
+    return next(iter(cubes.values())).astype(np.float32)
+
+
 # --------------------------------------------------------------------------- splitting
 
 
@@ -214,6 +225,14 @@ def build(cube, gt, split="pixel", seed=0, patch=9, pca=30, frac=None, block=16)
         "split_mode": split,
         "y_raw": {},
         "Xnp": {},
+        "preprocess": {
+            "type": "hsi",
+            "mean": mean,
+            "std": std,
+            "components": V,
+            "scale": scale,
+            "patch": patch,
+        },
     }
     for name, sp in (("tr", 0), ("va", 1), ("te", 2)):
         m = s == sp

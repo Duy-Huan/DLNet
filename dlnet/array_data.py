@@ -90,6 +90,7 @@ def build(X: np.ndarray, y: np.ndarray, kind: str, task: str, seed: int = 0) -> 
     d = {
         "task": task, "classes": classes, "in_dim": int(X.shape[1]), "seed": seed, "kind": kind,
         "shape": [int(s) for s in X.shape[1:]], "y_raw": {}, "Xnp": {},
+        "preprocess": {"type": "channels", "layout": kind, "mean": mu.ravel(), "std": sd.ravel()},
     }  # fmt: skip
     if task == "regression":
         d["y_mean"], d["y_std"] = float(y[tr].mean()), float(y[tr].std() + 1e-6)
@@ -133,6 +134,7 @@ def build_segmentation(X: np.ndarray, y: np.ndarray, seed: int = 0) -> dict:
         "task": "classification", "classes": classes.tolist(), "in_dim": int(X.shape[1]),
         "out_dim": len(classes), "seed": seed, "kind": "segmentation", "primary": "miou",
         "shape": [int(s) for s in X.shape[1:]], "y_raw": {}, "Xnp": {},
+        "preprocess": {"type": "channels", "layout": "image", "mean": mu.ravel(), "std": sd.ravel()},
     }  # fmt: skip
     for k, i in zip(("tr", "va", "te"), (tr, va, te), strict=True):
         d["X" + k] = torch.from_numpy(Xs[i])
@@ -214,7 +216,12 @@ def build_graph(Xp: np.ndarray, y: np.ndarray, task: str, seed: int = 0) -> dict
     stats = graph_stats(Xs)
     sm, ss = stats[tr].mean(0), stats[tr].std(0) + 1e-6
     return _finish(
-        {"kind": "graph", "shape": [n, f + n], "in_dim": f},
+        {
+            "kind": "graph",
+            "shape": [n, f + n],
+            "in_dim": f,
+            "preprocess": {"type": "graph", "features": f, "mean": mu, "std": sd},
+        },
         Xs,
         (stats - sm) / ss,
         yt,
@@ -244,7 +251,13 @@ def build_ids(ids: np.ndarray, y: np.ndarray, task: str, seed: int = 0) -> dict:
     for j in range(ids.shape[1]):
         onehot[np.arange(len(ids)), off[j] + ids[:, j]] = 1.0
     return _finish(
-        {"kind": "ids", "shape": cards, "in_dim": len(cards), "cards": cards},
+        {
+            "kind": "ids",
+            "shape": cards,
+            "in_dim": len(cards),
+            "cards": cards,
+            "preprocess": {"type": "ids", "cards": cards},
+        },
         ids.astype(np.int64),
         onehot,
         yt,
@@ -303,6 +316,7 @@ def build_reconstruction(X: np.ndarray, seed: int = 0) -> dict:
         "task": "reconstruction", "classes": None, "in_dim": int(X.shape[1]), "out_dim": int(X.shape[1]),
         "kind": "reconstruction", "primary": "neg_mse", "shape": [int(s) for s in X.shape[1:]], "keys": {},
         "y_raw": {}, "Xnp": {}, "seed": seed,
+        "preprocess": {"type": "channels", "layout": "image", "mean": mu.ravel(), "std": sd.ravel()},
     }  # fmt: skip
     for k, i in zip(("tr", "va", "te"), (tr, va, te), strict=True):
         d["X" + k] = d["y" + k] = torch.from_numpy(

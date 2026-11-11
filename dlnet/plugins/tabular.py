@@ -16,11 +16,13 @@ Requires: torch, numpy, pandas.
 """
 import argparse
 import json
+from pathlib import Path
 
 import core
 from model import build_model, count_params
 
-cfg = json.load(open("config.yaml"))  # JSON is valid YAML
+HERE = Path(__file__).resolve().parent  # runs from any folder
+cfg = json.load(open(HERE / "config.yaml"))  # JSON is valid YAML
 ap = argparse.ArgumentParser()
 ap.add_argument("--data", required=True)
 ap.add_argument("--target", required=True)
@@ -30,16 +32,19 @@ ap.add_argument("--device", default="auto", help="auto | cpu | cuda | cuda:1 | m
 ap.add_argument("--amp", default="auto", choices=["auto", "off", "bf16", "fp16"])
 a = ap.parse_args()
 
-X, y, _ = core.load_csv(a.data, a.target)
+X, y, cols = core.load_csv(a.data, a.target)
 data = core.prepare(X, y, cfg["task"], seed=cfg["split_seed"])
+data["preprocess"].update(columns=cols, target=a.target)
 model = build_model(cfg["arch"], data["in_dim"], data["out_dim"])
 print(f"params={count_params(model):,} epochs={a.epochs}")
 tr, best_val = core.train_full(
     model, data, cfg["arch"]["lr"], cfg["arch"]["wd"], cfg["arch"]["batch"], a.epochs, seed=a.seed,
-    device=a.device, amp=a.amp,
+    device=a.device, amp=a.amp, recipe=cfg["recipe"].get("name"),
 )
 print("val :", tr.evaluate("va"))
 print("test:", tr.evaluate("te"))
+core.save_artifacts(model, data, HERE)
+print(f"saved {HERE / 'model.pt'} and preprocess.json; predict with: python predict.py --data <new file>")
 '''
 
 TEST_PY = """import json
@@ -77,12 +82,15 @@ class TabularPlugin(DomainPlugin):
 
     def prepare(self, args):
         if not args.target:
-            raise SystemExit("tabular data needs --target <column>")
+            raise SystemExit(
+                "tabular data (CSV) needs --target <column>; for .npz arrays leave --plugin auto"
+            )
         warns = []
-        X, y, _ = core.load_csv(args.data, args.target, warns)
+        X, y, cols = core.load_csv(args.data, args.target, warns)
         task = core.detect_task(y) if args.task == "auto" else args.task
         d = core.prepare(X, y, task, seed=args.seed)
         d["warnings"] = warns
+        d["preprocess"].update(columns=cols, target=args.target)
         return d
 
     def profile(self, data):

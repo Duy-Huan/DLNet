@@ -23,12 +23,14 @@ Requires: torch, numpy.
 """
 import argparse
 import json
+from pathlib import Path
 
 import array_data
 import core
 from model import build_model, count_params
 
-cfg = json.load(open("config.yaml"))  # JSON is valid YAML
+HERE = Path(__file__).resolve().parent  # runs from any folder
+cfg = json.load(open(HERE / "config.yaml"))  # JSON is valid YAML
 ap = argparse.ArgumentParser()
 ap.add_argument("--data", required=True)
 ap.add_argument("--x-key", default=cfg["data"]["x_key"])
@@ -43,10 +45,12 @@ model = build_model(cfg["arch"], data["in_dim"], data["out_dim"])
 print(f"params={count_params(model):,} epochs={a.epochs}")
 tr, best_val = core.train_full(
     model, data, cfg["arch"]["lr"], cfg["arch"]["wd"], cfg["arch"]["batch"], a.epochs, seed=a.seed,
-    device=a.device, amp=a.amp,
+    device=a.device, amp=a.amp, recipe=cfg["recipe"].get("name"),
 )
 print("val :", tr.evaluate("va"))
 print("test:", tr.evaluate("te"))
+core.save_artifacts(model, data, HERE)
+print(f"saved {HERE / 'model.pt'} and preprocess.json; predict with: python predict.py --data <new file>")
 '''
 
 RECON_TEST_PY = """import json
@@ -70,12 +74,14 @@ Requires: torch, numpy.
 """
 import argparse
 import json
+from pathlib import Path
 
 import array_data
 import core
 from model import build_model, count_params
 
-cfg = json.load(open("config.yaml"))  # JSON is valid YAML
+HERE = Path(__file__).resolve().parent  # runs from any folder
+cfg = json.load(open(HERE / "config.yaml"))  # JSON is valid YAML
 ap = argparse.ArgumentParser()
 ap.add_argument("--data", required=True)
 ap.add_argument("--x-key", default=cfg["data"]["x_key"])
@@ -92,10 +98,12 @@ model = build_model(cfg["arch"], data["in_dim"], data["out_dim"])
 print(f"params={count_params(model):,} epochs={a.epochs}")
 tr, best_val = core.train_full(
     model, data, cfg["arch"]["lr"], cfg["arch"]["wd"], cfg["arch"]["batch"], a.epochs, seed=a.seed,
-    device=a.device, amp=a.amp,
+    device=a.device, amp=a.amp, recipe=cfg["recipe"].get("name"),
 )
 print("val :", tr.evaluate("va"))
 print("test:", tr.evaluate("te"))
+core.save_artifacts(model, data, HERE)
+print(f"saved {HERE / 'model.pt'} and preprocess.json; predict with: python predict.py --data <new file>")
 '''
 
 TEST_PY = """import json
