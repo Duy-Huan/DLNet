@@ -99,6 +99,7 @@ propose Top-K deep learning baselines for a dataset
 | `--seed-proxies` |  |  | let the zero-cost proxy vote (synflow, naswot, snip) rank the seeds too |
 | `--scheduler` |  | `sh` | sh: one successive-halving bracket (4/12/30 epochs) \| hyperband: Li et al. 2018 (một trong: sh, hyperband) |
 | `--seed-order` |  | `data` | random = control arm that keeps --seeds candidates at random (for measuring the selector) (một trong: data, random) |
+| `--hparams` |  | `auto` | lr/batch/wd estimation: auto = only for finalists run >= 2 times (noise measurable) (một trong: auto, on, off) |
 | `--evolve-population` |  | `0` | aging-evolution population (0 = rung 1 size) |
 | `--tournament` |  | `0` | tournament size S (0 = population / 4) |
 | `--target` |  |  | [tabular] target column |

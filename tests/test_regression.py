@@ -382,8 +382,9 @@ def test_lr_range_test_is_deterministic_and_inside_the_sweep():
     a = hparams.lr_range_test(build_model, _cfg(), d, 32, seed=0)
     b = hparams.lr_range_test(build_model, _cfg(), d, 32, seed=0)
     assert a == b
-    assert 1e-5 <= a["lr_base"] < a["lr"] < a["lr_max"] <= 1.0
-    assert a["lr_max"] == pytest.approx(2 * a["lr"]) and a["lr_max"] == pytest.approx(
+    assert 1e-6 <= a["lr"] < a["lr_base"] < a["lr_max"] <= 1.0
+    # v0.21: proposal = lr_max / 10 (lr_max / 2 was 10-20x the searched LR, audit A5)
+    assert a["lr_max"] == pytest.approx(10 * a["lr"]) and a["lr_max"] == pytest.approx(
         4 * a["lr_base"]
     )
 

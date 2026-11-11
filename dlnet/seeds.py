@@ -273,7 +273,7 @@ def select(cands, card, n=0, context="", goal="accuracy", meta=None, portfolio=N
         cands[i]["seed_traits"] = sorted(traits(cands[i]))
     report = {
         "rules_fired": why,
-        "rankers": ["prior"] + (["meta"] if ms is not None else []) + (
+        "rankers": (["prior"] if weights[0] else []) + (["meta"] if ms is not None else []) + (
             ["proxy_vote"] if proxy_scores is not None and weights[2] else []) + (
             ["zap_surrogate"] if surrogate_scores is not None and surrogate_weight else []) + (
             ["ai_advisor"] if advice is not None and advice_weight else []),
