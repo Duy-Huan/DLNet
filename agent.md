@@ -283,6 +283,7 @@ Nguyên tắc: lõi **tổng quát trước**, kiểm chứng end-to-end sớm t
 | **M8** | Deep unfolding (khi có mô hình thuận) | **Xong cho bài toán thưa tuyến tính (v0.7.0)**, xem "Kết quả đo M8" ở §5: lệnh `dlnet unfold`, LISTA-CP hơn ISTA và FISTA (λ đã tune) 3,3–6,3 dB ở cùng số vòng K trên dữ liệu tổng hợp. Chưa có: ADMM/AMP, support selection, toán tử A không tường minh (ảnh), dữ liệu thật |
 | **M13** | Port nhóm còn thiếu: đồ thị, id/recommender, autoencoder/VAE, GAN, Mamba-2; cost model; hợp nhất họ cũ | **Xong (v0.11.0–v0.12.0)**, xem §13.7. Chưa có: CVAE, loss cặp (BPR), GAN có điều kiện/FID, đồ thị lớn (dense), graph cạnh học được |
 | **M14** | Khối ảnh từ thư viện chính thống (timm, smp, MONAI, torchvision); đối chiếu số học các khối viết từ trí nhớ | **Xong (v0.13.0)**, xem §13.8 |
+| **M21** | GPU: `--device`, mixed precision (`--amp`), `channels_last`, gói xuất ra dùng GPU (§18 P1 mục 1) | **Xong phần mã (v0.19.0), chưa đo trên GPU thật**, xem §9.3 |
 | **M20** | Ổn định (§18 P0 mục 1–3): ngân sách giây được tôn trọng, `--threads`, JSON chuẩn | **Xong (v0.18.0)**, xem §9.2 |
 | **M19** | Regression test toàn bộ dlnet (coverage 90% → 97%, CI có sàn 95%), ngân sách theo epoch tái lập được, sửa lỗi tìm thấy; lộ trình nâng cấp | **Xong (v0.17.0)**, xem §9.1, §18 |
 | **M17** | Học ánh xạ đặc trưng dữ liệu → hạt giống: surrogate zero-shot ZAP, meta-dataset 14 bộ ảnh có sẵn | **Xong (v0.16.0)**, xem §16.6 |
@@ -326,6 +327,14 @@ Máy 4 CPU; dữ liệu ảnh 600 mẫu 16×16 và bảng 2000×20 (`--budget 30
 - **Báo cáo ngân sách**: `leaderboard.json` khối `budget` và mục "Budget" trong `leaderboard.md`: giây và epoch theo giai đoạn (load, reference, generate, proxies, seed_selection, search, evolution, hparams, export), số luồng, % vượt; cảnh báo khi vượt > 10%. Đo: ở 30 s, các bước trước tìm kiếm chiếm ~13 s (sinh + tính chi phí ứng viên ~5 s); đây là chỗ cần tối ưu tiếp.
 - **JSON chuẩn (đã sửa)**: mẫu trùng nhau cho intrinsic dimension `NaN`, ghi ra `profile.json` thành token `NaN` (không phải JSON). Mọi file DLNet ghi đi qua `dlnet/jsonsafe.py` (`NaN`/`inf` → `null`, `allow_nan=False`).
 - Test: `tests/test_stability.py` (3 test đỏ trên mã v0.17, xanh sau sửa).
+
+### 9.3 GPU v0.19 (M21): kiểm được gì, chưa kiểm được gì
+Môi trường phát triển và CI **không có GPU**, nên chưa có số đo tốc độ hay độ chính xác trên GPU thật. Thay vào đó:
+- **Lỗi lệch thiết bị**: thiết bị `meta` từ chối tensor CPU trộn với tensor của nó giống CUDA (chỉ cho phép số vô hướng 0 chiều trên CPU). Mọi ứng viên của 8 plugin (441 kiến trúc: 63 ảnh, 73 phân đoạn, 46 tái tạo, 49 chuỗi, 55 đồ thị, 22 recommender, 70 HSI, 63 bảng) chạy `forward` ở cả chế độ train và eval trên `meta` mà không lỗi; `Trainer.fit` chạy trọn trên `meta` (dữ liệu được chép sang, optimizer chạy). Test: `tests/test_device.py` (lấy mẫu ngữ pháp zoo cho 6 kiểu tensor).
+- **Mixed precision**: autocast bf16 và fp16 (kèm `GradScaler`) chạy trên CPU; trên dữ liệu thử cả ba độ chính xác đạt cùng validation (0,68). Trên CPU chậm hơn float32 (80 epoch: float32 45 s, bf16 64 s, fp16 315 s), nên `auto` giữ float32 trên CPU.
+- **Không đổi trên CPU**: cùng lệnh với `--threads 2` cho leaderboard giống từng bit với v0.18.0 (ảnh và bảng).
+- **Chưa làm**: lệnh `gan`, `unfold` vẫn chỉ chạy CPU; proxy, data card, surrogate chạy CPU (nhỏ); `torch.compile`; nhiều GPU. Ước lượng VRAM (`--max-vram`) vẫn chưa đối chiếu với GPU thật.
+- Cần làm khi có GPU: đo tốc độ so với CPU trên vài bộ dữ liệu, so độ chính xác bf16 với float32 cùng ngân sách epoch, đối chiếu VRAM ước lượng với `torch.cuda.max_memory_allocated`.
 
 ## 10. Quy ước cho agent (người/AI) phát triển repo
 
@@ -779,7 +788,7 @@ Chưa làm: epochs (hiện là công thức mặc định 100 epoch, cosine, ch�
 8. **Một nguồn cho mã trong gói xuất ra**: `gan_data.py` sao chép từ `gan_run.py` thay vì viết lại.
 
 ### P1. Hiệu quả
-1. **GPU và mixed precision** (`--device auto`, AMP bf16/fp16, `channels_last`): hiện DLNet chỉ chạy CPU; đây là tăng tốc lớn nhất có thể (thường 10–50 lần với CNN).
+1. ~~**GPU và mixed precision**~~ (mã xong v0.19.0, chưa đo trên GPU thật, §9.3) (`--device auto`, AMP bf16/fp16, `channels_last`): hiện DLNet chỉ chạy CPU; đây là tăng tốc lớn nhất có thể (thường 10–50 lần với CNN).
 2. **Huấn luyện song song nhiều ứng viên** (nhiều tiến trình / nhiều GPU) với **ASHA** (arXiv:1810.05934, đã có trong `ref/`): successive halving bất đồng bộ không phải chờ cả rung.
 3. **Đa độ chính xác theo dữ liệu**: rung đầu dùng tập con dữ liệu / ảnh thu nhỏ (Hyperband với tài nguyên là số mẫu), chỉ ứng viên tốt mới thấy toàn bộ dữ liệu.
 4. **Dừng sớm theo đường học** (ngoại suy learning curve, freeze-thaw BO, arXiv:1406.3896 trong `ref/`): bỏ ứng viên giữa rung khi đường cong không thể vượt ngưỡng.

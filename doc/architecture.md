@@ -25,6 +25,8 @@ flowchart TD
 
 Ngân sách (`--budget`, giây hoặc epoch, `dlnet/clock.py`) chia: tối đa 10% cho proxy (tính từ lúc bắt đầu bước proxy), 80% đầu cho tìm kiếm và tiến hóa, 20% cuối cho hyperparameter. Một lần huấn luyện chỉ được bắt đầu khi dự báo xong trước hạn của giai đoạn (`search.Pace`: giây/epoch đo trên trainer, hoặc theo FLOPs cho ứng viên chưa train; ngân sách epoch thì đúng bằng số epoch). Hết giờ giữa chừng thì DLNet vẫn xếp hạng những gì đã xong và luôn có ít nhất một kết quả. `clock.stage()` ghi giây và epoch của từng giai đoạn vào khối `budget` của leaderboard.
 
+Thiết bị (`--device`, `--amp`): `core.Trainer` đặt mô hình lên thiết bị, chép dữ liệu lên đó một lần cho mỗi bộ dữ liệu (`Trainer.split`; HSI chép cả cube và cắt patch trên GPU, `hsi_data.PatchStore.to`), dùng autocast (bf16, hoặc fp16 kèm `GradScaler`) và `channels_last` cho ảnh trên CUDA. Ước lượng hyperparameter dùng thiết bị của trainer. Data card, proxy, surrogate, cost model (thiết bị `meta`) và baseline cổ điển chạy trên CPU. Gói xuất ra có cùng `core.py`, nên `train.py --device/--amp` cũng dùng GPU.
+
 Cả lần chạy nằm trong `threads.limit(n)` (`--threads`): torch, OpenBLAS và hai runtime OpenMP (torch, scikit-learn) bị giới hạn cùng một số luồng, tránh treo khi nhiều tiến trình tranh CPU.
 
 ## 2. Thư mục mã

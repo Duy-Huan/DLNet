@@ -151,8 +151,23 @@ class PatchStore:
     def __len__(self):
         return len(self.rows)
 
+    @property
+    def device(self):
+        return self.cube.device
+
+    @property
+    def nbytes(self) -> int:
+        return self.cube.nbytes + self.rows.nbytes + self.cols.nbytes
+
+    def to(self, device):
+        """The same patches gathered on `device` (a GPU cuts patches itself, no host copy)."""
+        out = PatchStore.__new__(PatchStore)
+        out.r, out.cube = self.r, self.cube.to(device)
+        out.rows, out.cols, out.off = (t.to(device) for t in (self.rows, self.cols, self.off))
+        return out
+
     def __getitem__(self, idx):
-        idx = torch.as_tensor(idx)
+        idx = torch.as_tensor(idx, device=self.rows.device)
         ys = self.rows[idx][:, None] + self.off[None, :]
         xs = self.cols[idx][:, None] + self.off[None, :]
         return self.cube[ys[:, :, None], xs[:, None, :]].permute(0, 3, 1, 2).contiguous()

@@ -70,6 +70,8 @@ TOOLS = [
             "context": {"type": "string"}, "topk": {"type": "integer", "default": 3},
             "seeds": {"type": "integer", "default": 0}, "target": {"type": "string"},
             "plugin": {"type": "string"}, "meta_store": {"type": "string"},
+            "device": {"type": "string", "description": "auto | cpu | cuda | cuda:1 | mps"},
+            "threads": {"type": "integer", "description": "CPU threads (0 = auto)"},
             "extra_specs": {"type": "array", "items": {"type": "object"}}}},
     },
     {
@@ -147,7 +149,8 @@ def tool_design(a):
     args = [sys.executable, "-m", "dlnet", "design", "--data", a["data"], "--out", str(out),
             "--budget", a.get("budget", "5m"), "--topk", str(a.get("topk", 3))]  # fmt: skip
     for k, flag in (("objective", "--objective"), ("context", "--context"), ("seeds", "--seeds"),
-                    ("target", "--target"), ("plugin", "--plugin"), ("meta_store", "--meta-store")):  # fmt: skip
+                    ("target", "--target"), ("plugin", "--plugin"), ("meta_store", "--meta-store"),
+                    ("device", "--device"), ("threads", "--threads")):  # fmt: skip
         if a.get(k) not in (None, ""):
             args += [flag, str(a[k])]
     if a.get("extra_specs"):

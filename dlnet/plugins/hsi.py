@@ -17,7 +17,7 @@ from . import DomainPlugin
 HERE = Path(__file__).parent.parent
 
 TRAIN_PY = '''"""Full training recipe for this HSI baseline. Usage:
-    python train.py --data cube.mat --gt gt.mat [--cube-key K] [--gt-key K] [--epochs 100] [--seed 0]
+    python train.py --data cube.mat --gt gt.mat [--cube-key K] [--gt-key K] [--epochs 100] [--seed 0] [--device auto] [--amp auto]
 Requires: torch, numpy, scipy.
 """
 import argparse
@@ -35,6 +35,8 @@ ap.add_argument("--cube-key")
 ap.add_argument("--gt-key")
 ap.add_argument("--epochs", type=int, default=cfg["recipe"]["epochs"])
 ap.add_argument("--seed", type=int, default=0)
+ap.add_argument("--device", default="auto", help="auto | cpu | cuda | cuda:1 | mps")
+ap.add_argument("--amp", default="auto", choices=["auto", "off", "bf16", "fp16"])
 a = ap.parse_args()
 
 dc = cfg["data"]
@@ -47,7 +49,8 @@ print("data:", {k: v for k, v in data["info"].items() if k != "classes"})
 model = build_model(cfg["arch"], data["in_dim"], data["out_dim"])
 print(f"params={count_params(model):,} epochs={a.epochs}")
 tr, best_val = core.train_full(
-    model, data, cfg["arch"]["lr"], cfg["arch"]["wd"], cfg["arch"]["batch"], a.epochs, seed=a.seed
+    model, data, cfg["arch"]["lr"], cfg["arch"]["wd"], cfg["arch"]["batch"], a.epochs, seed=a.seed,
+    device=a.device, amp=a.amp,
 )
 print("val :", tr.evaluate("va"))
 print("test:", tr.evaluate("te"))

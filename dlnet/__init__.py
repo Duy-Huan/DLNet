@@ -1,3 +1,3 @@
 """DLNet: auto-design deep learning baselines from data (see agent.md)."""
 
-__version__ = "0.18.0"
+__version__ = "0.19.0"

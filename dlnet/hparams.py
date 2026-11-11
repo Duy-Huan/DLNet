@@ -67,15 +67,28 @@ def gradient_noise_scale(model, data, b_small=16, b_big=256, n_meas=16, seed=0) 
     if b_big < 2 * b_small:
         return None
     m = copy.deepcopy(model).train()
+    dev = next(m.parameters()).device  # the model may live on a GPU (core.Trainer)
+
+    def rows(t, i):
+        return t[i.to(t.device)].to(dev)
+
     loss_fn = _loss_fn(data)
     gen = torch.Generator().manual_seed(seed)
     small, big = [], []
     for _ in range(n_meas):
         idx = torch.randperm(len(X), generator=gen)[:b_big]
-        big.append(_grad_sq(m, X[idx], y[idx], data, loss_fn))
+        big.append(_grad_sq(m, rows(X, idx), rows(y, idx), data, loss_fn))
         chunks = idx.split(b_small)
         small.append(
-            float(np.mean([_grad_sq(m, X[c], y[c], data, loss_fn) for c in chunks if len(c) > 1]))
+            float(
+                np.mean(
+                    [
+                        _grad_sq(m, rows(X, c), rows(y, c), data, loss_fn)
+                        for c in chunks
+                        if len(c) > 1
+                    ]
+                )
+            )
         )
     g2, s, bs = noise_scale_from_norms(float(np.mean(small)), b_small, float(np.mean(big)), b_big)
     return {"b_small": b_small, "b_big": b_big, "grad_sq": g2, "trace_sigma": s, "b_simple": bs}
@@ -110,7 +123,7 @@ def lr_range_test(
     torch.manual_seed(seed)
     model = build_fn(cfg, data["in_dim"], data["out_dim"])
     tr = Trainer(model, data, lr=lr_lo, wd=cfg["wd"], batch=batch, seed=seed)
-    X, y = data["Xtr"], data["ytr"]
+    X, y = tr.split("Xtr"), tr.split("ytr")
     gamma = (lr_hi / lr_lo) ** (1.0 / max(n_iter - 1, 1))
     model.train()
     lrs, smooth, avg, best = [], [], 0.0, math.inf
@@ -125,7 +138,7 @@ def lr_range_test(
         pos += batch
         if len(b) < 2:
             continue
-        loss = _loss(model, X[b], y[b], data, tr.loss_fn)
+        loss = _loss(model, tr.batch_of(X, b), tr.batch_of(y, b), data, tr.loss_fn)
         if not torch.isfinite(loss):
             break
         tr.opt.zero_grad()

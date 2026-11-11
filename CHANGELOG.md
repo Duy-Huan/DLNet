@@ -6,6 +6,20 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-11-11
+
+Mốc M21 (xem `agent.md` §9.3): huấn luyện trên GPU.
+
+### Thêm
+- **`--device auto|cpu|cuda|cuda:N|mps`**: huấn luyện trên GPU CUDA (hoặc Apple MPS) khi có; `auto` chọn GPU nếu torch thấy nó. Dữ liệu được chép lên GPU một lần; HSI cắt patch ngay trên GPU.
+- **`--amp auto|off|bf16|fp16`**: mixed precision (bfloat16, hoặc float16 kèm loss scaling trên GPU cũ); `channels_last` cho ảnh trên CUDA. Trên CPU giữ float32.
+- Gói xuất ra: `train.py --device ... --amp ...` (mặc định tự dùng GPU nếu có).
+- MCP: tool `dlnet_design` nhận `device`, `threads`.
+- Khối `budget` của leaderboard ghi thiết bị và độ chính xác.
+
+### Kiểm tra
+- Chưa chạy trên GPU thật (môi trường phát triển và CI không có GPU). Đã kiểm: mọi ứng viên của 8 plugin chạy `forward` (train và eval) trên thiết bị `meta`, nơi lỗi lệch thiết bị lộ ra như trên CUDA; vòng huấn luyện chạy trọn trên `meta`; autocast bf16/fp16 và `GradScaler` chạy trên CPU với cùng độ chính xác như float32; đường CPU float32 cho kết quả giống từng bit với v0.18.0.
+
 ## [0.18.0] - 2026-11-11
 
 Mốc M20 (xem `agent.md` §9.2): ổn định khi chạy song song và ngân sách được tôn trọng.
@@ -319,7 +333,8 @@ Bản đầu tiên: prototype chạy được từ dữ liệu đến Top-K base
 - Chưa có zero-cost proxy, cost model FLOPs/VRAM, Tensor-LoRA, deep unfolding; chưa có plugin image và timeseries.
 - Kết quả trên Indian Pines và Pavia University là một lần chạy ngắn trên CPU: với chia theo khối, mạng sâu chưa vượt rõ baseline cổ điển.
 
-[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v0.18.0...HEAD
+[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v0.19.0...HEAD
+[0.19.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.19.0
 [0.18.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.18.0
 [0.17.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.17.0
 [0.16.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.16.0

@@ -17,6 +17,8 @@ python -m dlnet selfcheck            # khoảng 20 giây; in "selfcheck OK"
 
 Máy không có GPU: cài torch bản CPU trước (`pip install torch==2.15.0 --index-url https://download.pytorch.org/whl/cpu`). Script `scripts/setup_env.sh` / `setup_env.ps1` làm cả các bước trên.
 
+Máy có GPU NVIDIA: cài torch bản CUDA theo hướng dẫn trên pytorch.org (ví dụ `--index-url https://download.pytorch.org/whl/cu128`), kiểm tra bằng `python -c "import torch; print(torch.cuda.is_available())"`. DLNet tự dùng GPU khi torch thấy nó (mục 7).
+
 ## 2. Chạy lần đầu
 
 ```bash
@@ -131,12 +133,16 @@ python -m dlnet design --data new.npz --meta-store meta_image.jsonl
 |---|---|
 | `--budget 10m` | tổng thời gian (giây/phút/giờ); luôn có ít nhất một kết quả kể cả khi hết giờ sớm. Kết quả phụ thuộc tốc độ máy |
 | `--budget 400ep` | ngân sách **theo epoch**: mỗi epoch của bất kỳ ứng viên nào tính 1; các bước không huấn luyện (hồ sơ, baseline, proxy) không tính. Cùng lệnh cho cùng leaderboard trên máy nhanh hay chậm: dùng khi cần tái lập kết quả, so sánh hai cấu hình, hoặc chạy trong CI |
+| `--device auto` | thiết bị huấn luyện: `auto` (GPU CUDA nếu có, rồi Apple MPS, rồi CPU), `cpu`, `cuda`, `cuda:1`, `mps`. Chọn `cuda` mà không có GPU thì báo lỗi ngay, trước khi tiêu ngân sách |
+| `--amp auto` | mixed precision: `auto` = bfloat16 trên GPU hỗ trợ (fp16 kèm loss scaling trên GPU cũ), float32 trên CPU/MPS; `off` tắt; `bf16`/`fp16` ép (trên CPU chậm hơn float32, chỉ để thử) |
 | `--threads 4` | số luồng CPU cho torch, BLAS, OpenMP. Mặc định `0` = số CPU còn rảnh lúc bắt đầu. **Chạy nhiều lệnh cùng lúc** trên một máy: đặt tổng `--threads` ≤ số CPU (ví dụ 4 lệnh trên máy 8 CPU: `--threads 2`); để mỗi lệnh dùng hết CPU có thể làm baseline treo rất lâu. Muốn hai lần chạy giống hệt từng bit: cố định `--threads` |
 | `--max-params 500k`, `--max-flops 50M`, `--max-vram 4000` | loại ứng viên vượt giới hạn trước khi huấn luyện (VRAM là ước lượng, chưa đối chiếu GPU) |
 | `--zoo 12`, `--evolve 1`, `--evolve-pop 8` | số kiến trúc từ zoo, số thế hệ tiến hóa, số con mỗi thế hệ |
 | `--per-family 8` | số cấu hình ngẫu nhiên mỗi họ mô hình |
 | `--cv-splits 3` | xếp hạng finalist trên 3 lần chia dữ liệu (ổn định hơn, chậm hơn) |
 | `--no-cache` | không dùng lại các lần huấn luyện đã xong trong `--out` |
+
+**GPU.** Trên GPU, mỗi mảng dữ liệu được chép lên GPU một lần (nếu chiếm dưới một nửa bộ nhớ GPU còn trống, ngược lại chép từng batch), ảnh dùng bố cục `channels_last`, và huấn luyện dùng mixed precision. Các bước phụ (data card, zero-cost proxy, surrogate, baseline cổ điển) vẫn chạy trên CPU. Ngân sách giây trên GPU cho nhiều ứng viên hơn; ngân sách epoch cho cùng số epoch nhưng kết quả số có thể khác CPU một chút (phép tính GPU không tất định). Thiết bị và độ chính xác được ghi trong khối `budget` của leaderboard.
 
 DLNet chỉ bắt đầu một lần huấn luyện khi dự báo nó kết thúc trước hạn (dựa trên thời gian mỗi epoch đã đo), nên ngân sách giây được giữ sát; ngân sách epoch không bao giờ bị vượt. Mục **Budget** cuối `leaderboard.md` cho biết từng giai đoạn tốn bao nhiêu giây và epoch.
 
@@ -158,7 +164,8 @@ Mỗi `top<i>_*` là một gói độc lập (chỉ cần torch và numpy):
 
 ```bash
 cd dlnet_out/top1_resnet
-python train.py --data ../../images.npz --epochs 100 --seed 0
+python train.py --data ../../images.npz --epochs 100 --seed 0            # GPU tự dùng nếu có
+python train.py --data ../../images.npz --device cpu --amp off           # ép CPU, float32
 python -m pytest tests -q
 ```
 
