@@ -241,15 +241,20 @@ def run_search(
     alive = [{"cfg": c, "tr": _new_trainer(c, data, 0, build_fn)} for c in cands]
     log(f"[search] {len(alive)} candidates, rungs={rungs}")
     pace, failures = Pace(), (trace if trace is not None else {}).setdefault("failed", [])
+    # Successive halving gives every rung the same share of the budget (Jamieson & Talwalkar 2016,
+    # Algorithm 1: B / ceil(log_eta n) per round); unused time carries over to the next rung. Before
+    # v0.21 rung 1 could take the whole budget, so top-1 was often trained only 4 epochs (audit A9).
+    start = clock.now()
     for r, ep in enumerate(rungs):
+        rung_deadline = start + (r + 1) / len(rungs) * (deadline - start)
         finished = []
         for a in alive:
             # Until one candidate has a score, keep training, so even a spent budget yields a result.
             first = r == 0 and not finished
-            if clock.now() > deadline and not first:
+            if clock.now() > rung_deadline and not first:
                 break
             if not first and not clock.fits(
-                pace.cost(a["cfg"], ep - a["tr"].epochs_done, a["tr"]), deadline
+                pace.cost(a["cfg"], ep - a["tr"].epochs_done, a["tr"]), rung_deadline
             ):
                 continue  # would end after the deadline; a cheaper candidate may still fit
             if _train_step(a, ep - a["tr"].epochs_done, failures, log):
@@ -387,8 +392,9 @@ def run_hyperband(
         trace["rung1"], trace["rung1_epochs"] = first_rung, unit
     if not done:
         raise SystemExit(f"every candidate failed to train ({len(failures)} failures)")
-    best_ep = max(a["tr"].epochs_done for a in done)
-    pool_final = _ranked([a for a in done if a["tr"].epochs_done == best_ep], rank)
+    pool_final = []  # most-trained first; lower epochs only fill the Top-K (final_order ranks apart)
+    for ep in sorted({a["tr"].epochs_done for a in done}, reverse=True):
+        pool_final += _ranked([a for a in done if a["tr"].epochs_done == ep], rank)
     finalists = pool_final[: max(topk * 2, topk + 2)]
     return stage2(finalists, folds, build_fn, seeds, deadline, cache)
 
@@ -442,6 +448,29 @@ def equalize(results, folds, build_fn, deadline, cache=None, log=print):
                      train_seconds=round(secs, 1))  # fmt: skip
             log(
                 f"[equalize] {r['cfg']['family']}: trained on to {target} epochs, val={r['val_mean']:.4f}"
+            )
+    return results
+
+
+def more_runs(results, folds, build_fn, deadline, runs=3, top=6, cache=None, log=print):
+    """Repeat the best single-run results (other seeds / splits) while the budget allows, so their
+    spread is measured instead of estimated, and noise-aware choices (groups, hyperparameters) have
+    data (audit R4, R11). Best first; a result keeps its single run when the next run does not fit."""
+    for r in sorted(results, key=lambda r: (-r["epochs"], -r["val_mean"]))[:top]:
+        tr = r.get("trainer")
+        if r["n_seeds"] >= runs or tr is None or not tr.epochs_done:
+            continue
+        per_epoch = 1.0 if clock.mode() == "work" else tr.seconds / tr.epochs_done
+        if not clock.fits(per_epoch * r["epochs"], deadline):
+            continue
+        vals, tests, secs, n_splits = eval_runs(
+            r["cfg"], folds, build_fn, r["epochs"], runs, deadline, first=tr, cache=cache,
+            run_cost=per_epoch * r["epochs"],
+        )  # fmt: skip
+        if len(vals) > r["n_seeds"]:
+            r.update(summarize(vals, tests), n_splits=n_splits, train_seconds=round(secs, 1))
+            log(
+                f"[runs] {r['cfg']['family']}: {r['n_seeds']} runs, val={r['val_mean']:.4f} +/- {r['val_std']:.4f}"
             )
     return results
 

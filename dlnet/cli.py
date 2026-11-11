@@ -45,6 +45,17 @@ def _budget_report(text, mode, budget, wall, threads) -> dict:
     return rep
 
 
+def _seconds_per_epoch(results) -> float:
+    """Budget-clock cost of one epoch: 1 in work mode, else the median measured seconds/epoch."""
+    from . import clock
+
+    if clock.mode() == "work":
+        return 1.0
+    xs = [r["trainer"].seconds / r["trainer"].epochs_done for r in results
+          if r.get("trainer") is not None and r["trainer"].epochs_done]  # fmt: skip
+    return float(sorted(xs)[len(xs) // 2]) if xs else 0.0
+
+
 def _warnings(data, chosen, failed) -> list[str]:
     """Plain-language caveats shown at the top of the leaderboard (audit S3, S4, Q2, R9)."""
     out = list(data.get("warnings", []))
@@ -281,7 +292,10 @@ def _design(args, n_threads) -> int:
         "params": "small", "flops": "small", "balanced": "balanced"}.get(args.objective, "accuracy")  # fmt: skip
     cands, seed_report = seeds.select(
         cands, card, args.seeds, args.context or "", goal, meta_rec, port,
-        [zc[id(c)] for c in cands] if use_px else None, (1.0, 1.0, 1.0 if use_px else 0.0),
+        [zc[id(c)] for c in cands] if use_px else None,
+        # the hand-written prior ranked real validation NEGATIVELY on 3 image sets (audit A6) and
+        # lowered the learned ranking (A7): it only votes when nothing learned is available
+        (0.0 if sur is not None and not args.context else 1.0, 1.0, 1.0 if use_px else 0.0),
         order=args.seed_order, seed=args.seed,
         surrogate_scores=sur, surrogate_weight=args.surrogate_weight,
         advice=adv["scores"] if adv else None, advice_weight=args.advisor_weight,
@@ -324,6 +338,13 @@ def _design(args, n_threads) -> int:
         clock.stage("evolution")
     for g in range(1, gens + 1):
         if clock.now() > search_deadline - (5 if clock_mode == "time" else 1) or not population:
+            break
+        # Aging evolution needs many children (Real et al. 2019); children that cannot reach the
+        # second rung only add 4-epoch noise (audit A4: lost on test 5/5 at 150 epochs)
+        need = args.evolve_pop * 12 * _seconds_per_epoch(results)
+        if not clock.fits(need, search_deadline):
+            print(f"[evolve] skipped: the remaining search budget cannot train {args.evolve_pop} "
+                  "children to 12 epochs (raise --budget or lower --evolve-pop)")  # fmt: skip
             break
         S = args.tournament or max(2, len(population) // 4)
         pos = {i: p for p, i in enumerate(rank(population))}  # tournament fitness = objective rank
@@ -380,11 +401,16 @@ def _design(args, n_threads) -> int:
     if len({r["epochs"] for r in results}) > 1:  # never rank 4-epoch against 12-epoch models
         clock.stage("equalize")
         results = search.equalize(results, folds, plugin.build_model, deadline, cache=cache)
+    clock.stage("runs")  # measure the spread of the best models instead of estimating it
+    results = search.more_runs(
+        results, folds, plugin.build_model, deadline, top=2 * args.topk, cache=cache
+    )
     clock.stage("hparams")
     print("[hparams] estimating lr / batch size / weight decay for the finalists")
     results = hparams.refine(
-        results, data, plugin.build_model, deadline, log=print, folds=folds, cache=cache
-    )
+        results, data, plugin.build_model, deadline, log=print, folds=folds, cache=cache,
+        mode=args.hparams,
+    )  # fmt: skip
     search.annotate_noise(results, data)
     results = search.final_order(results, rank if args.objective != "accuracy" else None)
     search.assign_groups(results, ordered=True)
@@ -641,6 +667,10 @@ def main(argv=None) -> int:
     d.add_argument(
         "--seed-order", default="data", choices=["data", "random"],
         help="random = control arm that keeps --seeds candidates at random (for measuring the selector)",
+    )  # fmt: skip
+    d.add_argument(
+        "--hparams", default="auto", choices=["auto", "on", "off"],
+        help="lr/batch/wd estimation: auto = only for finalists run >= 2 times (noise measurable)",
     )  # fmt: skip
     d.add_argument(
         "--evolve-population",

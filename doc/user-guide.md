@@ -144,6 +144,8 @@ python -m dlnet design --data new.npz --meta-store meta_image.jsonl
 
 **GPU.** Trên GPU, mỗi mảng dữ liệu được chép lên GPU một lần (nếu chiếm dưới một nửa bộ nhớ GPU còn trống, ngược lại chép từng batch), ảnh dùng bố cục `channels_last`, và huấn luyện dùng mixed precision. Các bước phụ (data card, zero-cost proxy, surrogate, baseline cổ điển) vẫn chạy trên CPU. Ngân sách giây trên GPU cho nhiều ứng viên hơn; ngân sách epoch cho cùng số epoch nhưng kết quả số có thể khác CPU một chút (phép tính GPU không tất định). Thiết bị và độ chính xác được ghi trong khối `budget` của leaderboard.
 
+**Ngân sách được chia thế nào (từ v0.21).** Mỗi rung của successive halving (4, 12, 30 epoch) được một phần bằng nhau, nên với ngân sách vừa phải ít ứng viên được thử hơn nhưng finalist được huấn luyện sâu hơn. Tiến hóa tự bỏ qua khi không đủ ngân sách (`[evolve] skipped`). Phần còn lại dùng để chạy lại các finalist tốt nhất (đo được nhiễu thật), sau đó mới ước lượng hyperparameter (`--hparams auto`: chỉ cho finalist có ≥ 2 lần chạy; `on`: luôn; `off`: tắt).
+
 DLNet chỉ bắt đầu một lần huấn luyện khi dự báo nó kết thúc trước hạn (dựa trên thời gian mỗi epoch đã đo), nên ngân sách giây được giữ sát; ngân sách epoch không bao giờ bị vượt. Mục **Budget** cuối `leaderboard.md` cho biết từng giai đoạn tốn bao nhiêu giây và epoch.
 
 ## 8. Đọc kết quả

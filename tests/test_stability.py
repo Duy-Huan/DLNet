@@ -158,8 +158,8 @@ def test_search_never_starts_a_run_that_would_end_after_the_deadline():
     ]
     clock.start("work")
     res = search.run_search(data, cands, 10, 1, build, rungs=(4, 12), seeds=3, log=lambda *_: None)
-    assert clock.epochs() <= 10  # two candidates x 4 epochs; a third would end at 12
-    assert res and all(r["n_seeds"] == 1 for r in res)  # no room for more seeds: not started
+    assert clock.epochs() <= 10  # no run was started that would end after epoch 10
+    assert res and sum(r["n_seeds"] * r["epochs"] for r in res) <= 10
 
 
 def test_design_reports_where_the_budget_went_and_keeps_a_work_budget(tmp_path):

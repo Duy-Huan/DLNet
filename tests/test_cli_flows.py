@@ -104,7 +104,16 @@ def test_advisor_failing_first_then_answering_in_evolution_does_not_crash(img_np
 def test_meta_store_records_candidates_and_feeds_the_surrogate(img_npz, tmp_path):
     store = tmp_path / "runs.jsonl"
     for i in range(3):
-        run(img_npz, tmp_path / f"m{i}", "--meta-store", str(store), "--seed", str(i))
+        run(
+            img_npz,
+            tmp_path / f"m{i}",
+            "--meta-store",
+            str(store),
+            "--seed",
+            str(i),
+            "--budget",
+            "120ep",
+        )
     recs = [json.loads(line) for line in store.read_text().splitlines()]
     assert len(recs) == 3 and all(r["candidates"] and r["card"] for r in recs)
     b = run(img_npz, tmp_path / "m3", "--meta-store", str(store))

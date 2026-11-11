@@ -116,9 +116,11 @@ def lr_range_test(
 ) -> dict:
     """Smith's LR range test with an exponential sweep. Returns lr_max and the proposed lr.
 
-    lr_max = LR at the minimum of the smoothed loss (the largest LR that still converges);
-    proposal = lr_max / 2 ("within a factor of two of the largest one that converges"), and
-    [lr_max / 4, lr_max] is the base/max range Smith suggests for cyclical schedules.
+    lr_max = LR at the minimum of the smoothed loss; [lr_max / 4, lr_max] is the base/max range
+    Smith suggests for cyclical schedules. Proposal = lr_max / 10: at the loss minimum the loss is
+    already about to blow up, so the usual practice for adaptive optimisers (fastai's LR finder)
+    takes a point an order of magnitude lower. Before v0.21 DLNet proposed lr_max / 2, 10-20x the
+    searched LR, and 0/15 proposals survived the validation check (audit A5).
     """
     torch.manual_seed(seed)
     model = build_fn(cfg, data["in_dim"], data["out_dim"])
@@ -158,7 +160,7 @@ def lr_range_test(
     lr_max = lrs[k]
     return {
         "lr_max": float(lr_max),
-        "lr": float(lr_max / 2),
+        "lr": float(lr_max / 10),
         "lr_base": float(lr_max / 4),
         "diverged": bool(len(lrs) < n_iter and k < len(lrs) - 1),
         "n_iter": len(lrs),
@@ -188,27 +190,36 @@ def estimate(r: dict, data: dict, build_fn, epochs_recipe: int = 100, seed: int 
     }
 
 
+def _estimate_epochs(r, data) -> float:
+    return (16 * 512 + 80 * r["cfg"]["batch"]) / max(len(data["ytr"]), 1)
+
+
 def _refine_cost(r, data) -> tuple[float, float]:
     """Budget-clock cost of refining finalist `r`: (estimate, re-training all its runs).
 
     The estimate is the gradient-noise scale (16 x (256 + 16 x 16) samples) plus the LR range test
-    (80 batches), scaled by r's measured seconds per epoch; it trains nothing, so it is free in
-    work mode, where the re-training costs its epochs."""
+    (80 batches), scaled by r's measured seconds per epoch. In work mode both are counted in
+    epoch equivalents (samples processed / training-set size): before v0.21 the estimate was free
+    there, and a 150-epoch run spent 751 s in it (audit R7)."""
     rerun_epochs = r["epochs"] * r["n_seeds"]
     if clock.mode() == "work":
-        return 0.0, float(rerun_epochs)
+        return _estimate_epochs(r, data), float(rerun_epochs)
     tr = r.get("trainer")
     per_epoch = tr.seconds / tr.epochs_done if tr is not None and tr.epochs_done else 0.0
     est = per_epoch * (16 * 512 + 80 * r["cfg"]["batch"]) / max(len(data["ytr"]), 1)
     return est, per_epoch * rerun_epochs
 
 
-def refine(results, data, build_fn, deadline, epochs_recipe=100, log=print, folds=None, cache=None):
+def refine(results, data, build_fn, deadline, epochs_recipe=100, log=print, folds=None, cache=None,
+           mode="auto"):  # fmt: skip
     """Estimate hyperparameters per finalist; adopt them only when clearly better on validation.
 
     Same epochs, seeds and splits as the search, so the numbers are comparable. A proposal is adopted if
     its mean validation score beats the searched one by more than the larger seed std.
     Each result gets r['hparams'] with the searched, estimated and validated values.
+    mode: "on" refines every finalist the budget allows; "auto" only those with >= 2 runs (with one
+    run the improvement cannot be told from noise: 0/15 adopted in the audit, 39-57 % of the wall
+    time); "off" none.
     """
     from .search import eval_runs, sampling_noise, summarize
 
@@ -223,9 +234,13 @@ def refine(results, data, build_fn, deadline, epochs_recipe=100, log=print, fold
             "val_searched": r["val_mean"],
             "val_estimated": None,
         }
+        if mode == "off" or (mode == "auto" and r["n_seeds"] < 2):
+            r["hparams"]["skipped"] = "off" if mode == "off" else "single run"
+            continue
         if not clock.fits(sum(_refine_cost(r, data)), deadline):  # would end after the budget
             r["hparams"]["skipped"] = "budget"
             continue
+        clock.spend(_estimate_epochs(r, data))  # work it does, counted like training (audit R7)
         try:
             est = estimate(r, data, build_fn, epochs_recipe)
         except (
