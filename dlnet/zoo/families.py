@@ -38,12 +38,33 @@ ENSEMBLE_FAMILIES = (
     "tabm",
     "tabm_plr",
 )  # one output layer and one loss per member (head "ensemble")
-IMAGE = ("cnn", "resnet", "vit", "lenet", "allconv", "vgg", "densenet", "mobilenetv2")
+IMAGE = (
+    "cnn",
+    "resnet",
+    "vit",
+    "lenet",
+    "allconv",
+    "vgg",
+    "densenet",
+    "mobilenetv2",
+    "mambavision",
+    "kat",
+)
 SEGMENTATION = (
     "fcn", "unet", "deconvnet", "unetpp", "fpn", "deeplabv3", "deeplabv3plus", "pspnet", "linknet",
     "upernet", "segformer",
 )  # fmt: skip
-TIMESERIES = ("tcn", "gru", "ts_transformer", "patchtst", "itransformer", "timemixer", "timexer")
+TIMESERIES = (
+    "tcn",
+    "gru",
+    "ts_transformer",
+    "patchtst",
+    "itransformer",
+    "timemixer",
+    "timexer",
+    "xlstm",
+    "gated_deltanet",
+)
 HSI = (
     "cnn1d",
     "cnn2d",
@@ -283,6 +304,15 @@ def image(cfg, dims):
             N("seq_pool", mode="cls"),
             N("norm", norm="layer"),
         )
+    if f == "mambavision":  # MambaVision (CVPR 2025): Mamba mixer blocks, then attention blocks
+        half = max(1, d // 2)
+        return S(N("patchify", dim=w, patch=cfg["patch"]), N("pos", mode="learned"),
+                 rep(half, N("mambavision_block", mlp_ratio=4)), rep(max(1, d - half), TB(4, 4, p)),
+                 N("seq_pool", mode="mean"), N("norm", norm="layer"))  # fmt: skip
+    if f == "kat":  # Kolmogorov-Arnold Transformer (ICLR 2025): ViT with GR-KAN instead of the MLP
+        return S(N("patchify", dim=w, patch=cfg["patch"]), N("cls_token"), N("pos", mode="learned"),
+                 rep(d, N("kat_block", heads=4, ratio=4, groups=8)), N("seq_pool", mode="cls"),
+                 N("norm", norm="layer"))  # fmt: skip
     if f in BACKBONES:
         return S(*encoder_stages(f, w, d, size, cfg.get("attention", "none")))
     raise ValueError(f"unknown image family {f!r}")
@@ -325,6 +355,16 @@ def timeseries(cfg, dims):
         )
     if f == "gru":
         return S(N("tokens"), N("rnn", cell="gru", hidden=w, layers=d, bidir=1, dropout=p))
+    if f in (
+        "xlstm",
+        "gated_deltanet",
+    ):  # mLSTM (xLSTM, NeurIPS 2024) / Gated DeltaNet (ICLR 2025) over time
+        blk = (
+            N("mlstm_block", heads=4, proj_factor=2.0)
+            if f == "xlstm"
+            else N("gated_deltanet_block", heads=4, ratio=2)
+        )
+        return S(cba(w, 1, 1, "identity", "none"), N("tokens"), rep(d, blk))
     if f == "ts_transformer":
         return S(
             cba(w, 1, 1, "identity", "none"),
