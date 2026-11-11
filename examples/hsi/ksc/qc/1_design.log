@@ -27,3 +27,12 @@ $ /usr/local/bin/python -m dlnet design --data /home/user/DLNet/examples/hsi/ksc
 [search] rung 3 (30 ep): kept 4; best val=0.9519
 [equalize] zoo_bottleneck_fused_mbconv_mambahsi_plus_block: trained on to 30 epochs, val=0.9346
 [runs] zoo_mbconv_res2net_block: 3 runs, val=0.9532 +/- 0.0063
+[runs] afno2d: 2 runs, val=0.9529 +/- 0.0010
+[hparams] estimating lr / batch size / weight decay for the finalists
+[warning] --split pixel with --patch 9: validation/test pixels sit inside the patches of training pixels, so scores are optimistic (spatial leakage). Use --split block for an honest estimate of performance on new areas.
+[warning] Some models were trained only once: their +/- is the sampling error of the validation set, not run-to-run noise. A larger --budget repeats the finalists.
+[warning] Only 30 of 188 candidates could be trained within the budget; raise --budget, or lower --zoo / --per-family, or use --seeds N.
+[proxies] Spearman with rung-1 validation (n=30): {'naswot': 0.088, 'synflow': -0.184, 'grad_norm': 0.143, 'snip': 0.04, 'zico': 0.194, 'params': -0.404, 'seed_prior': 0.229}
+[budget] load 10.0s/0ep, reference 2.8s/0ep, generate 21.8s/0ep, proxies 60.1s/0ep, seed_selection 0.0s/0ep, search 228.9s/290ep, evolution 165.1s/264ep, equalize 75.9s/18ep, runs 28.1s/90ep, hparams 0.0s/0ep, export 0.0s/0ep
+[done] 593s  -> /home/user/DLNet/examples/hsi/ksc/output/leaderboard.md
+[verdict] beats_reference=False val_margin=-0.00385 test_margin=-0.0211
