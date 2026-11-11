@@ -1,0 +1,19 @@
+$ /usr/local/bin/python -m dlnet design --data /home/user/DLNet/examples/hsi/indian_pines/input/Indian_pines_corrected.mat --gt /home/user/DLNet/examples/hsi/indian_pines/input/Indian_pines_gt.mat --plugin hsi --out /home/user/DLNet/examples/hsi/indian_pines/output --budget 10m --topk 3 --seed 0 --threads 2 --no-cache --split pixel --pca 30
+[device] cpu, precision float32 (--device, --amp)
+[threads] 2 (of 4 CPUs; --threads to change)
+[plugin] hsi  data=/home/user/DLNet/examples/hsi/indian_pines/input/Indian_pines_corrected.mat
+[warning] --split pixel with --patch 9: validation/test pixels sit inside the patches of training pixels, so scores are optimistic (spatial leakage). Use --split block for an honest estimate of performance on new areas.
+[load] task=classification features=30 classes=16 seed=0
+[profile] {'primary_metric': 'accuracy (OA); also AA, Kappa', 'cube_shape': [145, 145, 200], 'n_classes': 16, 'n_train': 1026, 'n_val': 1025, 'n_test': 8198, 'n_features': 30, 'patch': 9, 'split': 'pixel', 'frac': [0.1, 0.1, 0.8], 'dropped_by_margin': 0, 'pca_energy_kept': 0.9867, 'multilinear_rank_99': [103, 92, 25], 'multilinear_rank_levels': {'0.9': [25, 23, 2], '0.95': [46, 40, 6], '0.99': [103, 92, 25]}, 'intrinsic_dim': 9.26, 'scaling_exponent_hat': 0.432, 'intrinsic_dim_estimators': {'twonn': {'mean': 9.205, 'std': 0.119}, 'mle': {'mean': 7.993, 'std': 0.127}, 'value': 8.599, 'rel_disagreement': 0.141, 'stable': True}, 'capacity_hint': {'min_width': 32, 'scaling_exponent': 0.465, 'used_for_pruning': False}, 'classes_missing_train': [], 'classes_missing_test': [], 'max_params': 513000}
+[reference] classical baselines on the same split(s)
+[reference] random_forest_spectral_spatial val=0.9600
+[reference] svm_rbf_spectral_spatial   val=0.8449
+[reference] random_forest_spectral     val=0.6985
+[reference] svm_rbf_spectral           val=0.6849
+[zoo] 12 architectures from the module zoo (preset, random)
+[cost] 188 candidates; FLOPs/sample min 82,624 median 7,456,832 max 96,734,976
+[generate] 188 valid candidates from families ['afno2d', 'cnn1d', 'cnn2d', 'cnn3d', 'composed', 'convnext2d', 'dwsep2d', 'fahm', 'fcanet2d', 'ffc2d', 'fno2d', 'fourier_ss', 'gfnet2d', 'hybridsn', 'mambahsi', 'mambahsi_plus', 'resnet2d', 'spec_fft2d', 'spec_transformer', 'ssftt', 'ssrn', 'tucker_cnn2d', 'zoo_basic_block', 'zoo_basic_block_eca', 'zoo_bottleneck_dw_sep_mambahsi_plus_block', 'zoo_convnext_block', 'zoo_kat_block_mamba2_block_patchify', 'zoo_mamba2_block_patchify_pos', 'zoo_mamba_block_patchify_wukong', 'zoo_mbconv_res2net_block', 'zoo_mlstm_block_patchify', 'zoo_preact_block', 'zoo_regnet_block', 'zoo_unet_res_block']
+[seeds] -1 global_attention: 1026 training images (1000000000 per class at least): global attention needs much data
+[seeds] 188/188 candidates, rankers ['prior']; first: ['cnn1d', 'cnn1d', 'cnn1d', 'cnn1d', 'cnn1d']
+[search] 188 candidates, rungs=(4, 12, 30)
+[search] rung 1 (4 ep): kept 6; best val=0.9493

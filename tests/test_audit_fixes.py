@@ -198,3 +198,48 @@ def test_leaderboard_says_how_many_candidates_were_trained(tmp_path, tabular_csv
     assert cov["trained"] < cov["candidates"] and any(
         "could be trained" in w for w in b["warnings"]
     )
+
+
+class _Slow(torch.nn.Module):
+    """Tiny FLOPs, slow step: what a Python-loop family (MambaVision, KAT, xLSTM) looks like."""
+
+    def __init__(self, i, o):
+        super().__init__()
+        self.lin = torch.nn.Linear(i, o)
+
+    def forward(self, x):
+        import time
+
+        time.sleep(0.1)
+        return self.lin(x)
+
+
+def test_time_budget_is_not_blown_by_a_slow_first_candidate():
+    """QA v1.0 (examples/): `--budget 90s` ran 12+ minutes. The first candidate always started and
+    an untrained one was priced by FLOPs, which miss Python-loop cost; now one timed step prices it
+    and rung 1 starts with what fits."""
+    import time
+
+    clock.start("time")
+    cands = _cands(3, flops=10)
+    cands[0]["slow"] = True  # interleave keeps f0 first: before the fix it trained first, ~4 s
+    build = lambda cfg, i, o: _Slow(i, o) if cfg.get("slow") else torch.nn.Linear(i, o)
+    t0 = time.time()
+    res = search.run_search(_data(), cands, clock.now() + 1.0, 1, build, rungs=(4,), seeds=1,
+                            log=lambda *_: None)  # fmt: skip
+    assert time.time() - t0 < 2.0
+    assert res and all(not r["cfg"].get("slow") for r in res)
+
+
+def test_probe_leaves_the_model_and_the_rng_untouched():
+    d = _data()
+    m = torch.nn.Sequential(
+        torch.nn.Linear(4, 8), torch.nn.BatchNorm1d(8), torch.nn.Dropout(0.5), torch.nn.Linear(8, 2)
+    )
+    tr = core.Trainer(m, d, lr=1e-2, wd=0.0, batch=16)
+    before = {k: v.clone() for k, v in m.state_dict().items()}
+    rng = torch.get_rng_state()
+    assert tr.probe_epoch_seconds() > 0
+    assert all(torch.equal(before[k], v) for k, v in m.state_dict().items())
+    assert torch.equal(rng, torch.get_rng_state())
+    assert all(p.grad is None for p in m.parameters())

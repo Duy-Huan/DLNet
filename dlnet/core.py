@@ -360,6 +360,37 @@ class Trainer:
             return contextlib.nullcontext()
         return torch.autocast(self.device.type, dtype=self.amp)
 
+    def probe_epoch_seconds(self) -> float:
+        """Seconds one training epoch should take, from one timed forward + backward of a batch.
+
+        Prediction for an untrained candidate on the time budget: FLOPs miss what Python loops
+        cost (MambaVision, KAT, xLSTM ran 10-100x slower than their FLOPs said and overran a 90 s
+        budget by 10+ minutes; agent.md 9.10). Weights, buffers, gradients and the RNG are left
+        as they were, so training afterwards is unchanged."""
+        X, y = self.split("Xtr"), self.split("ytr")
+        n = min(self.batch, len(X))
+        if n < 2:
+            return 0.0
+        idx = torch.arange(n)
+        rng = torch.get_rng_state()
+        buffers = {
+            k: v.clone()
+            for k, v in self.model.state_dict().items()
+            if k not in dict(self.model.named_parameters())
+        }
+        self.model.train()
+        t0 = time.time()
+        with self._autocast():
+            out, yl = members(self.model, self.model(self.batch_of(X, idx)), self.batch_of(y, idx))
+            out = out.squeeze(-1) if self.data["task"] == "regression" else out
+            loss = self.loss_fn(out.float(), yl)
+        loss.backward()
+        sec = (time.time() - t0) * math.ceil(len(X) / self.batch)
+        self.opt.zero_grad(set_to_none=True)
+        self.model.load_state_dict(buffers, strict=False)
+        torch.set_rng_state(rng)
+        return sec
+
     def fit(self, epochs: int, scheduler=None):
         t0 = time.time()
         X, y = self.split("Xtr"), self.split("ytr")

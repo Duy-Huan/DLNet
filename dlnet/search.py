@@ -24,11 +24,10 @@ class Pace:
     """Predicts what training a candidate for some epochs will cost on the budget clock.
 
     Work mode: the number of epochs (exact). Time mode: seconds per epoch measured on this
-    trainer, or, for an untrained candidate, the median seconds per epoch and per FLOP of the
-    candidates trained so far times its FLOPs (the median seconds per epoch without FLOPs).
-    0 before anything was measured, so the very first run always starts. A run is only started
-    when it is predicted to end before its deadline (agent.md 9.2: budgets were overrun by
-    runs started a moment before the deadline).
+    trainer, or, for an untrained candidate, one timed training step times the steps of an
+    epoch (Trainer.probe_epoch_seconds; FLOPs alone missed Python-loop families by 10-100x,
+    agent.md 9.10). A run is only started when it is predicted to end before its deadline
+    (agent.md 9.2: budgets were overrun by runs started a moment before the deadline).
     """
 
     def __init__(self):
@@ -48,6 +47,13 @@ class Pace:
             return float(epochs)
         if tr is not None and tr.epochs_done:
             return epochs * tr.seconds / tr.epochs_done
+        if tr is not None and hasattr(tr, "probe_epoch_seconds"):
+            if not hasattr(tr, "probed"):
+                try:
+                    tr.probed = tr.probe_epoch_seconds()
+                except Exception:  # noqa: BLE001  a broken candidate fails (and is recorded) in _train_step
+                    tr.probed = 0.0
+            return epochs * tr.probed
         if cfg.get("flops") and self.per_flop:
             return epochs * float(np.median(self.per_flop)) * cfg["flops"]
         return epochs * float(np.median(self.per_epoch)) if self.per_epoch else 0.0
@@ -247,19 +253,27 @@ def run_search(
     start, by_rung = clock.now(), []
     for r, ep in enumerate(rungs):
         rung_deadline = start + (r + 1) / len(rungs) * (deadline - start)
-        finished = []
+        finished, tried = [], set()
         for a in alive:
-            # Until one candidate has a score, keep training, so even a spent budget yields a result.
-            first = r == 0 and not finished
-            if clock.now() > rung_deadline and not first:
+            if clock.now() > rung_deadline:
                 break
-            if not first and not clock.fits(
+            if not clock.fits(
                 pace.cost(a["cfg"], ep - a["tr"].epochs_done, a["tr"]), rung_deadline
             ):
                 continue  # would end after the deadline; a cheaper candidate may still fit
+            tried.add(id(a))
             if _train_step(a, ep - a["tr"].epochs_done, failures, log):
                 pace.record(a["tr"], a["cfg"])
                 finished.append(a)
+        # Nothing fitted rung 1: train the cheapest candidates (predicted) until one has a score,
+        # so even a spent budget yields a result without starting with the slowest one.
+        if r == 0 and not finished:
+            untried = [a for a in alive if id(a) not in tried]
+            for a in sorted(untried, key=lambda a: pace.cost(a["cfg"], ep, a["tr"])):
+                if _train_step(a, ep - a["tr"].epochs_done, failures, log):
+                    pace.record(a["tr"], a["cfg"])
+                    finished.append(a)
+                    break
         if r == 0 and not finished:
             raise SystemExit(f"every candidate failed to train ({len(failures)} failures, first: "
                              f"{failures[0]['error'] if failures else '-'})")  # fmt: skip
