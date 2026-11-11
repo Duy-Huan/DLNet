@@ -18,3 +18,18 @@ $ /usr/local/bin/python -m dlnet design --data /home/user/DLNet/examples/hsi/pav
 [search] 188 candidates, rungs=(4, 12, 30)
 [search] rung 1 (4 ep): kept 6; best val=0.9895
 [search] rung 2 (12 ep): kept 6; best val=0.9930
+[search] rung 3 (30 ep): kept 6; best val=0.9953
+[cost] 8 candidates; FLOPs/sample min 2,727,360 median 5,658,176 max 10,358,208
+[evolve] generation 1: 8 children of ['ffc2d', 'cnn2d', 'resnet2d']
+[search] 8 candidates, rungs=(4, 12, 30)
+[search] rung 1 (4 ep): kept 6; best val=0.9860
+[search] rung 2 (12 ep): kept 6; best val=0.9895
+[search] rung 3 (30 ep): kept 6; best val=0.9907
+[runs] ffc2d: 2 runs, val=0.9918 +/- 0.0023
+[hparams] estimating lr / batch size / weight decay for the finalists
+[warning] --split pixel with --patch 9: validation/test pixels sit inside the patches of training pixels, so scores are optimistic (spatial leakage). Use --split block for an honest estimate of performance on new areas.
+[warning] Only 18 of 188 candidates could be trained within the budget; raise --budget, or lower --zoo / --per-family, or use --seeds N.
+[proxies] Spearman with rung-1 validation (n=18): {'naswot': -0.181, 'synflow': 0.096, 'grad_norm': 0.471, 'snip': 0.534, 'zico': 0.397, 'params': 0.614, 'seed_prior': None}
+[budget] load 4.8s/0ep, reference 16.2s/0ep, generate 20.5s/0ep, proxies 72.5s/0ep, seed_selection 0.0s/0ep, search 207.2s/318ep, evolution 231.0s/248ep, runs 68.9s/30ep, hparams 0.0s/0ep, export 0.0s/0ep
+[done] 621s  -> /home/user/DLNet/examples/hsi/pavia_university/output/leaderboard.md
+[verdict] beats_reference=True val_margin=0.04278 test_margin=0.03747

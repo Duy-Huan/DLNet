@@ -1,0 +1,128 @@
+{
+  "plugin": "hsi",
+  "task": "classification",
+  "split_seed": 0,
+  "in_dim": 30,
+  "out_dim": 9,
+  "primary_metric": "accuracy",
+  "arch": {
+    "family": "zoo_afno_block_moe",
+    "spec": {
+      "op": "seq",
+      "body": [
+        {
+          "op": "conv_bn_act",
+          "out": 32,
+          "k": 3,
+          "s": 1,
+          "act": "relu",
+          "norm": "batch"
+        },
+        {
+          "op": "afno_block",
+          "num_blocks": 8,
+          "mlp_ratio": 4,
+          "double_skip": 0,
+          "dropout": 0.0
+        },
+        {
+          "op": "afno_block",
+          "num_blocks": 8,
+          "mlp_ratio": 4,
+          "double_skip": 0,
+          "dropout": 0.0
+        },
+        {
+          "op": "afno_block",
+          "num_blocks": 8,
+          "mlp_ratio": 4,
+          "double_skip": 0,
+          "dropout": 0.0
+        },
+        {
+          "op": "moe",
+          "experts": {
+            "n": 2,
+            "body": {
+              "op": "gap",
+              "mode": "avg"
+            }
+          },
+          "mode": "soft",
+          "k": 2
+        }
+      ]
+    },
+    "input": {
+      "kind": "map",
+      "dims": [
+        30,
+        9,
+        9
+      ]
+    },
+    "out_dim": 9,
+    "head": "cls",
+    "dropout": 0.0,
+    "origin": "to_moe<-afno2d",
+    "lr": 0.003,
+    "wd": 0.001,
+    "batch": 64,
+    "flops": 5658176,
+    "act_mb": 0.560556,
+    "vram_mb": 72.334
+  },
+  "hyperparameters": {
+    "optimizer": "AdamW",
+    "lr": 0.003,
+    "weight_decay": 0.001,
+    "batch_size": 64,
+    "epochs": 100,
+    "lr_schedule": "cosine",
+    "grad_clip_norm": 5.0,
+    "dropout": 0.0,
+    "source": {
+      "adopted": "searched",
+      "searched": {
+        "lr": 0.003,
+        "batch": 64,
+        "wd": 0.001
+      },
+      "estimated": null,
+      "val_searched": 0.9929988331388565,
+      "val_estimated": null,
+      "methods": [
+        "LR range test (Smith 1506.01186)",
+        "gradient noise scale B_simple (McCandlish 1812.06162)",
+        "normalized weight decay (Loshchilov & Hutter 1711.05101)"
+      ]
+    }
+  },
+  "data": {
+    "split": "pixel",
+    "frac": [
+      0.02,
+      0.02,
+      0.96
+    ],
+    "patch": 9,
+    "pca": 30,
+    "block": 16
+  },
+  "recipe": {
+    "epochs": 100,
+    "schedule": "linear warm-up (5 %) then cosine",
+    "select": "best-val checkpoint",
+    "name": "modern",
+    "augment": true,
+    "label_smoothing": 0.1
+  },
+  "search_result": {
+    "val_mean": 0.9929988331388565,
+    "val_std": 0.0019054762682093722,
+    "epochs_used": 30,
+    "seeds": 3,
+    "splits": 1,
+    "test_std": 0.0014810935751530933
+  }
+}

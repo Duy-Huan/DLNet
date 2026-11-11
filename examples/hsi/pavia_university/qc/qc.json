@@ -1,0 +1,154 @@
+{
+ "case": "hsi/pavia_university",
+ "steps": {
+  "1_design": {
+   "ok": true,
+   "seconds": 624.0,
+   "packages": [
+    "top1_spec_fft2d",
+    "top2_zoo_afno_block_moe",
+    "top3_ffc2d"
+   ]
+  },
+  "2_package_tests": {
+   "ok": true
+  },
+  "3_train_top1": {
+   "ok": true,
+   "seconds": 42.3,
+   "epochs": 30,
+   "package": "top1_spec_fft2d",
+   "weights_kb": 268
+  },
+  "4_predict_export": {
+   "ok": true,
+   "seconds": 36.4
+  },
+  "5_qc": {
+   "ok": true,
+   "metric": "accuracy",
+   "test_from_predictions": 0.9928,
+   "test_printed_by_train_py": 0.9928157420486095,
+   "splits_disjoint": true,
+   "n_test": 41062,
+   "cube": [
+    610,
+    340,
+    103
+   ],
+   "classes": 9,
+   "metrics": {
+    "accuracy": 0.9928157420486095,
+    "balanced_accuracy": 0.9855913431027731,
+    "kappa": 0.9904787379225902,
+    "per_class_recall": [
+     0.9923,
+     1.0,
+     0.935,
+     0.9878,
+     1.0,
+     1.0,
+     0.9765,
+     0.9887,
+     0.9901
+    ]
+   }
+  }
+ },
+ "verdict": {
+  "beats_reference": true,
+  "val_margin": 0.04278,
+  "val_noise": 0.0034,
+  "test_margin": 0.03747,
+  "test_noise": 0.00049,
+  "top1_val": 0.99378,
+  "best_reference": "random_forest_spectral_spatial",
+  "best_reference_val": 0.95099
+ },
+ "reference": [
+  {
+   "name": "random_forest_spectral_spatial",
+   "val": 0.95099,
+   "test": {
+    "accuracy": 0.95538,
+    "balanced_accuracy": 0.93011,
+    "kappa": 0.94021,
+    "score": 0.95538
+   }
+  },
+  {
+   "name": "svm_rbf_spectral_spatial",
+   "val": 0.92882,
+   "test": {
+    "accuracy": 0.93921,
+    "balanced_accuracy": 0.89689,
+    "kappa": 0.91874,
+    "score": 0.93921
+   }
+  },
+  {
+   "name": "svm_rbf_spectral",
+   "val": 0.87048,
+   "test": {
+    "accuracy": 0.85719,
+    "balanced_accuracy": 0.79143,
+    "kappa": 0.8076,
+    "score": 0.85719
+   }
+  },
+  {
+   "name": "random_forest_spectral",
+   "val": 0.81797,
+   "test": {
+    "accuracy": 0.82195,
+    "balanced_accuracy": 0.731,
+    "kappa": 0.75424,
+    "score": 0.82195
+   }
+  }
+ ],
+ "top": [
+  {
+   "rank": 1,
+   "name": "top1_spec_fft2d",
+   "params": 65257,
+   "val_mean": 0.99378,
+   "val_std": 0.00146,
+   "test": {
+    "accuracy": 0.99286,
+    "balanced_accuracy": 0.98521,
+    "kappa": 0.99053,
+    "score": 0.99286
+   },
+   "group": 0
+  },
+  {
+   "rank": 2,
+   "name": "top2_zoo_afno_block_moe",
+   "params": 36427,
+   "val_mean": 0.993,
+   "val_std": 0.00191,
+   "test": {
+    "accuracy": 0.99209,
+    "balanced_accuracy": 0.98353,
+    "kappa": 0.9895,
+    "score": 0.99209
+   },
+   "group": 0
+  },
+  {
+   "rank": 3,
+   "name": "top3_ffc2d",
+   "params": 77833,
+   "val_mean": 0.99183,
+   "val_std": 0.00233,
+   "test": {
+    "accuracy": 0.9925,
+    "balanced_accuracy": 0.98443,
+    "kappa": 0.99006,
+    "score": 0.9925
+   },
+   "group": 0
+  }
+ ]
+}

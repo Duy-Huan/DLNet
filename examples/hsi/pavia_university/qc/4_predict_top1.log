@@ -1,0 +1,3 @@
+$ /usr/local/bin/python predict.py --data /home/user/DLNet/examples/hsi/pavia_university/input/PaviaU.mat --out /home/user/DLNet/examples/hsi/pavia_university/qc/predictions.npy --export /home/user/DLNet/examples/hsi/pavia_university/output/top1_spec_fft2d/model.pt2
+610 predictions -> /home/user/DLNet/examples/hsi/pavia_university/qc/predictions.npy
+exported /home/user/DLNet/examples/hsi/pavia_university/output/top1_spec_fft2d/model.pt2

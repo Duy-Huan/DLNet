@@ -1,0 +1,6 @@
+$ /usr/local/bin/python train.py --data /home/user/DLNet/examples/hsi/pavia_university/input/PaviaU.mat --gt /home/user/DLNet/examples/hsi/pavia_university/input/PaviaU_gt.mat --epochs 30 --seed 0
+data: {'n_labeled': 42776, 'n_dropped_by_margin': 0, 'pca_energy_kept': 0.9996805162973679, 'bands': 103, 'pca_components': 30, 'n_train': 857, 'n_val': 857, 'n_test': 41062, 'classes_missing_train': [], 'classes_missing_test': [], 'frac': [0.02, 0.02, 0.96], 'block': 16}
+params=65,257 epochs=30
+val : {'accuracy': 0.9918319719953326, 'balanced_accuracy': 0.9857374939342153, 'kappa': 0.989176969802814, 'score': 0.9918319719953326}
+test: {'accuracy': 0.9928157420486095, 'balanced_accuracy': 0.9855913431027731, 'kappa': 0.9904787379212776, 'score': 0.9928157420486095}
+saved /home/user/DLNet/examples/hsi/pavia_university/output/top1_spec_fft2d/model.pt and preprocess.json; predict with: python predict.py --data <new file>
