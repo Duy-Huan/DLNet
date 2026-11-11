@@ -3,12 +3,22 @@ name: CI
 on:
   push:
     branches: [dev, main]
+    paths-ignore:  # data and results of the example runs: no code, nothing for CI to check
+      - "examples/*/*/input/**"
+      - "examples/*/*/output/**"
+      - "examples/*/*/qc/**"
   workflow_call:
   schedule:
     - cron: "17 3 * * 1"  # weekly: catches torch/scikit-learn upgrades breaking the pipeline
 
 permissions:
   contents: read
+
+# A newer push to the same branch supersedes the run of the older one (runs piled up in the queue
+# when commits came minutes apart). Not when called from promote.yml, which has its own group.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.workflow == 'CI' && github.event_name == 'push' }}
 
 env:
   TORCH_INDEX: https://download.pytorch.org/whl/cpu

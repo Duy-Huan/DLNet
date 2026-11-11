@@ -6,6 +6,8 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+- CI: push chỉ đổi dữ liệu/kết quả ví dụ (`examples/*/*/input|output|qc`) không kích hoạt CI và Promote; push mới lên cùng nhánh thay thế lượt CI cũ đang chạy (trước đây các lượt dồn hàng).
+
 - CI: `examples/<lĩnh vực>/<bộ>/input/` (file dữ liệu gốc của nhà phát hành) được phép tới 95 MB, dưới giới hạn cứng 100 MB của GitHub; mọi chỗ khác vẫn giới hạn 50 MB (`tests/test_env_setup.py`). Code do lượt chạy ví dụ sinh ra (`examples/*/*/output`) không nằm trong phạm vi ruff.
 
 - Sửa ngân sách thời gian (phát hiện khi chạy QA `examples/`): `--budget 90s` chạy hơn 12 phút. Ứng viên đầu tiên luôn được train, và ứng viên chưa train được định giá theo FLOPs, mà FLOPs không tính chi phí vòng lặp Python (MambaVision, KAT, xLSTM chậm 10–100 lần so với FLOPs). Nay `Trainer.probe_epoch_seconds` đo thật một bước forward+backward (giữ nguyên trọng số, buffer, RNG) để định giá; rung 1 chỉ chạy ứng viên vừa ngân sách, hết chỗ thì train ứng viên rẻ nhất. Cùng lệnh nay xong trong 85 s. Có regression test.

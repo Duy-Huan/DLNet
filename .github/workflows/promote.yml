@@ -3,6 +3,10 @@ name: Promote dev to main
 on:
   push:
     branches: [dev]
+    paths-ignore:  # data and results of the example runs: no code, nothing for CI to check
+      - "examples/*/*/input/**"
+      - "examples/*/*/output/**"
+      - "examples/*/*/qc/**"
 
 permissions:
   contents: write
