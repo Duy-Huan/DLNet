@@ -284,6 +284,7 @@ Nguyên tắc: lõi **tổng quát trước**, kiểm chứng end-to-end sớm t
 | **M13** | Port nhóm còn thiếu: đồ thị, id/recommender, autoencoder/VAE, GAN, Mamba-2; cost model; hợp nhất họ cũ | **Xong (v0.11.0–v0.12.0)**, xem §13.7. Chưa có: CVAE, loss cặp (BPR), GAN có điều kiện/FID, đồ thị lớn (dense), graph cạnh học được |
 | **M14** | Khối ảnh từ thư viện chính thống (timm, smp, MONAI, torchvision); đối chiếu số học các khối viết từ trí nhớ | **Xong (v0.13.0)**, xem §13.8 |
 | **M25** | Mốc 4 sau kiểm định: TabM, PLR, PatchTST, iTransformer (pretrained bị chặn bởi mạng) | **v0.23.0**; đối chiếu số học 7/7 khớp trên CI (§9.7) |
+| **M26** | Module miền tần số (FFT/iFFT): GFNet, AFNO, FNO, FFC, FcaNet, FNet; lọc Fourier dọc trục phổ cho HSI; 7 họ HSI mới | **v0.24.0**; 11/11 khối trùng từng bit với mã gốc (CI), đo trên Indian Pines (§9.8) |
 | **M24** | Mốc 3 sau kiểm định: công thức huấn luyện hiện đại, gói có `model.pt`/`predict.py`/export, thông báo lỗi | **Xong (v0.22.0)**, xem §9.6 |
 | **M23** | Mốc 2 sau kiểm định: phân bổ ngân sách (SH chia đều theo rung, chặn tiến hóa, chạy lại finalist, `--hparams auto`, bỏ prior tay) | **Xong (v0.21.0)**, xem §9.5 |
 | **M22** | Mốc 1 sau kiểm định: sửa kết quả sai (Hyperband, ứng viên lỗi, xếp hạng cùng epoch, nhiễu một lần chạy, vai trò, verdict, cảnh báo) | **Xong (v0.20.0)**, xem §9.4 |
@@ -386,6 +387,20 @@ Kết luận trung thực: Top-K được huấn luyện sâu gấp 2,5 lần n�
   Kết luận: TabM không kém MLP, PLR giúp trên wine; với chuỗi, hai họ mới sửa được điểm yếu của Transformer cũ. Chỉ một bộ chuỗi (tổng hợp) nên chưa khái quát.
 - **Đối chiếu số học với mã gốc** (`scripts/verify_modern.py`, chạy trên GitHub Actions vì môi trường phát triển không cho chạy mã tải từ ngoài; workflow `verify-modern.yml`): **7/7 khớp** sau bản phát hành v0.23.0 — TabM, PLR, PatchTST trùng từng bit, iTransformer sai khác ≤ 4,8e-7 ([lượt chạy](https://github.com/Duy-Huan/DLNet/actions/runs/43025944848)). Bảng: THIRD_PARTY.md.
 - **Bị chặn bởi mạng (không làm)**: mô hình pretrained (timm/torchvision/DINOv2 weights, TabPFN) — download.pytorch.org, huggingface.co, dl.fbaipublicfiles.com trả 403 qua proxy. **Chưa làm**: tìm kiếm dựa mô hình (DEHB, PriorBand, LC-PFN); graph transformer, DCNv2, Mamba cho HSI.
+
+### 9.8 Module miền tần số (M26, v0.24): FFT → phép học trên phổ → iFFT
+- **Lý do**: nhiều bài HSI gần đây chuyển phổ/không gian sang miền tần số (FFT), xử lý ở đó rồi biến đổi ngược. Thêm các khối chuẩn của hướng này, viết theo mã chính thức, vào `dlnet/zoo/ops_freq.py`:
+  - `global_filter`, `gfnet_block` (GFNet: lọc phức học được trên mọi tần số, tương đương tích chập vòng toàn cục; 1/2/3-D và `seq`);
+  - `afno`, `afno_block` (AFNO: MLP phức chéo khối, soft-shrink);
+  - `spectral_conv`, `fno_block` (FNO: giữ `modes` tần số thấp, trộn kênh bằng ma trận phức);
+  - `ffc_block` (FFC: nhánh cục bộ 3×3 và nhánh toàn cục Fourier trao đổi thông tin);
+  - `fca` (FcaNet: SE với pooling bằng các hệ số DCT);
+  - `fnet_block` (FNet: phần thực FFT 2 chiều thay self-attention, cho `seq`);
+  - HSI (DLNet, không phải port): `spectral_gf` (lọc GFNet dọc **trục phổ**, có residual), `spectral_rfft` (hệ số Fourier của phổ từng pixel làm kênh).
+- **Họ HSI mới**: `gfnet2d`, `fno2d`, `afno2d`, `ffc2d`, `fcanet2d`, `spec_fft2d`, `fourier_ss`; khối không gian của mô hình ghép thêm `gfnet`, `fno`, `afno`, `ffc`, `fca`. Ngữ pháp tự dùng các op mới qua thẻ `block`/`attn`/`stem`.
+- **Kiểm chứng**: `scripts/verify_freq.py` (job CI `verify-freq`, mã gốc ghim commit): GFNet, AFNO, FFC, FcaNet **11/11 trùng từng bit**. FNO/FNet không có mã PyTorch chính thức chạy được: `tests/test_freq.py` kiểm bằng đáp án đóng (lọc toàn cục = tích chập vòng tính trực tiếp; FNO giữ đúng các góc tần số; FNet = phần thực FFT 2-D của numpy; cơ sở DCT trực chuẩn), cùng autocast bf16 và `torch.export`.
+- **Đo** (`scripts/bench_freq_hsi.py`): BENCH_PLACEHOLDER
+- **Lưu ý**: FFT trên trục phổ chỉ có nghĩa khi giữ thứ tự băng (`--pca 0`); FLOPs của chính FFT không được `cost.py` đếm.
 
 ## 10. Quy ước cho agent (người/AI) phát triển repo
 
