@@ -1,0 +1,161 @@
+{
+ "case": "hsi/indian_pines_block",
+ "steps": {
+  "1_design": {
+   "ok": true,
+   "seconds": 604.6,
+   "packages": [
+    "top1_zoo_afno_block",
+    "top2_afno2d",
+    "top3_zoo_gfnet_block"
+   ]
+  },
+  "2_package_tests": {
+   "ok": true
+  },
+  "3_train_top1": {
+   "ok": true,
+   "seconds": 31.0,
+   "epochs": 30,
+   "package": "top1_zoo_afno_block",
+   "weights_kb": 156
+  },
+  "4_predict_export": {
+   "ok": true,
+   "seconds": 12.3
+  },
+  "5_qc": {
+   "ok": true,
+   "metric": "accuracy",
+   "test_from_predictions": 0.5037,
+   "test_printed_by_train_py": 0.5037427224840588,
+   "splits_disjoint": true,
+   "n_test": 3607,
+   "cube": [
+    145,
+    145,
+    200
+   ],
+   "classes": 16,
+   "metrics": {
+    "accuracy": 0.5037427224840588,
+    "balanced_accuracy": 0.47488732531351985,
+    "kappa": 0.4287639230681778,
+    "per_class_recall": [
+     0.0,
+     0.2302,
+     0.7829,
+     0.0,
+     0.0,
+     0.9162,
+     0.0,
+     1.0,
+     0.0,
+     0.4984,
+     0.9135,
+     0.7106,
+     1.0,
+     0.3191,
+     0.2775,
+     0.0
+    ]
+   }
+  }
+ },
+ "verdict": {
+  "beats_reference": true,
+  "val_margin": 0.17779,
+  "val_noise": 0.04301,
+  "test_margin": 0.07999,
+  "test_noise": 0.00832,
+  "top1_val": 0.4668,
+  "best_reference": "random_forest_spectral_spatial",
+  "best_reference_val": 0.28901
+ },
+ "reference": [
+  {
+   "name": "random_forest_spectral_spatial",
+   "val": 0.28901,
+   "test": {
+    "accuracy": 0.43313,
+    "balanced_accuracy": 0.43957,
+    "kappa": 0.35684,
+    "score": 0.43313
+   }
+  },
+  {
+   "name": "random_forest_spectral",
+   "val": 0.25997,
+   "test": {
+    "accuracy": 0.39947,
+    "balanced_accuracy": 0.38832,
+    "kappa": 0.32155,
+    "score": 0.39947
+   }
+  },
+  {
+   "name": "svm_rbf_spectral",
+   "val": 0.24702,
+   "test": {
+    "accuracy": 0.39247,
+    "balanced_accuracy": 0.38639,
+    "kappa": 0.3137,
+    "score": 0.39247
+   }
+  },
+  {
+   "name": "svm_rbf_spectral_spatial",
+   "val": 0.24122,
+   "test": {
+    "accuracy": 0.4113,
+    "balanced_accuracy": 0.40136,
+    "kappa": 0.33479,
+    "score": 0.4113
+   }
+  }
+ ],
+ "top": [
+  {
+   "rank": 1,
+   "name": "top1_zoo_afno_block",
+   "params": 37104,
+   "val_mean": 0.4668,
+   "val_std": 0.04301,
+   "test": {
+    "accuracy": 0.51312,
+    "balanced_accuracy": 0.47212,
+    "kappa": 0.4329,
+    "score": 0.51312
+   },
+   "group": 0
+  },
+  {
+   "rank": 2,
+   "name": "top2_afno2d",
+   "params": 36592,
+   "val_mean": 0.41484,
+   "val_std": 0.0103,
+   "test": {
+    "accuracy": 0.45082,
+    "balanced_accuracy": 0.44754,
+    "kappa": 0.38036,
+    "score": 0.45082
+   },
+   "group": 0
+  },
+  {
+   "rank": 3,
+   "name": "top3_zoo_gfnet_block",
+   "params": 32912,
+   "val_mean": 0.41367,
+   "val_std": 0.03077,
+   "test": {
+    "accuracy": 0.46287,
+    "balanced_accuracy": 0.48544,
+    "kappa": 0.37242,
+    "score": 0.46287
+   },
+   "group": 0
+  }
+ ]
+}

@@ -1,0 +1,6 @@
+$ /usr/local/bin/python train.py --data /home/user/DLNet/examples/hsi/indian_pines_block/input/Indian_pines_corrected.mat --gt /home/user/DLNet/examples/hsi/indian_pines_block/input/Indian_pines_gt.mat --epochs 30 --seed 0
+data: {'n_labeled': 10249, 'n_dropped_by_margin': 5233, 'pca_energy_kept': 0.9862552191916107, 'bands': 200, 'pca_components': 30, 'n_train': 871, 'n_val': 538, 'n_test': 3607, 'classes_missing_train': [3, 6, 8, 15], 'classes_missing_test': [0, 6], 'frac': [0.25, 0.1, 0.65], 'block': 16}
+params=37,104 epochs=30
+val : {'accuracy': 0.3940520446096654, 'balanced_accuracy': 0.3081818878920328, 'kappa': 0.2464597511511337, 'score': 0.3940520446096654}
+test: {'accuracy': 0.5037427224840588, 'balanced_accuracy': 0.47488732531351985, 'kappa': 0.42876392306768424, 'score': 0.5037427224840588}
+saved /home/user/DLNet/examples/hsi/indian_pines_block/output/top1_zoo_afno_block/model.pt and preprocess.json; predict with: python predict.py --data <new file>
