@@ -154,7 +154,9 @@ def check_timemixer(root):
 
 def check_timexer(root):
     drop_modules("layers")
-    sys.modules.setdefault("reformer_pytorch", MagicMock())  # only for the Reformer attention variant
+    sys.modules.setdefault(
+        "reformer_pytorch", MagicMock()
+    )  # only for the Reformer attention variant
     sys.path.insert(0, f"{root}/TimeXer")
     m = load(f"{root}/TimeXer/models/TimeXer.py", "timexer_official")
     ok = True

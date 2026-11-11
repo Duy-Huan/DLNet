@@ -144,6 +144,8 @@ def check_gated_deltanet(root):
         copy(ref, mine)
         x = torch.randn(2, 11, hidden)
         ok &= report(f"GatedDeltaNet layer d={hidden} heads={heads}", ref(x)[0], mine(x), 1e-4)
+    for k in [k for k in sys.modules if k.split(".")[0] in ("triton", "fla")]:
+        del sys.modules[k]  # the stubs must not leak into the next imports (timm, torch._dynamo)
     return ok
 
 

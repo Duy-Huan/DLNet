@@ -430,10 +430,8 @@ class FGEM(nn.Module):
 class Channelaffinity(nn.Module):
     def __init__(self, dim, reduction=16):
         super().__init__()
-        self.fc1, self.fc2 = (
-            nn.Linear(dim, max(1, dim // reduction)),
-            nn.Linear(max(1, dim // reduction), dim),
-        )
+        # dim // reduction may be 0 for narrow stages, as in the original (the gate is then sigmoid(bias))
+        self.fc1, self.fc2 = nn.Linear(dim, dim // reduction), nn.Linear(dim // reduction, dim)
 
     def forward(self, x):
         return torch.sigmoid(self.fc2(F.relu(self.fc1(x.mean(dim=1))))).unsqueeze(1) * x
