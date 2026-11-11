@@ -57,7 +57,7 @@ SOURCES = {
 # ISBI 2012 EM segmentation challenge training set (30 slices), as shipped by the U-Net Keras repo
 ISBI = "https://raw.githubusercontent.com/zhixuhao/unet/master/data/membrane/train"
 ISBI_SHA256 = (
-    "b622a44eb48cf1f03742a84009c7716b7b1ff8cc136a63984c81a60a9f461ee7"  # image_0..29 + label_0..29
+    "a6036caf93768d8ec1c099fa735bf6e9fa33f9093c08f7e94ad3ba6945c3deac"  # image_0..29 then label_0..29, numeric order
 )
 
 # CamVid 32 -> the 11 classes of the SegNet benchmark (Brostow et al. 2009; Badrinarayanan et al.
