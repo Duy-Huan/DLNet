@@ -21,7 +21,8 @@ def twonn_intrinsic_dim(X: np.ndarray, max_points: int = 2000, seed: int = 0) ->
     r1, r2 = dist[:, 1], dist[:, 2]
     keep = r1 > 0
     mu = r2[keep] / r1[keep]
-    return float(len(mu) / np.sum(np.log(mu)))
+    s = float(np.sum(np.log(mu)))
+    return float(len(mu) / s) if len(mu) >= 2 and s > 0 else float("nan")  # duplicated points
 
 
 def mle_intrinsic_dim(X: np.ndarray, k: int = 20, max_points: int = 2000, seed: int = 0) -> float:
@@ -76,7 +77,8 @@ def intrinsic_dim_report(X: np.ndarray, n_boot: int = 5, frac: float = 0.8, seed
         }
     means = [v["mean"] for v in out.values()]
     ok = all(np.isfinite(means)) and min(means) > 0
-    value = float(np.mean(means)) if ok else float(np.nanmean(means))
+    finite = [m for m in means if np.isfinite(m)]
+    value = float(np.mean(means)) if ok else (float(np.mean(finite)) if finite else float("nan"))
     gap = abs(means[0] - means[1]) / value if ok else float("nan")
     out["value"] = value
     out["rel_disagreement"] = gap
@@ -120,7 +122,7 @@ def profile(data: dict) -> dict:
     rep = intrinsic_dim_report(Xtr, seed=data.get("seed", 0))
     d_int = twonn_intrinsic_dim(Xtr)
     s = np.linalg.svd(Xtr - Xtr.mean(0), compute_uv=False)
-    energy = np.cumsum(s**2) / np.sum(s**2)
+    energy = np.cumsum(s**2) / max(float(np.sum(s**2)), 1e-12)  # constant data: no energy
     p = {
         "task": data["task"],
         "n_train": int(n),
@@ -128,8 +130,10 @@ def profile(data: dict) -> dict:
         "n_classes": len(data["classes"]) if data["classes"] else None,
         "primary_metric": data["primary"],
         "intrinsic_dim": round(d_int, 2),
-        "scaling_exponent_hat": round(4.0 / max(d_int, 1e-6), 3),  # alpha ~ 4/d (Sharma & Kaplan)
-        "pca_dims_for_95pct_energy": int(np.searchsorted(energy, 0.95) + 1),
+        "scaling_exponent_hat": round(4.0 / max(d_int, 1e-6), 3)
+        if np.isfinite(d_int)
+        else None,  # alpha ~ 4/d (Sharma & Kaplan)
+        "pca_dims_for_95pct_energy": int(min(np.searchsorted(energy, 0.95) + 1, d)),
         "intrinsic_dim_estimators": rounded(rep),
         "capacity_hint": capacity_hint(rep["value"], n, d),
     }

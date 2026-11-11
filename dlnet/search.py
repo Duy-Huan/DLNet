@@ -5,12 +5,12 @@ from __future__ import annotations
 import hashlib
 import json
 import math
-import time
 from pathlib import Path
 
 import numpy as np
 import torch
 
+from . import clock
 from .core import Trainer
 
 
@@ -90,7 +90,7 @@ def eval_runs(cfg, folds, build_fn, epochs, n_runs, deadline, first=None, cache=
     """
     vals, tests, secs = [], [], 0.0
     for i in range(n_runs):
-        if vals and time.time() > deadline:
+        if vals and clock.now() > deadline:
             break
         t = first if i == 0 and first is not None else None
         fold = folds[i % len(folds)]
@@ -139,7 +139,7 @@ def run_search(
         finished = []
         for i, a in enumerate(alive):
             # The very first candidate always trains, so even a spent budget yields a result.
-            if time.time() > deadline and not (r == 0 and i == 0):
+            if clock.now() > deadline and not (r == 0 and i == 0):
                 break
             a["tr"].fit(ep - a["tr"].epochs_done)
             a["val0"] = a["tr"].evaluate("va")["score"]
@@ -155,7 +155,7 @@ def run_search(
         if r < len(rungs) - 1:
             alive = alive[:keep]
         log(f"[search] rung {r + 1} ({ep} ep): kept {len(alive)}; best val={alive[0]['val0']:.4f}")
-        if time.time() > deadline:
+        if clock.now() > deadline:
             log("[search] time budget reached; ranking with what is done")
             break
     finalists = alive[: max(topk * 2, topk + 2)]
@@ -227,19 +227,19 @@ def run_hyperband(
     brackets = hyperband_brackets(R, eta, unit)
     log(f"[hyperband] {len(pool)} candidates; brackets (n, epochs): {brackets}")
     done, first_rung, it = [], [], 0
-    while pool and (time.time() < deadline or not done):  # a spent budget still yields one result
+    while pool and (clock.now() < deadline or not done):  # a spent budget still yields one result
         it += 1
         for b, rungs in enumerate(brackets):
-            if not pool or (time.time() > deadline and done):
+            if not pool or (clock.now() > deadline and done):
                 break
             take, pool = pool[: rungs[0][0]], pool[rungs[0][0] :]
             alive = [{"cfg": c, "tr": _new_trainer(c, data, 0, build_fn)} for c in take]
             for i, (n_i, ep) in enumerate(rungs):
-                if i and time.time() > deadline:  # budget spent: keep what the last rung gave
+                if i and clock.now() > deadline:  # budget spent: keep what the last rung gave
                     break
                 finished = []
                 for a in alive[: max(n_i, 1)]:
-                    if time.time() > deadline and (done or finished):
+                    if clock.now() > deadline and (done or finished):
                         break
                     a["tr"].fit(ep - a["tr"].epochs_done)
                     a["val0"] = a["tr"].evaluate("va")["score"]

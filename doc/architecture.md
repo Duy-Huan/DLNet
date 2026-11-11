@@ -23,7 +23,7 @@ flowchart TD
     E --> O
 ```
 
-Ngân sách thời gian (`--budget`) chia: tối đa 10% cho proxy (tính từ lúc bắt đầu bước proxy), 80% đầu cho tìm kiếm và tiến hóa, 20% cuối cho hyperparameter. Hết giờ giữa chừng thì DLNet vẫn xếp hạng những gì đã xong và luôn có ít nhất một kết quả.
+Ngân sách (`--budget`, giây hoặc epoch, `dlnet/clock.py`) chia: tối đa 10% cho proxy (tính từ lúc bắt đầu bước proxy), 80% đầu cho tìm kiếm và tiến hóa, 20% cuối cho hyperparameter. Hết giờ giữa chừng thì DLNet vẫn xếp hạng những gì đã xong và luôn có ít nhất một kết quả.
 
 ## 2. Thư mục mã
 

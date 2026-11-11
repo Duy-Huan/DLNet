@@ -4,13 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dlnet"
-version = "0.16.0"
+version = "0.17.0"
 description = "Framework tu dong thiet ke mang deep learning tu du lieu, dong goi baseline PyTorch"
 requires-python = ">=3.10"
 dependencies = []
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "ruff>=0.5", "pyyaml"]
+dev = ["pytest>=8", "ruff>=0.5", "pyyaml", "coverage>=7.10"]
 design = ["numpy", "pandas", "scipy", "scikit-learn", "torch"]
 
 [project.scripts]
@@ -34,3 +34,14 @@ markers = [
     "regression: pins behaviours found in audits; must always pass",
     "e2e: runs the CLI and the exported package in subprocesses (slower)",
 ]
+
+[tool.coverage.run]
+source = ["dlnet"]
+patch = ["subprocess"]  # count the CLI runs of the e2e tests too
+parallel = true
+omit = ["dlnet/__main__.py"]
+
+[tool.coverage.report]
+fail_under = 95  # measured 97% on v0.17 (unit + regression + e2e); raise, never lower
+show_missing = true
+skip_covered = true

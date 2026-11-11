@@ -289,7 +289,7 @@ def image_npz_like(tmp_path):
 def test_cli_design_end_to_end_and_package_runs(which, graph_npz, recsys_npz, tmp_path):
     data = graph_npz if which == "graph" else recsys_npz
     out = tmp_path / "o"
-    argv = ["design", "--data", str(data), "--budget", "60s", "--topk", "1", "--per-family", "1", "--zoo", "0", "--evolve", "0",
+    argv = ["design", "--data", str(data), "--budget", "240ep", "--topk", "1", "--per-family", "1", "--zoo", "0", "--evolve", "0",
             "--no-proxies", "--out", str(out)]  # fmt: skip
     assert cli.main(argv) == 0
     board = json.loads((out / "leaderboard.json").read_text())

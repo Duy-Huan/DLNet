@@ -87,6 +87,8 @@ ALIASES = {
     "image": "image_classification",
     "segmentation": "image_segmentation",
     "recommendation": "recsys",
+    "autoencoder": "image_reconstruction",
+    "reconstruction": "image_reconstruction",
 }
 
 

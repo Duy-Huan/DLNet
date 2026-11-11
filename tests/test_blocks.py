@@ -108,7 +108,7 @@ def test_router_and_generate_for_segmentation(seg_npz):
 @pytest.mark.e2e
 def test_cli_segmentation_end_to_end_and_package_runs(seg_npz, tmp_path):
     out = tmp_path / "o"
-    argv = ["design", "--data", str(seg_npz), "--budget", "60s", "--topk", "1", "--per-family", "1",
+    argv = ["design", "--data", str(seg_npz), "--budget", "240ep", "--topk", "1", "--per-family", "1",
             "--zoo", "0", "--evolve", "0", "--out", str(out)]  # fmt: skip
     assert cli.main(argv) == 0
     board = json.loads((out / "leaderboard.json").read_text())
