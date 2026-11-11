@@ -1,0 +1,15 @@
+$ /usr/local/bin/python -m dlnet design --data /home/user/DLNet/examples/hsi/indian_pines_block/input/Indian_pines_corrected.mat --gt /home/user/DLNet/examples/hsi/indian_pines_block/input/Indian_pines_gt.mat --plugin hsi --out /home/user/DLNet/examples/hsi/indian_pines_block/output --budget 10m --topk 3 --seed 0 --threads 2 --no-cache --split block --pca 30
+[device] cpu, precision float32 (--device, --amp)
+[threads] 2 (of 4 CPUs; --threads to change)
+[plugin] hsi  data=/home/user/DLNet/examples/hsi/indian_pines_block/input/Indian_pines_corrected.mat
+[load] task=classification features=30 classes=16 seed=0
+[profile] {'primary_metric': 'accuracy (OA); also AA, Kappa', 'cube_shape': [145, 145, 200], 'n_classes': 16, 'n_train': 871, 'n_val': 538, 'n_test': 3607, 'n_features': 30, 'patch': 9, 'split': 'block', 'frac': [0.25, 0.1, 0.65], 'dropped_by_margin': 5233, 'pca_energy_kept': 0.9863, 'multilinear_rank_99': [103, 92, 25], 'multilinear_rank_levels': {'0.9': [25, 23, 2], '0.95': [46, 40, 6], '0.99': [103, 92, 25]}, 'intrinsic_dim': 9.09, 'scaling_exponent_hat': 0.44, 'intrinsic_dim_estimators': {'twonn': {'mean': 9.109, 'std': 0.226}, 'mle': {'mean': 8.188, 'std': 0.089}, 'value': 8.648, 'rel_disagreement': 0.107, 'stable': True}, 'capacity_hint': {'min_width': 32, 'scaling_exponent': 0.463, 'used_for_pruning': False}, 'classes_missing_train': [3, 6, 8, 15], 'classes_missing_test': [0, 6], 'max_params': 435500}
+[cv] ranking finalists on 3 different splits
+[reference] classical baselines on the same split(s)
+[reference] random_forest_spectral_spatial val=0.2890
+[reference] random_forest_spectral     val=0.2600
+[reference] svm_rbf_spectral           val=0.2470
+[reference] svm_rbf_spectral_spatial   val=0.2412
+[zoo] 12 architectures from the module zoo (preset, random)
+[cost] 188 candidates; FLOPs/sample min 82,624 median 7,456,832 max 53,411,328
+[generate] 188 valid candidates from families ['afno2d', 'cnn1d', 'cnn2d', 'cnn3d', 'composed', 'convnext2d', 'dwsep2d', 'fahm', 'fcanet2d', 'ffc2d', 'fno2d', 'fourier_ss', 'gfnet2d', 'hybridsn', 'mambahsi', 'mambahsi_plus', 'resnet2d', 'spec_fft2d', 'spec_transformer', 'ssftt', 'ssrn', 'tucker_cnn2d', 'zoo_basic_block', 'zoo_basic_block_eca', 'zoo_bottleneck_dw_sep_mambahsi_plus_block', 'zoo_convnext_block', 'zoo_coord_attn_fused_mbconv_split_attn', 'zoo_ffn_gated_attn_block_gfnet_block', 'zoo_mamba_block_patchify_wukong', 'zoo_mbconv_res2net_block', 'zoo_mlstm_block_patchify', 'zoo_preact_block', 'zoo_regnet_block', 'zoo_unet_res_block']
