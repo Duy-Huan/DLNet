@@ -22,3 +22,4 @@ $ /usr/local/bin/python -m dlnet design --data /home/user/DLNet/examples/hsi/sal
 [evolve] skipped: the remaining search budget cannot train 8 children to 12 epochs (raise --budget or lower --evolve-pop)
 [equalize] afno2d: trained on to 30 epochs, val=0.9972
 [equalize] ffc2d: trained on to 30 epochs, val=0.9963
+[equalize] resnet2d: trained on to 30 epochs, val=0.9945
