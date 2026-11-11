@@ -244,7 +244,7 @@ def run_search(
     # Successive halving gives every rung the same share of the budget (Jamieson & Talwalkar 2016,
     # Algorithm 1: B / ceil(log_eta n) per round); unused time carries over to the next rung. Before
     # v0.21 rung 1 could take the whole budget, so top-1 was often trained only 4 epochs (audit A9).
-    start = clock.now()
+    start, by_rung = clock.now(), []
     for r, ep in enumerate(rungs):
         rung_deadline = start + (r + 1) / len(rungs) * (deadline - start)
         finished = []
@@ -270,6 +270,7 @@ def run_search(
             trace["rung1"], trace["rung1_epochs"] = [(a["cfg"], a["val0"]) for a in finished], ep
         # Only candidates that completed THIS rung compete: never rank different epoch counts.
         alive = _ranked(finished, rank)
+        by_rung.append((ep, alive))
         keep = max(math.ceil(len(alive) / eta), min(len(alive), topk * 2))
         if r < len(rungs) - 1:
             alive = alive[:keep]
@@ -277,7 +278,12 @@ def run_search(
         if clock.now() > deadline:
             log("[search] time budget reached; ranking with what is done")
             break
-    finalists = alive[: max(topk * 2, topk + 2)]
+    # Finalists: the most-trained survivors first; when fewer than the Top-K reached the last rung,
+    # the best of earlier rungs fill it (ranked apart by final_order, flagged in the leaderboard)
+    n_final, finalists = max(topk * 2, topk + 2), []
+    for ep, ranked in reversed(by_rung):
+        finalists += [a for a in ranked if a["tr"].epochs_done == ep and a not in finalists]
+    finalists = finalists[:n_final]
     return stage2(finalists, folds, build_fn, seeds, deadline, cache)
 
 

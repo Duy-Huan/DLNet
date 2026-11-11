@@ -283,6 +283,7 @@ Nguyên tắc: lõi **tổng quát trước**, kiểm chứng end-to-end sớm t
 | **M8** | Deep unfolding (khi có mô hình thuận) | **Xong cho bài toán thưa tuyến tính (v0.7.0)**, xem "Kết quả đo M8" ở §5: lệnh `dlnet unfold`, LISTA-CP hơn ISTA và FISTA (λ đã tune) 3,3–6,3 dB ở cùng số vòng K trên dữ liệu tổng hợp. Chưa có: ADMM/AMP, support selection, toán tử A không tường minh (ảnh), dữ liệu thật |
 | **M13** | Port nhóm còn thiếu: đồ thị, id/recommender, autoencoder/VAE, GAN, Mamba-2; cost model; hợp nhất họ cũ | **Xong (v0.11.0–v0.12.0)**, xem §13.7. Chưa có: CVAE, loss cặp (BPR), GAN có điều kiện/FID, đồ thị lớn (dense), graph cạnh học được |
 | **M14** | Khối ảnh từ thư viện chính thống (timm, smp, MONAI, torchvision); đối chiếu số học các khối viết từ trí nhớ | **Xong (v0.13.0)**, xem §13.8 |
+| **M23** | Mốc 2 sau kiểm định: phân bổ ngân sách (SH chia đều theo rung, chặn tiến hóa, chạy lại finalist, `--hparams auto`, bỏ prior tay) | **Xong (v0.21.0)**, xem §9.5 |
 | **M22** | Mốc 1 sau kiểm định: sửa kết quả sai (Hyperband, ứng viên lỗi, xếp hạng cùng epoch, nhiễu một lần chạy, vai trò, verdict, cảnh báo) | **Xong (v0.20.0)**, xem §9.4 |
 | **M21** | GPU: `--device`, mixed precision (`--amp`), `channels_last`, gói xuất ra dùng GPU (§18 P1 mục 1) | **Xong phần mã (v0.19.0), chưa đo trên GPU thật**, xem §9.3 |
 | **M20** | Ổn định (§18 P0 mục 1–3): ngân sách giây được tôn trọng, `--threads`, JSON chuẩn | **Xong (v0.18.0)**, xem §9.2 |
@@ -346,6 +347,17 @@ Theo `qa/reports/v0.19.0/SUMMARY.md` mục S1–S6, mỗi mục có test trong `
 - **S5** Vai trò: `best-small` chỉ khi nhỏ hơn top-1; `most-stable` chỉ khi mọi mô hình có ≥ 2 lần chạy.
 - **S6/R1/R2** Cột số lẫn chuỗi được đọc thành số (giá trị lạ thành thiếu) kèm cảnh báo; cột chữ > 50 giá trị cảnh báo; `--target` sai báo rõ; HSI `--split pixel` cảnh báo rò rỉ không gian; verdict có ngưỡng nhiễu trên test và nhiễu cho hồi quy.
 - Mục leaderboard **Warnings** gom các cảnh báo trên, cộng "top-1 mới được huấn luyện < 12 epoch".
+
+### 9.5 Mốc 2 sau kiểm định (M23, v0.21): dùng ngân sách đúng chỗ
+Thay đổi: mỗi rung của successive halving một phần ngân sách bằng nhau (Jamieson & Talwalkar, Algorithm 1), finalist bù từ rung trước khi rung cuối thiếu người; tiến hóa chỉ chạy khi con tới được 12 epoch; `more_runs` chạy lại finalist tốt nhất khi còn ngân sách; `--hparams auto` (chỉ finalist có ≥ 2 lần chạy), chi phí ước lượng tính vào ngân sách epoch, LR đề xuất = cực tiểu/10; prior viết tay trọng số 0 khi có surrogate.
+
+**Đo A/B** v0.20.0 so với v0.21.0, cấu hình mặc định, `--budget 150ep --threads 1`, mnist14 / fashion14 / digits × seed 0, 1:
+| | v0.20.0 | v0.21.0 |
+|---|---|---|
+| epoch của Top-3 | 12, 12, 12 | **30, 30, 30** (cả 6 lần) |
+| test của top-1, chênh new − old | | +0,005, −0,022, +0,039, +0,010, −0,003, +0,003 (TB **+0,005**, sd 0,02; 4/6 dương) |
+
+Kết luận trung thực: Top-K được huấn luyện sâu gấp 2,5 lần nên thứ hạng gần kết quả huấn luyện đầy đủ hơn; độ chính xác test **không khác biệt có ý nghĩa** ở ngân sách này. Phiên bản đầu (chưa bù finalist) chỉ xuất 1 mô hình: đã sửa trước khi phát hành. Với ngân sách 150 epoch, `more_runs` thường không còn chỗ (top-1 vẫn 1 lần chạy).
 
 ## 10. Quy ước cho agent (người/AI) phát triển repo
 
@@ -816,7 +828,7 @@ Chưa làm: epochs (hiện là công thức mặc định 100 epoch, cosine, ch�
 ### 18.1 Thứ tự mới sau kiểm định chất lượng v0.19 (thay thế thứ tự ở trên)
 Đội 4 agent kiểm định (`qa/`, skill `quality-audit`) chấm 34 tiêu chí: 6 ĐẠT, 17 MỘT PHẦN, 11 KHÔNG ĐẠT. Chi tiết, bằng chứng và nguồn: `qa/reports/v0.19.0/SUMMARY.md`.
 - ~~**Mốc 1 (P0, sửa kết quả sai)**~~ (xong v0.20.0, §9.4): Hyperband sập khi chạm đúng hạn; cô lập ứng viên lỗi hoặc NaN; chỉ xếp hạng cùng số epoch, có cột epoch; nhiễu trung thực khi chỉ có 1 lần chạy; sửa `best-small` và `most-stable`; verdict có ngưỡng nhiễu trên test; cảnh báo one-hot bất thường và HSI chia pixel.
-- **Mốc 2 (P1, ngân sách)**: pool ứng viên theo ngân sách (finalist ≥ rung 2–3); giai đoạn hyperparameter tắt ở ngân sách nhỏ và tính cả giờ thực; bỏ prior tay khỏi Borda; tiến hóa và Hyperband chỉ bật khi đủ ngân sách, về lâu dài dùng ASHA.
+- ~~**Mốc 2 (P1, ngân sách)**~~ (xong v0.21.0, §9.5): pool ứng viên theo ngân sách (finalist ≥ rung 2–3); giai đoạn hyperparameter tắt ở ngân sách nhỏ và tính cả giờ thực; bỏ prior tay khỏi Borda; tiến hóa và Hyperband chỉ bật khi đủ ngân sách, về lâu dài dùng ASHA.
 - **Mốc 3 (P1, mạng đầu ra)**: công thức huấn luyện hiện đại (augmentation, label smoothing, warmup, EMA, mixup; ablation cho thấy tới 17 điểm trên CIFAR); gói xuất ra có `model.pt`, `preprocess.json`, `predict.py`, ONNX; thông báo lỗi và kiểm tra đầu vào.
 - **Mốc 4 (P2, cutting edge)**: pretrained (timm/DINOv2, TabPFN v2); TabM/PLR, PatchTST/iTransformer, Mamba-HSI, graph transformer; DEHB/PriorBand/LC-PFN; đo trên GPU.
 Mỗi mốc kết thúc bằng một lần chạy lại đội kiểm định.

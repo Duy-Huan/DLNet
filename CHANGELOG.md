@@ -6,6 +6,18 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-11-11
+
+Mốc M23 (Mốc 2 của lộ trình sau kiểm định, `agent.md` §9.5).
+
+### Đổi
+- Successive halving chia ngân sách đều cho các rung (4/12/30 epoch): ít ứng viên hơn nhưng Top-K được huấn luyện sâu hơn (đo 150 epoch: 12 → 30 epoch; test của top-1 không đổi có ý nghĩa, +0,005 ± 0,02).
+- Tiến hóa tự bỏ qua khi ngân sách không đủ huấn luyện con tới 12 epoch.
+- Ngân sách còn lại chạy lại các finalist tốt nhất (đo nhiễu thật) trước khi ước lượng hyperparameter.
+- **`--hparams auto|on|off`** (mặc định `auto`: chỉ ước lượng cho finalist có ≥ 2 lần chạy); chi phí ước lượng tính vào ngân sách epoch; LR đề xuất = LR tại cực tiểu loss / 10.
+- Prior viết tay không còn bỏ phiếu chọn hạt giống khi đã có surrogate (và không có `--context`).
+- Hyperband và successive halving bù Top-K bằng ứng viên của rung trước khi rung cuối thiếu người.
+
 ## [0.20.0] - 2026-11-11
 
 Mốc M22 (Mốc 1 của lộ trình sau kiểm định, `agent.md` §9.4, `qa/reports/v0.19.0/SUMMARY.md`).
@@ -351,7 +363,8 @@ Bản đầu tiên: prototype chạy được từ dữ liệu đến Top-K base
 - Chưa có zero-cost proxy, cost model FLOPs/VRAM, Tensor-LoRA, deep unfolding; chưa có plugin image và timeseries.
 - Kết quả trên Indian Pines và Pavia University là một lần chạy ngắn trên CPU: với chia theo khối, mạng sâu chưa vượt rõ baseline cổ điển.
 
-[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v0.20.0...HEAD
+[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v0.21.0...HEAD
+[0.21.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.21.0
 [0.20.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.20.0
 [0.19.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.19.0
 [0.18.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.18.0
