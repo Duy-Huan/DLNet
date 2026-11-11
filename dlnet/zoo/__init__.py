@@ -6,6 +6,7 @@ Importing this package registers every op. Layout:
   ops_seq      attention, transformer, RNN, Mamba, TextCNN     ops_vec   factorised linear, interaction
   ops_graph    GCN, GAT, SAGE, GIN, grid graphs, id embeddings  ops_gen   VAE bottleneck, DCGAN stem
   ops_img      image blocks ported from timm, smp and MONAI
+  ops_next     2023-2025 drop-ins: gated/diff attention, DyT, 2-D RoPE, WTConv, UIB, MQA, LSNet, StarNet, EfficientViT, MSCA
   ops_freq     frequency domain (FFT/iFFT): GFNet, AFNO, FNO, FFC, FcaNet, FNet, spectral filters
   dense        encoder-decoder composition, smp decoders                    space     sampling, mutation, crossover
   presets      well-known architectures written as specs
@@ -21,6 +22,7 @@ from . import (  # noqa: F401  (registers the ops)
     ops_graph,
     ops_img,
     ops_modern,
+    ops_next,
     ops_seq,
     ops_vec,
 )
