@@ -35,8 +35,6 @@ import numpy as np
 import torch
 from torch import nn
 
-from .core import members
-
 PROXIES = ("naswot", "synflow", "grad_norm", "snip", "zico", "params")
 
 
@@ -87,7 +85,7 @@ def snip(model: nn.Module, X, y, task: str) -> float:
     """sum |dL/dtheta * theta| over all weights (one minibatch, train mode)."""
     m = copy.deepcopy(model).train()
     m.zero_grad()
-    _loss(*members(m, m(X), y), task).backward()
+    _loss(m(X), y, task).backward()
     return float(
         sum(float((p.grad * p.detach()).abs().sum()) for p in m.parameters() if p.grad is not None)
     )
@@ -103,7 +101,7 @@ def zico(model: nn.Module, batches, task: str) -> float | None:
     grads: dict[str, list] = {n: [] for n, _ in layers}
     for X, y in batches:
         m.zero_grad()
-        _loss(*members(m, m(X), y), task).backward()
+        _loss(m(X), y, task).backward()
         for n, mod in layers:
             if mod.weight.grad is not None:
                 grads[n].append(mod.weight.grad.detach().reshape(-1).numpy().copy())
@@ -123,7 +121,7 @@ def zico(model: nn.Module, batches, task: str) -> float | None:
 
 def grad_norm(model: nn.Module, X, y, task: str) -> float:
     m = copy.deepcopy(model).train()
-    out, y = members(m, m(X), y)
+    out = m(X)
     if task == "reconstruction":
         loss = nn.functional.mse_loss(out, y)
     elif task == "regression":

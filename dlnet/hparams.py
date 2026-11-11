@@ -25,7 +25,7 @@ import torch
 from torch import nn
 
 from . import clock
-from .core import Trainer, members
+from .core import Trainer
 
 MIN_BATCH, MAX_BATCH = 16, 512
 
@@ -35,7 +35,7 @@ def _loss_fn(data):
 
 
 def _loss(model, X, y, data, loss_fn):
-    out, y = members(model, model(X), y)
+    out = model(X)
     out = out.squeeze(-1) if data["task"] == "regression" else out
     return loss_fn(out, y)
 

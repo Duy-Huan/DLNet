@@ -18,7 +18,6 @@ from . import (  # noqa: F401  (registers the ops)
     ops_gen,
     ops_graph,
     ops_img,
-    ops_modern,
     ops_seq,
     ops_vec,
 )

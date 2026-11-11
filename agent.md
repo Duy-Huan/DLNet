@@ -283,7 +283,6 @@ Nguyên tắc: lõi **tổng quát trước**, kiểm chứng end-to-end sớm t
 | **M8** | Deep unfolding (khi có mô hình thuận) | **Xong cho bài toán thưa tuyến tính (v0.7.0)**, xem "Kết quả đo M8" ở §5: lệnh `dlnet unfold`, LISTA-CP hơn ISTA và FISTA (λ đã tune) 3,3–6,3 dB ở cùng số vòng K trên dữ liệu tổng hợp. Chưa có: ADMM/AMP, support selection, toán tử A không tường minh (ảnh), dữ liệu thật |
 | **M13** | Port nhóm còn thiếu: đồ thị, id/recommender, autoencoder/VAE, GAN, Mamba-2; cost model; hợp nhất họ cũ | **Xong (v0.11.0–v0.12.0)**, xem §13.7. Chưa có: CVAE, loss cặp (BPR), GAN có điều kiện/FID, đồ thị lớn (dense), graph cạnh học được |
 | **M14** | Khối ảnh từ thư viện chính thống (timm, smp, MONAI, torchvision); đối chiếu số học các khối viết từ trí nhớ | **Xong (v0.13.0)**, xem §13.8 |
-| **M25** | Mốc 4 sau kiểm định: TabM, PLR, PatchTST, iTransformer (pretrained bị chặn bởi mạng) | **Mã xong, chờ đối chiếu số học**, xem §9.7 |
 | **M24** | Mốc 3 sau kiểm định: công thức huấn luyện hiện đại, gói có `model.pt`/`predict.py`/export, thông báo lỗi | **Xong (v0.22.0)**, xem §9.6 |
 | **M23** | Mốc 2 sau kiểm định: phân bổ ngân sách (SH chia đều theo rung, chặn tiến hóa, chạy lại finalist, `--hparams auto`, bỏ prior tay) | **Xong (v0.21.0)**, xem §9.5 |
 | **M22** | Mốc 1 sau kiểm định: sửa kết quả sai (Hyperband, ứng viên lỗi, xếp hạng cùng epoch, nhiễu một lần chạy, vai trò, verdict, cảnh báo) | **Xong (v0.20.0)**, xem §9.4 |
@@ -375,17 +374,6 @@ Kết luận trung thực: Top-K được huấn luyện sâu gấp 2,5 lần n�
 - **Gói xuất ra**: `train.py` chạy từ mọi thư mục, lưu `model.pt` + `preprocess.json` (mỗi hàm dựng dữ liệu ghi khối `preprocess`); `predict.py` + `inference.py` dự đoán file mới theo đơn vị nhãn gốc cho cả 8 loại dữ liệu (`tests/test_package_inference.py`); `--export model.pt2` (torch.export, không cần gói thêm) hoặc `.onnx` (cần onnx, onnxscript).
 - **Thông báo lỗi**: router không đưa `.npz` dạng mẫu/nhãn sang HSI và liệt kê các mảng; file không tồn tại; `--max-*` sai định dạng; giới hạn loại hết ứng viên (nêu ứng viên nhỏ nhất); `--target` sai gợi ý cột gần đúng; leaderboard ghi số ứng viên thật sự được huấn luyện (`search_coverage`) và cảnh báo khi Top-K thiếu.
 - Tài liệu: thứ tự cài torch CPU trước, Python 3.10–3.13, yêu cầu của từng loại gói (F1, F3).
-
-### 9.7 Mốc 4 sau kiểm định (M25, v0.23): họ mạnh mới; phần bị chặn
-- **Thêm** (`dlnet/zoo/ops_modern.py`, viết theo mã chính thức, giữ thứ tự tham số để đối chiếu): TabM (BatchEnsemble k thành viên, head `ensemble`: một lớp đầu ra và một loss cho mỗi thành viên, dự đoán = trung bình xác suất), PLR(lite), PatchTST (RevIN, patch, encoder độc lập kênh, BatchNorm, residual attention), iTransformer (mỗi biến là một token). Họ mới: bảng `tabm`, `tabm_plr`; chuỗi `patchtst`, `itransformer`. `core.members` / `proxies` / `hparams` xử lý đầu ra nhiều thành viên.
-- **Đo** (cùng split, 60 epoch bảng / 30 epoch chuỗi, lr 1e-3, 3 seed, `scripts`-ngoài-repo `fam_ab.py`): test trung bình
-  - breast_cancer: MLP 0,977, ResMLP 0,980, TabM 0,980, TabM+PLR 0,977 (trong nhiễu);
-  - wine: MLP 0,957, TabM 0,974, **TabM+PLR 1,000** (3/3 seed);
-  - diabetes (−RMSE): MLP −56,1, ResMLP −59,0, TabM −56,0, TabM+PLR −55,9 (trong nhiễu);
-  - ts_freq (tổng hợp): TCN 1,00, ts_transformer cũ **0,37**, PatchTST 1,00, iTransformer 1,00.
-  Kết luận: TabM không kém MLP, PLR giúp trên wine; với chuỗi, hai họ mới sửa được điểm yếu của Transformer cũ. Chỉ một bộ chuỗi (tổng hợp) nên chưa khái quát.
-- **Đối chiếu số học với mã gốc**: script `scripts/verify_modern.py` đã viết (chép trọng số từ `tabm`, `rtdl_num_embeddings`, repo PatchTST, iTransformer). **Chưa chạy** trong phiên phát triển: công cụ an toàn chặn việc chạy mã tải từ ngoài; cần người dùng cho phép. Đến khi chạy, các khối này được ghi là "viết theo mã chính thức, đối chiếu bằng đọc mã".
-- **Bị chặn bởi mạng (không làm)**: mô hình pretrained (timm/torchvision/DINOv2 weights, TabPFN) — download.pytorch.org, huggingface.co, dl.fbaipublicfiles.com trả 403 qua proxy. **Chưa làm**: tìm kiếm dựa mô hình (DEHB, PriorBand, LC-PFN); graph transformer, DCNv2, Mamba cho HSI.
 
 ## 10. Quy ước cho agent (người/AI) phát triển repo
 

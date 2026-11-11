@@ -30,19 +30,13 @@ TABULAR = (
     "ft_transformer",
     "moe_mlp",
     "fm_mlp",
-    "tabm",
-    "tabm_plr",
 )
-ENSEMBLE_FAMILIES = (
-    "tabm",
-    "tabm_plr",
-)  # one output layer and one loss per member (head "ensemble")
 IMAGE = ("cnn", "resnet", "vit", "lenet", "allconv", "vgg", "densenet", "mobilenetv2")
 SEGMENTATION = (
     "fcn", "unet", "deconvnet", "unetpp", "fpn", "deeplabv3", "deeplabv3plus", "pspnet", "linknet",
     "upernet", "segformer",
 )  # fmt: skip
-TIMESERIES = ("tcn", "gru", "ts_transformer", "patchtst", "itransformer")
+TIMESERIES = ("tcn", "gru", "ts_transformer")
 HSI = (
     "cnn1d",
     "cnn2d",
@@ -134,11 +128,6 @@ def tabular(cfg, dims):
             {"op": "moe", "experts": experts, "mode": cfg.get("routing", "soft"), "k": 2},
             lin(w, "gelu"),
         )
-    if f in ("tabm", "tabm_plr"):  # TabM (arXiv:2410.24210): plain, or on PLR(lite) embeddings
-        body = N("tabm", k=cfg.get("k", 16), width=w, depth=d, dropout=p,
-                 init="normal" if f == "tabm_plr" else "random-signs")  # fmt: skip
-        return S(N("plr_embed", d=cfg.get("emb", 16), freq=16, sigma=cfg.get("sigma", 0.01)), body) \
-            if f == "tabm_plr" else S(body)  # fmt: skip
     if f == "fm_mlp":
         return S(
             N("fm_interaction", rank=r, self_interaction=0),
@@ -295,10 +284,6 @@ def timeseries(cfg, dims):
             N("pos", mode="sine"),
             rep(d, TB(4, 2, p)),
         )
-    if f == "patchtst":  # PatchTST (arXiv:2211.14730)
-        return S(N("patchtst", d=w, layers=d, heads=4, patch=cfg.get("patch", 8), dropout=p))
-    if f == "itransformer":  # iTransformer (arXiv:2310.06625)
-        return S(N("itransformer", d=w, layers=d, heads=4, dropout=p))
     raise ValueError(f"unknown time-series family {f!r}")
 
 
@@ -512,8 +497,6 @@ def complete(cfg: dict, domain: str, dims, out_dim: int) -> dict:
     if cfg["family"] not in fams:
         raise ValueError(f"unknown {domain} family {cfg['family']!r}")
     cfg["spec"] = recipe(cfg, tuple(dims))
-    if cfg["family"] in ENSEMBLE_FAMILIES:
-        head = "ensemble"
     cfg.update(input={"kind": kind, "dims": list(dims)}, head=head, out_dim=out_dim)
     return cfg
 
