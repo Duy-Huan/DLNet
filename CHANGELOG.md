@@ -6,6 +6,8 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-11-11
+
 Mốc M19 (xem `agent.md` §9.1, §18): regression test toàn bộ, ngân sách tái lập được.
 
 ### Thêm
@@ -304,7 +306,8 @@ Bản đầu tiên: prototype chạy được từ dữ liệu đến Top-K base
 - Chưa có zero-cost proxy, cost model FLOPs/VRAM, Tensor-LoRA, deep unfolding; chưa có plugin image và timeseries.
 - Kết quả trên Indian Pines và Pavia University là một lần chạy ngắn trên CPU: với chia theo khối, mạng sâu chưa vượt rõ baseline cổ điển.
 
-[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v0.16.0...HEAD
+[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v0.17.0...HEAD
+[0.17.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.17.0
 [0.16.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.16.0
 [0.15.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.15.0
 [0.14.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.14.0
