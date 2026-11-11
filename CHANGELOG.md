@@ -6,12 +6,17 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+## [0.23.0] - 2026-11-11
+
 Mốc M25 (Mốc 4 của lộ trình sau kiểm định, `agent.md` §9.7).
+
+### Chưa làm
+- Mô hình pretrained (proxy chặn nguồn trọng số); tìm kiếm dựa mô hình (DEHB, PriorBand); graph transformer, DCNv2, Mamba cho HSI.
 
 ### Thêm
 - Họ bảng **`tabm`**, **`tabm_plr`**: TabM (Gorishniy et al. ICLR 2025) với head `ensemble` (mỗi thành viên một lớp đầu ra và một loss; dự đoán trung bình xác suất), tùy chọn embedding số PLR(lite).
 - Họ chuỗi thời gian **`patchtst`** (Nie et al. ICLR 2023) và **`itransformer`** (Liu et al. ICLR 2024).
-- `scripts/verify_modern.py`: đối chiếu số học các khối mới với mã chính thức (`tabm`, `rtdl_num_embeddings`, repo PatchTST, iTransformer).
+- `scripts/verify_modern.py`: đối chiếu số học các khối mới với mã chính thức (`tabm`, `rtdl_num_embeddings`, repo PatchTST, iTransformer). **Chưa chạy** trong bản này: các khối mới mới được đối chiếu bằng đọc mã.
 - Đo cùng split, 3 seed: TabM+PLR 1,000 so với MLP 0,957 trên wine, các bộ bảng khác trong nhiễu; PatchTST/iTransformer 1,00 so với Transformer cũ 0,37 trên một bộ chuỗi tổng hợp.
 
 ## [0.22.0] - 2026-11-11
@@ -386,7 +391,8 @@ Bản đầu tiên: prototype chạy được từ dữ liệu đến Top-K base
 - Chưa có zero-cost proxy, cost model FLOPs/VRAM, Tensor-LoRA, deep unfolding; chưa có plugin image và timeseries.
 - Kết quả trên Indian Pines và Pavia University là một lần chạy ngắn trên CPU: với chia theo khối, mạng sâu chưa vượt rõ baseline cổ điển.
 
-[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v0.22.0...HEAD
+[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v0.23.0...HEAD
+[0.23.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.23.0
 [0.22.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.22.0
 [0.21.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.21.0
 [0.20.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.20.0

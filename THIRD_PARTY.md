@@ -68,7 +68,7 @@ Từ paper, viết từ trí nhớ (không có trong nguồn trên): GCN, GAT, G
 
 Khác với gốc (có chủ ý): head do DLNet thêm (PatchTST/iTransformer: trung bình token rồi linear, thay cho head dự báo); TabM mặc định nhỏ hơn bài báo (k = 8–16, rộng 128–256 thay vì 32 và 512) cho vừa ngân sách CPU. Loss của TabM tính riêng cho từng thành viên rồi lấy trung bình, dự đoán là trung bình xác suất, đúng như bài báo.
 
-**Đối chiếu số học** (`scripts/verify_modern.py`, chép trọng số từ mã gốc sang, so đầu ra ở chế độ eval): xem mục Kiểm chứng.
+**Đối chiếu**: mới bằng **đọc mã** (thứ tự và shape tham số giữ như mã gốc). Script so số `scripts/verify_modern.py` (chép trọng số từ mã gốc sang, so đầu ra ở chế độ eval) đã viết nhưng **chưa chạy**: môi trường phát triển không cho chạy mã tải từ ngoài. Chạy theo hướng dẫn ở đầu script.
 
 ## Chưa port và lý do
 
