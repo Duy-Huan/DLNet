@@ -1,3 +1,6 @@
 $ /usr/local/bin/python train.py --data /home/user/DLNet/examples/hsi/ksc/input/KSC.mat --gt /home/user/DLNet/examples/hsi/ksc/input/KSC_gt.mat --epochs 30 --seed 0
 data: {'n_labeled': 5211, 'n_dropped_by_margin': 0, 'pca_energy_kept': 0.9987994208595409, 'bands': 176, 'pca_components': 30, 'n_train': 520, 'n_val': 520, 'n_test': 4171, 'classes_missing_train': [], 'classes_missing_test': [], 'frac': [0.1, 0.1, 0.8], 'block': 16}
 params=24,145 epochs=30
+val : {'accuracy': 0.9519230769230769, 'balanced_accuracy': 0.9215285996055228, 'kappa': 0.9463499387140663, 'score': 0.9519230769230769}
+test: {'accuracy': 0.941021337808679, 'balanced_accuracy': 0.9059914569056982, 'kappa': 0.9342021173232725, 'score': 0.941021337808679}
+saved /home/user/DLNet/examples/hsi/ksc/output/top1_mambahsi/model.pt and preprocess.json; predict with: python predict.py --data <new file>
