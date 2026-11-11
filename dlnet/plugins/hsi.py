@@ -100,6 +100,11 @@ SPACE = {
     "fcanet2d": {"width": [32, 64], "depth": [1, 2, 3], "dropout": [0.0, 0.2, 0.4]},
     "spec_fft2d": {"width": [32, 64], "depth": [1, 2, 3], "dropout": [0.0, 0.2, 0.4]},
     "fourier_ss": {"width": [32, 64], "depth": [1, 2, 3], "dropout": [0.0, 0.2]},
+    # v1.0: Mamba / transformer HSI networks from their official code (dlnet/zoo/ops_hsi.py)
+    "mambahsi": {"width": [32, 64], "depth": [2, 3], "dropout": [0.0, 0.2]},
+    "mambahsi_plus": {"width": [32, 64], "depth": [2, 3], "dropout": [0.0, 0.2]},
+    "ssftt": {"width": [64], "depth": [1], "dropout": [0.0, 0.1]},
+    "fahm": {"width": [64], "depth": [1], "dropout": [0.0, 0.1], "size": ["small", "tiny", "base"]},
     # block choice comes from the grammar (hsi_lib.sample_composed), sizes from here
     "composed": {"width": [32, 64], "depth": [1, 2], "dropout": [0.0, 0.2, 0.4]},
 }

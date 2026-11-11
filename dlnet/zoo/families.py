@@ -61,6 +61,10 @@ HSI = (
     "fcanet2d",
     "spec_fft2d",
     "fourier_ss",
+    "mambahsi",
+    "mambahsi_plus",
+    "ssftt",
+    "fahm",
     "composed",
 )
 HSI_PRESETS = {
@@ -397,6 +401,22 @@ def hsi(cfg, dims):
         )
     if f == "cnn3d":
         return _joint("conv3d", w, d, bands)
+    if f in (
+        "mambahsi",
+        "mambahsi_plus",
+    ):  # 1x1 embedding, GN, SiLU; blocks with 2x2 pooling between
+        blk = N(f + "_block", token_num=4, group_num=4 if f == "mambahsi" else 2)
+        body, side = [], patch
+        for i in range(d):
+            body.append(blk)
+            if i < d - 1 and side >= 4:
+                body.append(N("pool", mode="avg", k=2, s=2))
+                side //= 2
+        return S(cba(w, 1, act="swish", norm="group"), *body, N("gap", mode="avg"))
+    if f == "ssftt":  # SSFTT (TGRS 2022): 3-D/2-D conv, Gaussian tokenizer, transformer
+        return S(N("ssftt", tokens=4, dim=64, heads=8, depth=1))
+    if f == "fahm":  # FAHM (2025): frequency-domain embedding + RoPE + Mamba, 3 stages
+        return S(N("fahm", size=cfg.get("size", "small"), groups=2))
     if f == "spec_fft2d":  # each pixel's spectrum -> its Fourier coefficients, then a ResNet
         return S(N("spectral_rfft"), _spatial("res", w, d, patch))
     if f == "fourier_ss":  # spectral-axis Fourier filter, then spatial GFNet blocks

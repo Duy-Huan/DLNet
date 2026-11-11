@@ -348,8 +348,8 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", required=True, help="folder holding the cloned official repositories")
     a = ap.parse_args()
-    good = check_pywt_haar() & check_timm_mnv4()
-    for chk in CHECKS:
+    good = True
+    for chk in (lambda r: check_pywt_haar(), lambda r: check_timm_mnv4(), *CHECKS):
         try:
             good &= chk(a.root)
         except Exception as e:  # noqa: BLE001  (report every family, then fail)

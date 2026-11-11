@@ -82,7 +82,7 @@ jobs:
           python-version: "3.12"
       - name: Install DLNet (CPU torch) and the reference libraries
         run: |
-          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
           pip install -e . numpy "transformers==4.51.3" "timm==1.0.31" "PyWavelets==1.8.0"
       - name: Official code (pinned)
         run: |
