@@ -283,7 +283,7 @@ Nguyên tắc: lõi **tổng quát trước**, kiểm chứng end-to-end sớm t
 | **M8** | Deep unfolding (khi có mô hình thuận) | **Xong cho bài toán thưa tuyến tính (v0.7.0)**, xem "Kết quả đo M8" ở §5: lệnh `dlnet unfold`, LISTA-CP hơn ISTA và FISTA (λ đã tune) 3,3–6,3 dB ở cùng số vòng K trên dữ liệu tổng hợp. Chưa có: ADMM/AMP, support selection, toán tử A không tường minh (ảnh), dữ liệu thật |
 | **M13** | Port nhóm còn thiếu: đồ thị, id/recommender, autoencoder/VAE, GAN, Mamba-2; cost model; hợp nhất họ cũ | **Xong (v0.11.0–v0.12.0)**, xem §13.7. Chưa có: CVAE, loss cặp (BPR), GAN có điều kiện/FID, đồ thị lớn (dense), graph cạnh học được |
 | **M14** | Khối ảnh từ thư viện chính thống (timm, smp, MONAI, torchvision); đối chiếu số học các khối viết từ trí nhớ | **Xong (v0.13.0)**, xem §13.8 |
-| **M25** | Mốc 4 sau kiểm định: TabM, PLR, PatchTST, iTransformer (pretrained bị chặn bởi mạng) | **v0.23.0**; đối chiếu bằng đọc mã, chưa so số (§9.7) |
+| **M25** | Mốc 4 sau kiểm định: TabM, PLR, PatchTST, iTransformer (pretrained bị chặn bởi mạng) | **v0.23.0**; đối chiếu số học 7/7 khớp trên CI (§9.7) |
 | **M24** | Mốc 3 sau kiểm định: công thức huấn luyện hiện đại, gói có `model.pt`/`predict.py`/export, thông báo lỗi | **Xong (v0.22.0)**, xem §9.6 |
 | **M23** | Mốc 2 sau kiểm định: phân bổ ngân sách (SH chia đều theo rung, chặn tiến hóa, chạy lại finalist, `--hparams auto`, bỏ prior tay) | **Xong (v0.21.0)**, xem §9.5 |
 | **M22** | Mốc 1 sau kiểm định: sửa kết quả sai (Hyperband, ứng viên lỗi, xếp hạng cùng epoch, nhiễu một lần chạy, vai trò, verdict, cảnh báo) | **Xong (v0.20.0)**, xem §9.4 |
@@ -384,7 +384,7 @@ Kết luận trung thực: Top-K được huấn luyện sâu gấp 2,5 lần n�
   - diabetes (−RMSE): MLP −56,1, ResMLP −59,0, TabM −56,0, TabM+PLR −55,9 (trong nhiễu);
   - ts_freq (tổng hợp): TCN 1,00, ts_transformer cũ **0,37**, PatchTST 1,00, iTransformer 1,00.
   Kết luận: TabM không kém MLP, PLR giúp trên wine; với chuỗi, hai họ mới sửa được điểm yếu của Transformer cũ. Chỉ một bộ chuỗi (tổng hợp) nên chưa khái quát.
-- **Đối chiếu số học với mã gốc**: script `scripts/verify_modern.py` đã viết (chép trọng số từ `tabm`, `rtdl_num_embeddings`, repo PatchTST, iTransformer). **Chưa chạy** trong phiên phát triển: công cụ an toàn chặn việc chạy mã tải từ ngoài (bị chặn cả sau khi người dùng đồng ý). v0.23.0 phát hành với ghi chú: các khối này **viết theo mã chính thức, mới đối chiếu bằng đọc mã, chưa so số**. Người dùng chạy được trên máy mình bằng 4 lệnh ở đầu script; có kết quả thì ghi vào THIRD_PARTY.md mục Kiểm chứng.
+- **Đối chiếu số học với mã gốc** (`scripts/verify_modern.py`, chạy trên GitHub Actions vì môi trường phát triển không cho chạy mã tải từ ngoài; workflow `verify-modern.yml`): **7/7 khớp** sau bản phát hành v0.23.0 — TabM, PLR, PatchTST trùng từng bit, iTransformer sai khác ≤ 4,8e-7 ([lượt chạy](https://github.com/Duy-Huan/DLNet/actions/runs/43025944848)). Bảng: THIRD_PARTY.md.
 - **Bị chặn bởi mạng (không làm)**: mô hình pretrained (timm/torchvision/DINOv2 weights, TabPFN) — download.pytorch.org, huggingface.co, dl.fbaipublicfiles.com trả 403 qua proxy. **Chưa làm**: tìm kiếm dựa mô hình (DEHB, PriorBand, LC-PFN); graph transformer, DCNv2, Mamba cho HSI.
 
 ## 10. Quy ước cho agent (người/AI) phát triển repo

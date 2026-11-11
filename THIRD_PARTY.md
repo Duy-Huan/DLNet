@@ -68,7 +68,14 @@ Từ paper, viết từ trí nhớ (không có trong nguồn trên): GCN, GAT, G
 
 Khác với gốc (có chủ ý): head do DLNet thêm (PatchTST/iTransformer: trung bình token rồi linear, thay cho head dự báo); TabM mặc định nhỏ hơn bài báo (k = 8–16, rộng 128–256 thay vì 32 và 512) cho vừa ngân sách CPU. Loss của TabM tính riêng cho từng thành viên rồi lấy trung bình, dự đoán là trung bình xác suất, đúng như bài báo.
 
-**Đối chiếu**: mới bằng **đọc mã** (thứ tự và shape tham số giữ như mã gốc). Script so số `scripts/verify_modern.py` (chép trọng số từ mã gốc sang, so đầu ra ở chế độ eval) đã viết nhưng **chưa chạy**: môi trường phát triển không cho chạy mã tải từ ngoài. Chạy theo hướng dẫn ở đầu script.
+**Đối chiếu số học** (`scripts/verify_modern.py`, chép trọng số từ mã gốc sang theo tên, so đầu ra ở chế độ eval; chạy trên GitHub Actions bởi `.github/workflows/verify-modern.yml`, [lượt chạy](https://github.com/Duy-Huan/DLNet/actions/runs/43025944848)): **7/7 khớp**.
+
+| Khối | Mã gốc (ghim) | Sai khác lớn nhất |
+|---|---|---|
+| TabM backbone (k=8 w=64 d=3; k=4 w=32 d=2) | `tabm` 0.0.3 `TabM` | 0 (trùng từng bit) |
+| PLR(lite) | `rtdl_num_embeddings` 0.0.12 `PeriodicEmbeddings(lite=True)` | 0 |
+| PatchTST (2 cấu hình) | yuqinie98/PatchTST `204c21e`, `PatchTST_backbone` | 0 |
+| iTransformer (2 cấu hình) | thuml/iTransformer `c2426e6`, `Model` | 4,8e-7 |
 
 ## Chưa port và lý do
 
