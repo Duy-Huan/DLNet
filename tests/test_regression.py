@@ -555,7 +555,7 @@ def test_work_budget_is_reproducible_and_bounded(tmp_path):
     a, spent_a = go(tmp_path / "a")
     b, spent_b = go(tmp_path / "b")
     assert a == b and spent_a == spent_b
-    assert spent_a <= 60 + 36  # one candidate may finish the rung it started (36 = longest rung)
+    assert spent_a <= 60  # no run is started that would end after the budget (v0.18)
     assert cli.parse_budget_mode("400ep") == (400.0, "work")
     assert cli.parse_budget_mode("2m") == (120.0, "time")
     clock.start("time")

@@ -17,6 +17,8 @@ import json
 import math
 from pathlib import Path
 
+from . import jsonsafe
+
 MIN_RECORDS = 3
 
 
@@ -86,7 +88,7 @@ def append(path, record: dict) -> None:
     p = Path(path)
     p.parent.mkdir(parents=True, exist_ok=True)
     with p.open("a") as f:
-        f.write(json.dumps(record) + "\n")
+        f.write(jsonsafe.dumps(record) + "\n")
 
 
 def recommend(records: list[dict], plugin: str, feats: list[float], k: int = 5) -> dict | None:

@@ -20,6 +20,8 @@ import types
 from contextlib import redirect_stdout
 from pathlib import Path
 
+from . import jsonsafe
+
 SERVER = {"name": "dlnet", "version": None}
 PROTOCOL = "2025-06-18"
 
@@ -204,7 +206,7 @@ def handle(msg: dict) -> dict | None:
         try:
             out = fn(params.get("arguments") or {})
             result = {
-                "content": [{"type": "text", "text": json.dumps(out, default=str)}],
+                "content": [{"type": "text", "text": jsonsafe.dumps(out, default=str)}],
                 "isError": False,
             }
         except (OSError, KeyError, ValueError, TypeError, RuntimeError, SystemExit) as e:
@@ -235,6 +237,6 @@ def serve(stdin=sys.stdin, stdout=sys.stdout) -> int:
             with redirect_stdout(sys.stderr):  # nothing but JSON-RPC may reach stdout
                 resp = handle(msg) if isinstance(msg, dict) else None
         if resp is not None:
-            stdout.write(json.dumps(resp, default=str) + "\n")
+            stdout.write(jsonsafe.dumps(resp, default=str) + "\n")
             stdout.flush()
     return 0

@@ -114,7 +114,7 @@ def test_meta_store_records_candidates_and_feeds_the_surrogate(img_npz, tmp_path
 
 def test_repeated_splits_and_the_tabular_plugin(tabular_csv, tmp_path):
     rc = cli.main(["design", "--data", str(tabular_csv), "--target", "y", "--out", str(tmp_path / "t"),
-                   *FAST, "--cv-splits", "2", "--budget", "300ep"])  # fmt: skip
+                   *FAST, "--cv-splits", "2", "--budget", "600ep"])  # fmt: skip
     assert rc == 0
     b = json.loads((tmp_path / "t" / "leaderboard.json").read_text())
     assert b["top_k"][0]["n_splits"] == 2

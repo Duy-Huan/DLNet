@@ -24,6 +24,8 @@ import numpy as np
 import torch
 from torch import nn
 
+from . import jsonsafe
+
 HERE = Path(__file__).parent
 
 TRAIN_PY = '''"""Re-train this GAN. Usage: python train.py --data images.npz [--epochs 60] [--seed 0]
@@ -292,7 +294,7 @@ def run(args) -> int:
         torch.save(r["_state"], d / "generator.pt")
         cfg = {"plugin": "gan", "split_seed": args.seed, "arch": r["cfg"], "generator": g, "discriminator": dd, "data": {"x_key": args.x_key, "size": size, "channels": c},
                "recipe": {"epochs": args.epochs}, "search_result": {k: r[k] for k in ("val_mmd", "val_std", "test_mmd", "test_std")}}  # fmt: skip
-        (d / "config.yaml").write_text(json.dumps(cfg, indent=2))
+        (d / "config.yaml").write_text(jsonsafe.dumps(cfg, indent=2))
         (d / "train.py").write_text(TRAIN_PY)
         (d / "sample.py").write_text(SAMPLE_PY)
         (d / "tests" / "test_model.py").write_text(
@@ -311,7 +313,7 @@ def run(args) -> int:
         "baselines_test_mmd": base,
         "verdict": {"beats_gaussian_fit": bool(wins)},
     }
-    (out / "leaderboard.json").write_text(json.dumps(board, indent=2))
+    (out / "leaderboard.json").write_text(jsonsafe.dumps(board, indent=2))
     md = [
         "# Leaderboard (GAN, MMD^2 in pixel space, lower is better)\n",
         "| rank | config | params | val MMD^2 | test MMD^2 |",

@@ -131,11 +131,14 @@ python -m dlnet design --data new.npz --meta-store meta_image.jsonl
 |---|---|
 | `--budget 10m` | tổng thời gian (giây/phút/giờ); luôn có ít nhất một kết quả kể cả khi hết giờ sớm. Kết quả phụ thuộc tốc độ máy |
 | `--budget 400ep` | ngân sách **theo epoch**: mỗi epoch của bất kỳ ứng viên nào tính 1; các bước không huấn luyện (hồ sơ, baseline, proxy) không tính. Cùng lệnh cho cùng leaderboard trên máy nhanh hay chậm: dùng khi cần tái lập kết quả, so sánh hai cấu hình, hoặc chạy trong CI |
+| `--threads 4` | số luồng CPU cho torch, BLAS, OpenMP. Mặc định `0` = số CPU còn rảnh lúc bắt đầu. **Chạy nhiều lệnh cùng lúc** trên một máy: đặt tổng `--threads` ≤ số CPU (ví dụ 4 lệnh trên máy 8 CPU: `--threads 2`); để mỗi lệnh dùng hết CPU có thể làm baseline treo rất lâu. Muốn hai lần chạy giống hệt từng bit: cố định `--threads` |
 | `--max-params 500k`, `--max-flops 50M`, `--max-vram 4000` | loại ứng viên vượt giới hạn trước khi huấn luyện (VRAM là ước lượng, chưa đối chiếu GPU) |
 | `--zoo 12`, `--evolve 1`, `--evolve-pop 8` | số kiến trúc từ zoo, số thế hệ tiến hóa, số con mỗi thế hệ |
 | `--per-family 8` | số cấu hình ngẫu nhiên mỗi họ mô hình |
 | `--cv-splits 3` | xếp hạng finalist trên 3 lần chia dữ liệu (ổn định hơn, chậm hơn) |
 | `--no-cache` | không dùng lại các lần huấn luyện đã xong trong `--out` |
+
+DLNet chỉ bắt đầu một lần huấn luyện khi dự báo nó kết thúc trước hạn (dựa trên thời gian mỗi epoch đã đo), nên ngân sách giây được giữ sát; ngân sách epoch không bao giờ bị vượt. Mục **Budget** cuối `leaderboard.md` cho biết từng giai đoạn tốn bao nhiêu giây và epoch.
 
 ## 8. Đọc kết quả
 
@@ -145,8 +148,9 @@ python -m dlnet design --data new.npz --meta-store meta_image.jsonl
 2. **Baseline cổ điển** và **kết luận** (`beats_reference`): chỉ "có" khi top-1 hơn baseline tốt nhất trên validation quá mức nhiễu và hơn mọi baseline trên test. "Không" nghĩa là nên cân nhắc baseline cổ điển trước.
 3. **Objective và Pareto front**.
 4. **Zero-cost proxy**: tương quan với kết quả huấn luyện thật (chỉ để tham khảo).
+5. **Budget**: giây và epoch theo giai đoạn (load, reference, generate, proxies, seed_selection, search, evolution, hparams, export), số luồng, phần trăm vượt ngân sách.
 
-`leaderboard.json` chứa cùng thông tin dạng máy đọc, cộng `seed_selection` (data card, quy tắc, xếp hạng), `module_zoo` (tiến hóa), `objective`.
+`leaderboard.json` chứa cùng thông tin dạng máy đọc (JSON chuẩn: giá trị không xác định ghi là `null`), cộng `seed_selection` (data card, quy tắc, xếp hạng), `module_zoo` (tiến hóa), `objective`.
 
 ## 9. Huấn luyện lại một baseline
 
@@ -187,4 +191,5 @@ python -m dlnet mcp                                               # MCP server c
 | `no valid candidate was generated` | nới `--max-params` / `--max-flops`, tăng `--per-family` |
 | Chỉ vài ứng viên được huấn luyện | tăng `--budget`, hoặc giảm `--zoo`, `--per-family`, hoặc dùng `--seeds N` |
 | Kết luận "không thắng baseline" | đó là kết quả thật: baseline cổ điển đủ tốt cho dữ liệu này, hoặc ngân sách quá ngắn |
+| Lần chạy lâu hơn ngân sách nhiều, nhất là khi chạy nhiều lệnh cùng lúc | xem mục Budget trong `leaderboard.md`; đặt `--threads` để tổng số luồng ≤ số CPU |
 | Hết bộ nhớ GPU | đặt `--max-vram`, giảm `--zoo-width` |
