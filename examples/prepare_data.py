@@ -301,7 +301,7 @@ def camvid(case: str, cache: Path, size=(120, 90)) -> None:
             for m in members:
                 lut[codes.index(m)] = k
         names = sorted(
-            m.name for m in t.getmembers() if m.name.startswith("camvid/images/") and m.isfile()
+            m.name for m in t.getmembers() if m.name.startswith("camvid/images/") and m.name.endswith(".png")
         )
         X, y = [], []
         for name in names:
