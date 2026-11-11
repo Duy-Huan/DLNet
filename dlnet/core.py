@@ -25,13 +25,42 @@ except ImportError:  # inside an exported package there is no budget
 # --------------------------------------------------------------------------- data
 
 
-def load_csv(path: str, target: str):
+def load_csv(path: str, target: str, warnings: list | None = None):
+    """Features (float32, NaN kept for TRAIN-median imputation), labels, column names.
+
+    A text column whose values are almost all numbers (>= 90 %) is read as numbers, the rest
+    becoming missing: one-hot encoding it would turn every distinct number into a column (a
+    50-row file gave 133 columns and test accuracy 0.54 instead of 0.95, audit S6). Warnings are
+    printed and appended to `warnings`."""
     import pandas as pd
 
+    def warn(msg):
+        print(f"[load] {msg}")
+        if warnings is not None:
+            warnings.append(msg)
+
     df = pd.read_csv(path)
+    if target not in df.columns:
+        raise SystemExit(
+            f"--target {target!r} is not a column of {path}; columns: {list(df.columns)}"
+        )
     df = df.dropna(subset=[target])  # a row without a label cannot be used
     y = df[target].to_numpy()
-    X = pd.get_dummies(df.drop(columns=[target]))
+    feats = df.drop(columns=[target])
+    text_cols = [c for c in feats.columns if not pd.api.types.is_numeric_dtype(feats[c])
+                 and not pd.api.types.is_bool_dtype(feats[c])]  # fmt: skip
+    for c in text_cols:
+        num = pd.to_numeric(feats[c], errors="coerce")
+        n, ok = int(feats[c].notna().sum()), int(num.notna().sum())
+        if n and ok / n >= 0.9:
+            warn(
+                f"column {c!r} is numeric with {n - ok} non-numeric value(s); those are treated as missing"
+            )
+            feats[c] = num
+        elif feats[c].nunique() > 50:
+            warn(f"column {c!r} has {feats[c].nunique()} distinct text values: one-hot encoding adds as many "
+                 "columns; drop or encode it yourself if it is an identifier or free text")  # fmt: skip
+    X = pd.get_dummies(feats)
     X = X.apply(pd.to_numeric, errors="coerce").astype("float32")
     # Missing features stay NaN here; prepare() imputes with TRAIN medians (no test leakage).
     return X.to_numpy(dtype=np.float32), y, list(X.columns)
@@ -254,6 +283,7 @@ class Trainer:
         self.model.train()
         for _ in range(epochs):
             perm = torch.randperm(len(X), generator=self.gen)
+            steps, bad = 0, torch.zeros((), device=self.device)
             for i in range(0, len(X), self.batch):
                 b = perm[i : i + self.batch]
                 if len(b) < 2:
@@ -266,12 +296,19 @@ class Trainer:
                     kl = getattr(self.model, "kl_loss", None)  # variational bottleneck (VAE)
                     if kl is not None and (k := kl()) is not None:
                         loss = loss + self.model.kl_weight * k
+                steps += 1
+                bad += ~torch.isfinite(loss.detach())  # counted on the device: no sync per batch
                 self.opt.zero_grad()
                 self.scaler.scale(loss).backward()
                 self.scaler.unscale_(self.opt)
                 nn.utils.clip_grad_norm_(self.model.parameters(), 5.0)
                 self.scaler.step(self.opt)
                 self.scaler.update()
+            # one host sync per epoch; an epoch without one finite loss means the model diverged
+            if steps and self.device.type != "meta" and int(bad) == steps:
+                raise FloatingPointError(
+                    f"training diverged: every loss of epoch {self.epochs_done + 1} is NaN/inf"
+                )
             if scheduler is not None:
                 scheduler.step()
             self.epochs_done += 1

@@ -78,9 +78,12 @@ class TabularPlugin(DomainPlugin):
     def prepare(self, args):
         if not args.target:
             raise SystemExit("tabular data needs --target <column>")
-        X, y, _ = core.load_csv(args.data, args.target)
+        warns = []
+        X, y, _ = core.load_csv(args.data, args.target, warns)
         task = core.detect_task(y) if args.task == "auto" else args.task
-        return core.prepare(X, y, task, seed=args.seed)
+        d = core.prepare(X, y, task, seed=args.seed)
+        d["warnings"] = warns
+        return d
 
     def profile(self, data):
         return profile.profile(data)

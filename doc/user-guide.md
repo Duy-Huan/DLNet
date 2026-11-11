@@ -150,8 +150,12 @@ DLNet chỉ bắt đầu một lần huấn luyện khi dự báo nó kết thú
 
 `leaderboard.md` gồm:
 
-1. **Bảng Top-K**: họ, vai trò (`top1`, `best-small`, `most-stable`, `most-different`), `group` (cùng số = không phân biệt được trong nhiễu), tham số, MFLOPs, VRAM ước lượng, hyperparameter, validation (trung bình ± độ lệch qua seed), test.
-2. **Baseline cổ điển** và **kết luận** (`beats_reference`): chỉ "có" khi top-1 hơn baseline tốt nhất trên validation quá mức nhiễu và hơn mọi baseline trên test. "Không" nghĩa là nên cân nhắc baseline cổ điển trước.
+0. **Warnings** (nếu có): top-1 mới được huấn luyện ít epoch, mô hình chỉ chạy một lần, Top-K lẫn số epoch khác nhau, ứng viên bị lỗi/phân kỳ đã bị loại (`failed_candidates` trong JSON), HSI chia theo pixel (rò rỉ không gian), cột CSV bất thường. Đọc mục này trước.
+1. **Bảng Top-K**: họ, vai trò, `group` (cùng số = không phân biệt được trong nhiễu), `epochs` (số epoch đã huấn luyện), `runs` (số lần chạy: seed × lần chia), tham số, MFLOPs, VRAM ước lượng, hyperparameter, validation (trung bình ± nhiễu), test.
+   - **Xếp hạng chỉ so các mô hình cùng số epoch**: mô hình nhiều epoch hơn đứng trước; trước khi xếp, DLNet cố huấn luyện tiếp các mô hình ít epoch tới cùng mức nếu còn ngân sách.
+   - **± nhiễu** là độ lệch qua các lần chạy, nhưng không nhỏ hơn sai số lấy mẫu của tập validation (ví dụ accuracy: √(p(1−p)/n)). Với `runs` = 1 đây là ước lượng nhiễu duy nhất, nên không còn "± 0".
+   - Vai trò: `best-small` chỉ gán khi nhỏ hơn top-1; `most-stable` chỉ gán khi mọi mô hình được chạy ≥ 2 lần; `most-different` là họ khác top-1.
+2. **Baseline cổ điển** và **kết luận** (`beats_reference`): chỉ "có" khi top-1 hơn baseline tốt nhất trên validation quá mức nhiễu **và** hơn mọi baseline trên test quá sai số lấy mẫu của tập test. "Không" nghĩa là nên cân nhắc baseline cổ điển trước.
 3. **Objective và Pareto front**.
 4. **Zero-cost proxy**: tương quan với kết quả huấn luyện thật (chỉ để tham khảo).
 5. **Budget**: giây và epoch theo giai đoạn (load, reference, generate, proxies, seed_selection, search, evolution, hparams, export), số luồng, phần trăm vượt ngân sách.
@@ -198,5 +202,6 @@ python -m dlnet mcp                                               # MCP server c
 | `no valid candidate was generated` | nới `--max-params` / `--max-flops`, tăng `--per-family` |
 | Chỉ vài ứng viên được huấn luyện | tăng `--budget`, hoặc giảm `--zoo`, `--per-family`, hoặc dùng `--seeds N` |
 | Kết luận "không thắng baseline" | đó là kết quả thật: baseline cổ điển đủ tốt cho dữ liệu này, hoặc ngân sách quá ngắn |
+| `every candidate failed to train` | xem `failed_candidates`/log: thường do lr quá lớn, dữ liệu có `inf`, hoặc spec lỗi trong `--extra-specs` |
 | Lần chạy lâu hơn ngân sách nhiều, nhất là khi chạy nhiều lệnh cùng lúc | xem mục Budget trong `leaderboard.md`; đặt `--threads` để tổng số luồng ≤ số CPU |
 | Hết bộ nhớ GPU | đặt `--max-vram`, giảm `--zoo-width` |

@@ -91,14 +91,35 @@ def test_search_is_deterministic_for_a_fixed_seed():
 
 
 def test_select_topk_prefers_family_diversity_and_assigns_roles():
-    def r(fam, val, params, std=0.01):
-        return {"cfg": {"family": fam, "params": params}, "val_mean": val, "val_std": std}
+    def r(fam, val, params, std=0.01, n=3):
+        return {
+            "cfg": {"family": fam, "params": params},
+            "val_mean": val,
+            "val_std": std,
+            "n_seeds": n,
+        }
 
     results = [r("a", 0.9, 100), r("a", 0.89, 50), r("b", 0.8, 30, 0.001), r("c", 0.7, 10)]
     chosen = search.select_topk(results, 3)
     assert [c["cfg"]["family"] for c in chosen] == ["a", "b", "c"]  # a2 loses to b and c
     assert chosen[0]["roles"] == ["top1"]
     assert "best-small" in chosen[2]["roles"] and "most-stable" in chosen[1]["roles"]
+
+
+def test_roles_are_not_given_without_evidence():
+    """Was (audit S5, S4): best-small went to a model LARGER than top1 (171k vs 72k params), and
+    most-stable was picked from std 0.0 of single runs."""
+
+    def r(fam, val, params, n=1):
+        return {
+            "cfg": {"family": fam, "params": params},
+            "val_mean": val,
+            "val_std": 0.0,
+            "n_seeds": n,
+        }
+
+    chosen = search.select_topk([r("a", 0.9, 72_000), r("b", 0.8, 171_000), r("c", 0.7, 90_000)], 3)
+    assert all(role not in c["roles"] for c in chosen for role in ("best-small", "most-stable"))
 
 
 # ================================================================== verdict (frozen rule)

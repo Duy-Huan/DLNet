@@ -6,7 +6,7 @@ Mỗi mục: thuật toán gì, nguồn (paper / mã chính thức), nằm ở �
 
 | Thuật toán | Nguồn | Mã | Ghi chú |
 |---|---|---|---|
-| Successive halving (mặc định) | Jamieson & Talwalkar, arXiv:1502.07943 | `search.run_search` | rung 4 / 12 / 30 epoch, η = 3; chỉ so ứng viên cùng số epoch |
+| Successive halving (mặc định) | Jamieson & Talwalkar, arXiv:1502.07943 | `search.run_search` | rung 4 / 12 / 30 epoch, η = 3, giữ tối thiểu 2 × Top-K (DLNet, khác paper); chỉ so ứng viên cùng số epoch, kể cả ở xếp hạng cuối (`equalize`, `final_order`, từ v0.20) |
 | Hyperband (`--scheduler hyperband`) | Li et al., arXiv:1603.06560, Algorithm 1 | `search.hyperband_brackets`, `run_hyperband` | R = 36 epoch, đơn vị 4 epoch, η = 3; Table 1 của paper lệch Algorithm 1 ở s = 1..3, DLNet theo Algorithm 1 (có test) |
 | Aging (regularized) evolution | Real et al., arXiv:1802.01548, Algorithm 1 | `zoo/space.tournament`, `aging_children`, vòng `[evolve]` trong `cli.py` | tournament S lấy có hoàn lại, con thêm bên phải, già nhất bị loại; chạy theo lô; DLNet thêm lai ghép xác suất 0,3 |
 | Giai đoạn nhiều seed, nhiều lần chia | DLNet | `search.stage2`, `eval_runs` | độ lệch chuẩn gồm cả nhiễu do cách chia khi `--cv-splits` > 1 |

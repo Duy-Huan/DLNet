@@ -283,6 +283,7 @@ Nguyên tắc: lõi **tổng quát trước**, kiểm chứng end-to-end sớm t
 | **M8** | Deep unfolding (khi có mô hình thuận) | **Xong cho bài toán thưa tuyến tính (v0.7.0)**, xem "Kết quả đo M8" ở §5: lệnh `dlnet unfold`, LISTA-CP hơn ISTA và FISTA (λ đã tune) 3,3–6,3 dB ở cùng số vòng K trên dữ liệu tổng hợp. Chưa có: ADMM/AMP, support selection, toán tử A không tường minh (ảnh), dữ liệu thật |
 | **M13** | Port nhóm còn thiếu: đồ thị, id/recommender, autoencoder/VAE, GAN, Mamba-2; cost model; hợp nhất họ cũ | **Xong (v0.11.0–v0.12.0)**, xem §13.7. Chưa có: CVAE, loss cặp (BPR), GAN có điều kiện/FID, đồ thị lớn (dense), graph cạnh học được |
 | **M14** | Khối ảnh từ thư viện chính thống (timm, smp, MONAI, torchvision); đối chiếu số học các khối viết từ trí nhớ | **Xong (v0.13.0)**, xem §13.8 |
+| **M22** | Mốc 1 sau kiểm định: sửa kết quả sai (Hyperband, ứng viên lỗi, xếp hạng cùng epoch, nhiễu một lần chạy, vai trò, verdict, cảnh báo) | **Xong (v0.20.0)**, xem §9.4 |
 | **M21** | GPU: `--device`, mixed precision (`--amp`), `channels_last`, gói xuất ra dùng GPU (§18 P1 mục 1) | **Xong phần mã (v0.19.0), chưa đo trên GPU thật**, xem §9.3 |
 | **M20** | Ổn định (§18 P0 mục 1–3): ngân sách giây được tôn trọng, `--threads`, JSON chuẩn | **Xong (v0.18.0)**, xem §9.2 |
 | **M19** | Regression test toàn bộ dlnet (coverage 90% → 97%, CI có sàn 95%), ngân sách theo epoch tái lập được, sửa lỗi tìm thấy; lộ trình nâng cấp | **Xong (v0.17.0)**, xem §9.1, §18 |
@@ -335,6 +336,16 @@ Môi trường phát triển và CI **không có GPU**, nên chưa có số đo 
 - **Không đổi trên CPU**: cùng lệnh với `--threads 2` cho leaderboard giống từng bit với v0.18.0 (ảnh và bảng).
 - **Chưa làm**: lệnh `gan`, `unfold` vẫn chỉ chạy CPU; proxy, data card, surrogate chạy CPU (nhỏ); `torch.compile`; nhiều GPU. Ước lượng VRAM (`--max-vram`) vẫn chưa đối chiếu với GPU thật.
 - Cần làm khi có GPU: đo tốc độ so với CPU trên vài bộ dữ liệu, so độ chính xác bf16 với float32 cùng ngân sách epoch, đối chiếu VRAM ước lượng với `torch.cuda.max_memory_allocated`.
+
+### 9.4 Mốc 1 sau kiểm định (M22, v0.20): sửa kết quả sai
+Theo `qa/reports/v0.19.0/SUMMARY.md` mục S1–S6, mỗi mục có test trong `tests/test_audit_fixes.py`:
+- **S1** Hyperband sập khi ngân sách epoch hết đúng hạn: ngoặc mới chỉ mở khi `now < deadline`; ngoặc không huấn luyện được ai bị bỏ qua. Lệnh tái hiện (`mnist14 --budget 150ep --seeds 16 --scheduler hyperband --evolve 0`) nay chạy xong.
+- **S2** Cô lập ứng viên lỗi: ngoại lệ, loss NaN/inf ở mọi batch của một epoch (`core.Trainer.fit` bỏ bước có loss không hữu hạn và báo `FloatingPointError` khi cả epoch như vậy), điểm validation không hữu hạn → ứng viên bị loại, ghi `failed_candidates`; chỉ dừng khi mọi ứng viên lỗi.
+- **S3** Xếp hạng trộn số epoch: `search.equalize` huấn luyện tiếp mô hình ít epoch tới mức cao nhất nếu ngân sách cho phép; `search.final_order` xếp nhóm nhiều epoch trước; leaderboard có cột `epochs`, `runs`; mặt Pareto chỉ trên nhóm epoch cao nhất. Đo trên fashion14 150ep: 3 mô hình được nâng từ 4 lên 12 epoch, Top-3 cùng 12 epoch.
+- **S4** Nhiễu một lần chạy: `search.sampling_noise` (accuracy: √(p(1−p)/n); RMSE: RMSE/√(2n); MSE: MSE·√(2/n)) làm sàn cho ± và cho nhóm; quy tắc nhận hyperparameter dùng cùng sàn; cảnh báo khi `runs` = 1.
+- **S5** Vai trò: `best-small` chỉ khi nhỏ hơn top-1; `most-stable` chỉ khi mọi mô hình có ≥ 2 lần chạy.
+- **S6/R1/R2** Cột số lẫn chuỗi được đọc thành số (giá trị lạ thành thiếu) kèm cảnh báo; cột chữ > 50 giá trị cảnh báo; `--target` sai báo rõ; HSI `--split pixel` cảnh báo rò rỉ không gian; verdict có ngưỡng nhiễu trên test và nhiễu cho hồi quy.
+- Mục leaderboard **Warnings** gom các cảnh báo trên, cộng "top-1 mới được huấn luyện < 12 epoch".
 
 ## 10. Quy ước cho agent (người/AI) phát triển repo
 
@@ -804,7 +815,7 @@ Chưa làm: epochs (hiện là công thức mặc định 100 epoch, cosine, ch�
 
 ### 18.1 Thứ tự mới sau kiểm định chất lượng v0.19 (thay thế thứ tự ở trên)
 Đội 4 agent kiểm định (`qa/`, skill `quality-audit`) chấm 34 tiêu chí: 6 ĐẠT, 17 MỘT PHẦN, 11 KHÔNG ĐẠT. Chi tiết, bằng chứng và nguồn: `qa/reports/v0.19.0/SUMMARY.md`.
-- **Mốc 1 (P0, sửa kết quả sai)**: Hyperband sập khi chạm đúng hạn; cô lập ứng viên lỗi hoặc NaN; chỉ xếp hạng cùng số epoch, có cột epoch; nhiễu trung thực khi chỉ có 1 lần chạy; sửa `best-small` và `most-stable`; verdict có ngưỡng nhiễu trên test; cảnh báo one-hot bất thường và HSI chia pixel.
+- ~~**Mốc 1 (P0, sửa kết quả sai)**~~ (xong v0.20.0, §9.4): Hyperband sập khi chạm đúng hạn; cô lập ứng viên lỗi hoặc NaN; chỉ xếp hạng cùng số epoch, có cột epoch; nhiễu trung thực khi chỉ có 1 lần chạy; sửa `best-small` và `most-stable`; verdict có ngưỡng nhiễu trên test; cảnh báo one-hot bất thường và HSI chia pixel.
 - **Mốc 2 (P1, ngân sách)**: pool ứng viên theo ngân sách (finalist ≥ rung 2–3); giai đoạn hyperparameter tắt ở ngân sách nhỏ và tính cả giờ thực; bỏ prior tay khỏi Borda; tiến hóa và Hyperband chỉ bật khi đủ ngân sách, về lâu dài dùng ASHA.
 - **Mốc 3 (P1, mạng đầu ra)**: công thức huấn luyện hiện đại (augmentation, label smoothing, warmup, EMA, mixup; ablation cho thấy tới 17 điểm trên CIFAR); gói xuất ra có `model.pt`, `preprocess.json`, `predict.py`, ONNX; thông báo lỗi và kiểm tra đầu vào.
 - **Mốc 4 (P2, cutting edge)**: pretrained (timm/DINOv2, TabPFN v2); TabM/PLR, PatchTST/iTransformer, Mamba-HSI, graph transformer; DEHB/PriorBand/LC-PFN; đo trên GPU.

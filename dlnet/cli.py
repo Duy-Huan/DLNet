@@ -45,6 +45,26 @@ def _budget_report(text, mode, budget, wall, threads) -> dict:
     return rep
 
 
+def _warnings(data, chosen, failed) -> list[str]:
+    """Plain-language caveats shown at the top of the leaderboard (audit S3, S4, Q2, R9)."""
+    out = list(data.get("warnings", []))
+    if any(r["n_seeds"] < 2 for r in chosen):
+        out.append("Some models were trained only once: their +/- is the sampling error of the "
+                   "validation set, not run-to-run noise. A larger --budget repeats the finalists.")  # fmt: skip
+    eps = sorted({r["epochs"] for r in chosen})
+    if len(eps) > 1:
+        out.append(f"The Top-K mixes models trained {eps} epochs (the budget ended before they could be "
+                   "trained to the same length); compare scores only within the same epochs.")  # fmt: skip
+    if chosen[0]["epochs"] < 12:
+        out.append(f"top1 was trained only {chosen[0]['epochs']} epochs: its rank is a rough early "
+                   "estimate. Increase --budget, or reduce --zoo / --per-family.")  # fmt: skip
+    if failed:
+        out.append(
+            f"{len(failed)} candidate(s) failed or diverged and were dropped (failed_candidates)."
+        )
+    return out
+
+
 def _apply_cost_model(plugin, data, cands, args):
     """Measure params / FLOPs / VRAM of every candidate; drop the ones over the limits."""
     from .zoo import cost
@@ -353,21 +373,29 @@ def _design(args, n_threads) -> int:
             rank=rank,
         )
         results = results + res
+        trace.setdefault("failed", []).extend(sub.get("failed", []))
         population = (population + sub.get("rung1", []))[-pop_size:]  # the oldest die
         best = max((v for _, v in sub.get("rung1", [])), default=None)
         evolution.append({"generation": g, "children": len(kids), "best_rung1_val": best})
+    if len({r["epochs"] for r in results}) > 1:  # never rank 4-epoch against 12-epoch models
+        clock.stage("equalize")
+        results = search.equalize(results, folds, plugin.build_model, deadline, cache=cache)
     clock.stage("hparams")
     print("[hparams] estimating lr / batch size / weight decay for the finalists")
     results = hparams.refine(
         results, data, plugin.build_model, deadline, log=print, folds=folds, cache=cache
     )
-    results = search.assign_groups(results)
-    entries = [(r["cfg"], r["val_mean"]) for r in results]
-    if args.objective != "accuracy":
-        results = [results[i] for i in rank(entries)]
-        entries = [(r["cfg"], r["val_mean"]) for r in results]
-    chosen = search.select_topk(results, args.topk, keep_order=args.objective != "accuracy")
-    extras = {}
+    search.annotate_noise(results, data)
+    results = search.final_order(results, rank if args.objective != "accuracy" else None)
+    search.assign_groups(results, ordered=True)
+    top_ep = results[0]["epochs"]
+    entries = [(r["cfg"], r["val_mean"]) for r in results if r["epochs"] == top_ep]
+    chosen = search.select_topk(results, args.topk)
+    extras = {"warnings": _warnings(data, chosen, trace.get("failed", []))}
+    if trace.get("failed"):
+        extras["failed_candidates"] = trace["failed"]
+    for w in extras["warnings"]:
+        print(f"[warning] {w}")
     front = objectives.pareto_front(entries, "flops" if args.objective == "flops" else args.cost)
     extras["objective"] = {
         "objective": args.objective, "cost": args.cost, "tolerance": args.tolerance,

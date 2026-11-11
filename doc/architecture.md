@@ -96,5 +96,7 @@ Không có trọng số trong gói: kết quả tìm kiếm là kết quả củ
 ## 6. Nguyên tắc đánh giá
 
 - Mọi bước fit (chuẩn hóa, PCA) chỉ dùng split train; HSI chia theo khối được đề xuất để tránh rò rỉ.
-- So với baseline cổ điển cùng mức thông tin; top-1 chỉ được ghi "thắng" khi hơn baseline tốt nhất trên validation quá mức nhiễu **và** hơn mọi baseline trên test.
+- So với baseline cổ điển cùng mức thông tin; top-1 chỉ được ghi "thắng" khi hơn baseline tốt nhất trên validation quá mức nhiễu **và** hơn mọi baseline trên test quá sai số lấy mẫu của tập test.
+- Chỉ so điểm của các mô hình cùng số epoch (`search.equalize`, `search.final_order`); nhiễu của một lần chạy là sai số lấy mẫu của tập validation (`search.sampling_noise`).
+- Một ứng viên ném lỗi hoặc phân kỳ (loss NaN/inf ở mọi batch của một epoch, điểm validation không hữu hạn) bị loại và ghi vào `failed_candidates`, không làm dừng lần chạy.
 - Proxy và quy tắc chọn hạt giống không loại ứng viên khi chưa có số đo chứng minh (`agent.md` §16).

@@ -6,7 +6,22 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-11-11
+
+Mốc M22 (Mốc 1 của lộ trình sau kiểm định, `agent.md` §9.4, `qa/reports/v0.19.0/SUMMARY.md`).
+
+### Sửa
+- `--scheduler hyperband` không còn sập (`KeyError: 'val0'`) khi ngân sách epoch hết đúng hạn.
+- Một ứng viên ném lỗi hoặc phân kỳ (loss NaN/inf, điểm không hữu hạn) bị loại và ghi vào `failed_candidates`, không còn làm dừng lần chạy hay làm sai thứ tự xếp hạng.
+- Xếp hạng cuối chỉ so mô hình cùng số epoch: mô hình ít epoch được huấn luyện tiếp nếu còn ngân sách, nếu không thì xếp sau. Leaderboard có cột `epochs` và `runs`.
+- "± 0" khi chỉ có một lần chạy được thay bằng sai số lấy mẫu của tập validation; nhóm "không phân biệt được" dùng nhiễu này.
+- Vai trò `best-small` không còn gán cho mô hình lớn hơn top-1; `most-stable` chỉ gán khi có ≥ 2 lần chạy.
+- Kết luận "thắng baseline" cần hơn trên test quá sai số lấy mẫu, và tính nhiễu cho bài hồi quy.
+- CSV: cột số có vài giá trị lạ được đọc thành số thay vì one-hot hàng trăm cột; `--target` sai báo lỗi rõ.
+- Ước lượng VRAM của mô hình rất nhỏ không còn bị làm tròn thành 0.
+
 ### Thêm
+- Mục **Warnings** đầu `leaderboard.md` (và `warnings` trong JSON): top-1 ít epoch, một lần chạy, Top-K lẫn epoch, ứng viên lỗi, HSI chia pixel (rò rỉ không gian), cột CSV bất thường.
 - Đội agent kiểm định chất lượng: `qa/CHECKLIST.md` (34 tiêu chí: độ tin cậy, mức hiện đại, tính khả thi, thuật toán), 4 agent trong `.claude/agents/`, skill `quality-audit`. Kết quả kiểm định v0.19.0 và lộ trình: `qa/reports/v0.19.0/SUMMARY.md`, `agent.md` §18.1.
 
 ## [0.19.0] - 2026-11-11
@@ -336,7 +351,8 @@ Bản đầu tiên: prototype chạy được từ dữ liệu đến Top-K base
 - Chưa có zero-cost proxy, cost model FLOPs/VRAM, Tensor-LoRA, deep unfolding; chưa có plugin image và timeseries.
 - Kết quả trên Indian Pines và Pavia University là một lần chạy ngắn trên CPU: với chia theo khối, mạng sâu chưa vượt rõ baseline cổ điển.
 
-[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v0.19.0...HEAD
+[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v0.20.0...HEAD
+[0.20.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.20.0
 [0.19.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.19.0
 [0.18.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.18.0
 [0.17.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.17.0

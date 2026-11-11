@@ -145,6 +145,13 @@ class HSIPlugin(DomainPlugin):
             str(e): hsi_data.multilinear_rank(cube, energy=e) for e in (0.9, 0.95, 0.99)
         }
         d["info"]["cube_shape"] = list(cube.shape)
+        if args.split == "pixel" and args.patch > 1:  # audit R1: 99.6 % overlap on Indian Pines
+            d["warnings"] = [(
+                f"--split pixel with --patch {args.patch}: validation/test pixels sit inside the patches of "
+                "training pixels, so scores are optimistic (spatial leakage). Use --split block for an "
+                "honest estimate of performance on new areas."
+            )]  # fmt: skip
+            print(f"[warning] {d['warnings'][0]}")
         return d
 
     def profile(self, data):

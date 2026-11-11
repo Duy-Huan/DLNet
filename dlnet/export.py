@@ -55,30 +55,33 @@ def _hp_note(hp: dict) -> str:
     )
 
 
-def verdict(top1: dict, reference: list[dict], n_val: int, task: str) -> dict:
+def verdict(top1: dict, reference: list[dict], n_val: int, task: str, primary: str = "accuracy",
+            n_test: int | None = None) -> dict:  # fmt: skip
     """Acceptance rule (conservative).
 
     top1 must beat the best reference (picked on validation) on BOTH
-      - validation, by more than its seed std (floored by the binomial noise for tiny
-        classification validation sets), and
-      - the held-out test split, against EVERY reference model (not only the validation winner).
+      - validation, by more than its noise: the run-to-run std, floored by the sampling error of
+        the validation set (search.sampling_noise; also for regression, audit R2), and
+      - the held-out test split, against EVERY reference model (not only the validation winner),
+        by more than the sampling error of the test set.
     Comparing on validation alone is optimistic: top1 is the best of many candidates.
     """
+    from .search import sampling_noise
+
     best_ref = reference[0]
     margin = top1["val_mean"] - best_ref["va"]["score"]
-    noise = top1["val_std"]
-    if task == "classification":
-        p = min(max(top1["val_mean"], 0.01), 0.99)
-        noise = max(noise, (p * (1 - p) / n_val) ** 0.5)
+    noise = max(top1["val_std"], sampling_noise(top1["val_mean"], primary, n_val))
     test_margin = top1["test"]["score"] - max(
         r["te"]["score"] for r in reference
     )  # vs every reference
-    ok = margin > noise and test_margin > 0
+    test_noise = sampling_noise(top1["test"]["score"], primary, n_test or n_val)
+    ok = margin > noise and test_margin > test_noise
     return {
         "beats_reference": bool(ok),
         "val_margin": round(margin, 5),
         "val_noise": round(noise, 5),
         "test_margin": round(test_margin, 5),
+        "test_noise": round(test_noise, 5),
         "top1_val": round(top1["val_mean"], 5),
         "best_reference": best_ref["name"],
         "best_reference_val": round(best_ref["va"]["score"], 5),
@@ -178,7 +181,7 @@ def export(out_dir, plugin, data, prof, chosen, reference, seed, epochs_recipe=1
     _prepare_out_dir(out)
     task = data["task"]
     fair = plugin.reference_for(chosen[0]["cfg"], reference)  # e.g. PCA with the same code size
-    v = verdict(chosen[0], fair, len(data["yva"]), task)
+    v = verdict(chosen[0], fair, len(data["yva"]), task, data["primary"], len(data["yte"]))
     if fair is not reference:
         v["reference_matched_to"] = [r["name"] for r in fair]
 
@@ -231,7 +234,7 @@ def export(out_dir, plugin, data, prof, chosen, reference, seed, epochs_recipe=1
             f"# top{i}: {cfg['family']}  {r['roles']}\n\n"
             f"- Config: `{arch}`\n- Origin: {cfg.get('origin', 'legacy family')}\n- Params: {cfg['params']:,}\n"
             f"- Cost model: {_cost_line(cfg)}\n"
-            f"- Validation ({data['primary']}): {r['val_mean']:.4f} +/- {r['val_std']:.4f} "
+            f"- Validation ({data['primary']}): {r['val_mean']:.4f} +/- {r.get('val_noise', r['val_std']):.4f} "
             f"({r['n_seeds']} runs on {r.get('n_splits', 1)} split(s), {r['epochs']} epochs)\n"
             f"- Test (mean over runs): {_fmt(r['test'], task)}, "
             f"primary metric +/- {r.get('test_std', 0.0):.4f}\n"
@@ -254,9 +257,12 @@ def export(out_dir, plugin, data, prof, chosen, reference, seed, epochs_recipe=1
                 "hyperparameters": hp,
                 "val_mean": round(r["val_mean"], 5),
                 "val_std": round(r["val_std"], 5),
+                "val_noise": round(r.get("val_noise", r["val_std"]), 5),
+                "noise_source": r.get("noise_source", "runs"),
+                "epochs": r["epochs"],
                 "origin": cfg.get("origin"),
                 "flops": cfg.get("flops"),
-                "vram_mb": None if cfg.get("vram_mb") is None else round(cfg["vram_mb"], 1),
+                "vram_mb": None if cfg.get("vram_mb") is None else round(cfg["vram_mb"], 3),
                 "n_runs": r["n_seeds"],
                 "n_splits": r.get("n_splits", 1),
                 "test_std": round(r.get("test_std", 0.0), 5),
@@ -286,21 +292,29 @@ def export(out_dir, plugin, data, prof, chosen, reference, seed, epochs_recipe=1
         )
     )
     md = [f"# Leaderboard ({task}, primary metric = {data['primary']}, higher is better)\n"]
+    warns = (extras or {}).get("warnings") or []
+    if warns:
+        md.append("**Warnings**\n")
+        md += [f"- {w}" for w in warns]
+        md.append("")
     md.append(
-        "| rank | model | roles | group | params | MFLOPs | MB | lr | wd | batch | val (mean+/-std) | test |"
+        "| rank | model | roles | group | epochs | runs | params | MFLOPs | MB | lr | wd | batch | val (mean+/-noise) | test |"
     )
-    md.append("|---|---|---|---|---|---|---|---|---|---|---|---|")
+    md.append("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|")
     for r in rows:
         ts, h = _short(r["test"], task), r["hyperparameters"]
         md.append(
-            f"| {r['rank']} | {r['name']} | {', '.join(r['roles'])} | {r['group']} | {r['params']:,} | "
+            f"| {r['rank']} | {r['name']} | {', '.join(r['roles'])} | {r['group']} | {r['epochs']} | "
+            f"{r['n_runs']} | {r['params']:,} | "
             f"{'-' if r['flops'] is None else format(r['flops'] / 1e6, '.1f')} | "
             f"{'-' if r['vram_mb'] is None else format(r['vram_mb'], '.0f')} | {h['lr']:.2g} | {h['weight_decay']:.2g} | {h['batch_size']} | "
-            f"{r['val_mean']} +/- {r['val_std']} | {ts} (+/- {r['test_std']}) |"
+            f"{r['val_mean']} +/- {r['val_noise']} | {ts} (+/- {r['test_std']}) |"
         )
     ns = max(r["n_splits"] for r in rows)
     md.append(
-        f"\nEach number is a mean over runs (seeds); +/- is the std over those runs. "
+        f"\nEach number is a mean over `runs` (seeds); +/- is the larger of the std over those runs "
+        f"and the sampling error of the validation set (the only noise estimate when runs = 1). "
+        f"Models are ranked within the same `epochs` (more epochs first). "
         f"Finalists were ranked on {ns} split(s)"
         + (", so the std includes split-to-split noise." if ns > 1 else ".")
     )
@@ -313,12 +327,13 @@ def export(out_dir, plugin, data, prof, chosen, reference, seed, epochs_recipe=1
     if v["beats_reference"]:
         md.append(
             f"top1 beats the best reference ({v['best_reference']}): val margin {v['val_margin']} "
-            f"(> noise {v['val_noise']}) and test margin {v['test_margin']}."
+            f"(> noise {v['val_noise']}) and test margin {v['test_margin']} (> noise {v['test_noise']})."
         )
     else:
         md.append(
             f"**No significant win over the best reference ({v['best_reference']}).** "
-            f"Val margin {v['val_margin']} vs noise {v['val_noise']}; test margin {v['test_margin']}. "
+            f"Val margin {v['val_margin']} vs noise {v['val_noise']}; test margin {v['test_margin']} "
+            f"vs noise {v['test_noise']}. "
             "Consider the reference baseline first; the deep-learning candidates below are still valid to try."
         )
     ob = (extras or {}).get("objective")
