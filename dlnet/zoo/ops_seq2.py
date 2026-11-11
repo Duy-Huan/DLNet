@@ -420,7 +420,10 @@ class MambaVisionMixer(nn.Module):
         z = F.silu(F.conv1d(z, self.conv1d_z.weight, None, padding="same", groups=z.shape[1]))
         dbl = self.x_proj(x.transpose(1, 2).reshape(b * n, -1))
         dt, bb, cc = torch.split(dbl, [self.dt_rank, self.d_state, self.d_state], dim=-1)
-        dt = F.softplus(self.dt_proj(dt).view(b, n, -1).transpose(1, 2))  # delta_bias + softplus
+        # the original calls self.dt_proj(dt) (bias included) AND passes delta_bias=dt_proj.bias to
+        # the scan, so the bias is added twice: kept, to compute the same function
+        dt = self.dt_proj(dt).view(b, n, -1).transpose(1, 2) + self.dt_proj.bias[None, :, None]
+        dt = F.softplus(dt)
         bb = bb.view(b, n, -1).transpose(1, 2)
         cc = cc.view(b, n, -1).transpose(1, 2)
         y = selective_scan(x, dt, -torch.exp(self.A_log.float()), bb, cc, self.D.float())
