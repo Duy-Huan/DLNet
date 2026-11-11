@@ -161,9 +161,11 @@ def selective_scan(u, delta, A, B, C, D):
     dBu = torch.einsum("bdl,bnl,bdl->bdln", delta, B, u)
     x = u.new_zeros(u.shape[0], A.shape[0], A.shape[1])
     ys = []
-    for i in range(u.shape[2]):
-        x = dA[:, :, i] * x + dBu[:, :, i]
-        ys.append(torch.einsum("bdn,bn->bd", x, C[:, :, i]))
+    # unbind, not dA[:, :, i]: the backward of each index op allocates a zero tensor as large as dA,
+    # O(L^2) memory traffic (FAHM training step 13.8 s -> see tests/test_regression.py)
+    for a_i, bu_i, c_i in zip(dA.unbind(2), dBu.unbind(2), C.unbind(2)):
+        x = a_i * x + bu_i
+        ys.append(torch.einsum("bdn,bn->bd", x, c_i))
     return torch.stack(ys, 2) + u * D[None, :, None]
 
 

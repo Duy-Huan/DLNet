@@ -39,15 +39,17 @@ def recurrent_gated_delta_rule(q, k, v, beta, g):
     """lit_gpt recurrent_gated_delta_rule_ref: S_t = exp(g_t) S_{t-1}, v' = beta (v - S k),
     S += k v'^T, o_t = S^T (q / sqrt(d_k)). q, k, v (B, H, L, D); beta, g (B, H, L)."""
     q, k, v, beta, g = (x.float() for x in (q, k, v, beta, g))
-    b, h, n, dk = q.shape
+    b, h, _, dk = q.shape
     s = q.new_zeros(b, h, dk, v.shape[-1])
     q = q * dk**-0.5
     out = []
-    for i in range(n):
-        s = s * g[:, :, i].exp()[..., None, None]
-        vi = (v[:, :, i] - (s * k[:, :, i, :, None]).sum(-2)) * beta[:, :, i, None]
-        s = s + k[:, :, i, :, None] * vi[:, :, None, :]
-        out.append(torch.einsum("bhd,bhdm->bhm", q[:, :, i], s))
+    for q_i, k_i, v_i, b_i, g_i in zip(
+        *(x.unbind(2) for x in (q, k, v, beta, g))
+    ):  # unbind: see selective_scan
+        s = s * g_i.exp()[..., None, None]
+        vi = (v_i - (s * k_i[..., None]).sum(-2)) * b_i[..., None]
+        s = s + k_i[..., None] * vi[:, :, None, :]
+        out.append(torch.einsum("bhd,bhdm->bhm", q_i, s))
     return torch.stack(out, 2)
 
 
