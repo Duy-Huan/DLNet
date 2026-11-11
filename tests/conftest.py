@@ -41,3 +41,13 @@ def hsi_npz(tmp_path, cube_gt):
     p = tmp_path / "cube.npz"
     np.savez(p, cube=cube, gt=gt)
     return p
+
+
+@pytest.fixture(autouse=True)
+def _wall_clock_budget():
+    """Every test starts with the default wall-clock budget mode (dlnet/clock.py is global)."""
+    from dlnet import clock
+
+    clock.start("time")
+    yield
+    clock.start("time")

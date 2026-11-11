@@ -283,6 +283,7 @@ Nguyên tắc: lõi **tổng quát trước**, kiểm chứng end-to-end sớm t
 | **M8** | Deep unfolding (khi có mô hình thuận) | **Xong cho bài toán thưa tuyến tính (v0.7.0)**, xem "Kết quả đo M8" ở §5: lệnh `dlnet unfold`, LISTA-CP hơn ISTA và FISTA (λ đã tune) 3,3–6,3 dB ở cùng số vòng K trên dữ liệu tổng hợp. Chưa có: ADMM/AMP, support selection, toán tử A không tường minh (ảnh), dữ liệu thật |
 | **M13** | Port nhóm còn thiếu: đồ thị, id/recommender, autoencoder/VAE, GAN, Mamba-2; cost model; hợp nhất họ cũ | **Xong (v0.11.0–v0.12.0)**, xem §13.7. Chưa có: CVAE, loss cặp (BPR), GAN có điều kiện/FID, đồ thị lớn (dense), graph cạnh học được |
 | **M14** | Khối ảnh từ thư viện chính thống (timm, smp, MONAI, torchvision); đối chiếu số học các khối viết từ trí nhớ | **Xong (v0.13.0)**, xem §13.8 |
+| **M19** | Regression test toàn bộ dlnet (coverage 90% → 97%, CI có sàn 95%), ngân sách theo epoch tái lập được, sửa lỗi tìm thấy; lộ trình nâng cấp | **Xong (v0.17.0)**, xem §9.1, §18 |
 | **M17** | Học ánh xạ đặc trưng dữ liệu → hạt giống: surrogate zero-shot ZAP, meta-dataset 14 bộ ảnh có sẵn | **Xong (v0.16.0)**, xem §16.6 |
 | **M18** | Tùy chọn AI: advisor gọi Claude Code / Codex / Gemini CLI; MCP server `dlnet mcp` | **Xong (v0.16.0)**, xem `doc/ai-advisor.md`. Chưa đo hiệu quả với AI thật |
 | **M16** | Hướng tối ưu (`--objective`: accuracy, params, flops, balanced, pareto); bộ tài liệu `doc/` và quy tắc cập nhật theo phiên bản | **Xong (v0.15.0)**, xem §17, `doc/` |
@@ -308,6 +309,14 @@ Nguyên tắc: lõi **tổng quát trước**, kiểm chứng end-to-end sớm t
 9. **Kết quả audit (regression test khóa từng lỗi, `tests/test_regression.py`)** — đã sửa: (a) hết ngân sách trước rung đầu → `IndexError`; (b) hết giờ giữa rung → ứng viên bị bỏ lại giữ điểm cũ và bị xếp hạng cùng ứng viên train nhiều epoch hơn; (c) `--out` bị `rmtree` toàn bộ (xóa cả file lạ); (d) impute thiếu dữ liệu bằng median của toàn bộ dòng (rò rỉ test sang train), giờ dùng median của train; (e) dòng thiếu nhãn không bị loại; (f) split rỗng (dữ liệu quá nhỏ, khối lớn hơn ảnh) làm `evaluate` sập với thông báo khó hiểu, giờ báo lỗi rõ; (g) không sinh được ứng viên nào → `IndexError`, giờ báo lỗi rõ; (h) lớp ≥3 mẫu có thể vắng trong val/test, giờ luôn có mặt trong mọi split. Chưa sửa: ngân sách thời gian vẫn chỉ kiểm tra giữa các ứng viên; các hạn chế ở mục 7–8.
 
 ---
+
+### 9.1 Audit v0.17 (bao phủ toàn bộ dlnet) và các phát hiện
+Đo bằng `coverage` (cả lệnh CLI trong tiến trình con): **90% → 97%**, 590+ test; CI có job `coverage` với sàn 95%.
+- **Kết quả phụ thuộc tốc độ máy (đã sửa)**: mọi ngân sách là giây, nên 2 test e2e khẳng định chất lượng (chuỗi thời gian, phân đoạn) đỏ khi máy chậm (dưới coverage). Thêm ngân sách theo epoch `--budget 400ep` (`dlnet/clock.py`): cùng lệnh, cùng leaderboard trên mọi máy; test chất lượng chuyển sang epoch.
+- **Crash (đã sửa)**: advisor lỗi ở lần gọi đầu nhưng trả lời ở vòng tiến hóa làm `design` crash (`None.setdefault`).
+- **Sai lệch tài liệu/mã (đã sửa)**: trợ giúp CLI nói `autoencoder` nhưng alias không có.
+- **Cảnh báo số học (đã sửa)**: dữ liệu hằng / trùng điểm cho 0/0 trong TwoNN và `pca_dims_for_95pct_energy` > số đặc trưng.
+- **Còn mở** (đưa vào §18): ngân sách giây bị vượt (30 s chạy 35–138 s: baseline, data card, proxy không bị giới hạn; HistGradientBoosting 0,07 s lúc rảnh nhưng 11,6 s khi máy bận vì OpenMP tranh luồng); `NaN` được ghi vào `profile.json` (JSON không chuẩn); không dùng GPU; `gan_data.py` là bản sao của `gan_run.py` trong gói GAN (có test so khớp, vẫn dễ lệch).
 
 ## 10. Quy ước cho agent (người/AI) phát triển repo
 
@@ -745,6 +754,35 @@ Chưa làm: epochs (hiện là công thức mặc định 100 epoch, cosine, ch�
 3. Commit phát hành dùng `python scripts/release.py bump X.Y.Z`: đổi phiên bản trong `pyproject.toml`, `dlnet/__init__.py`, `doc/README.md`, mở mục CHANGELOG, sinh lại `doc/cli.md`, `doc/zoo.md`.
 4. Kiểm tra tự động: `python scripts/release.py check` (phiên bản tài liệu = phiên bản gói) và `tests/test_docs.py` (tài liệu sinh tự động khớp mã, không có link hỏng, mọi hướng tối ưu và lệnh đều được nhắc tới). CI chạy cả hai, nên tài liệu lệch thì không phát hành được.
 5. Mỗi mốc mới: thêm mục vào `doc/algorithms.md` (thuật toán + nguồn + số đo) và hướng dẫn dùng vào `doc/user-guide.md`.
+
+## 18. Lộ trình nâng cấp đề xuất (sau audit v0.17)
+
+Ưu tiên theo (lợi ích cho người dùng) / (công sức). P0 = ổn định, nên làm trước; P1 = hiệu quả; P2 = thông minh hơn. Mỗi mục có bằng chứng từ §9.1 hoặc các phép đo trước.
+
+### P0. Ổn định và tái lập
+1. **Ngân sách giây phải được tôn trọng**: hạn giờ cho từng giai đoạn trước tìm kiếm (data card, baseline, proxy), ghi bảng "ngân sách đã tiêu theo giai đoạn" vào leaderboard, cảnh báo khi vượt > 10%. Bằng chứng: 30 s chạy 35–138 s.
+2. **Kiểm soát số luồng** (`--threads`, `threadpoolctl` cho sklearn/OpenMP + `torch.set_num_threads`): tránh tranh luồng (HistGradientBoosting 0,07 s → 11,6 s khi máy bận) và crash đa luồng kiểu torch 2.15 (§16.5).
+3. **JSON hợp lệ**: ghi `NaN`/`inf` thành `null` (`allow_nan=False` + làm sạch), có test; hiện `profile.json` có thể chứa `NaN`.
+4. **Manifest tái lập** trong `leaderboard.json`: phiên bản DLNet, torch, numpy, số luồng, thiết bị, seed, chế độ ngân sách, dấu vân tay dữ liệu; `--deterministic` bật `torch.use_deterministic_algorithms`.
+5. **Tiếp tục sau khi bị ngắt**: nhật ký từng bước (journal) để `design` chạy lại tiếp từ rung đang dở, không chỉ từ cache giai đoạn 2.
+6. **Kiểm tra dữ liệu đầu vào sớm**: lớp có < 3 mẫu, mất cân bằng cực đoan, ảnh quá lớn so với RAM, nhãn phân đoạn ngoài dải: báo lỗi rõ trước khi tiêu ngân sách.
+7. **Test mạnh hơn**: property-based test (hypothesis) cho ngữ pháp zoo ("mọi spec lấy mẫu đều dựng và lan truyền ngược được"), mutation testing (mutmut) cho `objectives`, `search`, `export.verdict`; nâng sàn coverage dần.
+8. **Một nguồn cho mã trong gói xuất ra**: `gan_data.py` sao chép từ `gan_run.py` thay vì viết lại.
+
+### P1. Hiệu quả
+1. **GPU và mixed precision** (`--device auto`, AMP bf16/fp16, `channels_last`): hiện DLNet chỉ chạy CPU; đây là tăng tốc lớn nhất có thể (thường 10–50 lần với CNN).
+2. **Huấn luyện song song nhiều ứng viên** (nhiều tiến trình / nhiều GPU) với **ASHA** (arXiv:1810.05934, đã có trong `ref/`): successive halving bất đồng bộ không phải chờ cả rung.
+3. **Đa độ chính xác theo dữ liệu**: rung đầu dùng tập con dữ liệu / ảnh thu nhỏ (Hyperband với tài nguyên là số mẫu), chỉ ứng viên tốt mới thấy toàn bộ dữ liệu.
+4. **Dừng sớm theo đường học** (ngoại suy learning curve, freeze-thaw BO, arXiv:1406.3896 trong `ref/`): bỏ ứng viên giữa rung khi đường cong không thể vượt ngưỡng.
+5. **Khởi tạo con từ cha** trong tiến hóa (network morphism / Net2Net): con kế thừa trọng số, không huấn luyện từ đầu.
+6. **Baseline cổ điển chạy song song** với tìm kiếm và có giới hạn cỡ dữ liệu (HistGradientBoosting trên dữ liệu lớn).
+7. **Gói xuất ra nhẹ hơn**: xuất ONNX/TorchScript, gộp RepVGG khi xuất, lượng tử hóa cho `--objective params|flops`.
+
+### P2. Thông minh hơn
+1. **Meta-dataset lớn hơn và đúng mục tiêu hơn**: thêm bộ dữ liệu, nhãn là kết quả sau huấn luyện đầy đủ thay vì 4 epoch; chỉ khi đó mới đo việc **loại** ứng viên theo surrogate cùng ngân sách (§16.6).
+2. **Meta-feature tốt hơn**: Task2Vec (arXiv:1902.03545) hoặc embedding từ mạng probe nhỏ thay cho data card viết tay.
+3. **Đề xuất cấu hình có mô hình** (BOHB, arXiv:1807.01774; TPE): sinh kiến trúc từ phân phối học được thay vì lấy mẫu ngẫu nhiên trong ngữ pháp.
+4. **Đo AI advisor** trên dữ liệu thật, nhiều seed, cùng ngân sách epoch; chỉ tăng trọng số khi thắng rõ.
 
 ## Tài liệu tham khảo
 Toàn bộ PDF nằm trong `ref/` (mục lục: `ref/README.md`); thuật toán ước lượng chất lượng và hyperparameter trong `ref/optimazeDL/` (§16).

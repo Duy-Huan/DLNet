@@ -409,7 +409,7 @@ def _blobs(tmp_path, kind):
 @pytest.mark.parametrize("kind", ["tabular", "image"])
 def test_cli_design_with_zoo_and_evolution_exports_standalone_packages(kind, tmp_path):
     out = tmp_path / "o"
-    argv = ["design", *_blobs(tmp_path, kind), "--budget", "70s", "--topk", "2", "--per-family", "1", "--zoo", "8",
+    argv = ["design", *_blobs(tmp_path, kind), "--budget", "300ep", "--topk", "2", "--per-family", "1", "--zoo", "8",
             "--evolve", "1", "--evolve-pop", "3", "--no-proxies", "--no-cache", "--out", str(out)]  # fmt: skip
     assert cli.main(argv) == 0
     board = json.loads((out / "leaderboard.json").read_text())

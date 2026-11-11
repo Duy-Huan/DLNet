@@ -6,6 +6,20 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+Mốc M19 (xem `agent.md` §9.1, §18): regression test toàn bộ, ngân sách tái lập được.
+
+### Thêm
+- **`--budget 400ep`**: ngân sách theo số epoch huấn luyện (`dlnet/clock.py`). Cùng lệnh cho cùng leaderboard trên máy nhanh hay chậm; các bước không huấn luyện không tính.
+- Đo bao phủ (`coverage`, đếm cả lệnh CLI trong tiến trình con): 90% → 97%; job CI `coverage` với sàn 95% (`pyproject.toml`).
+- Test mới: `tests/test_cli_flows.py` (mọi nhánh tùy chọn của `design`), `tests/test_coverage_gaps.py` (kiểm tra đầu vào, plugin, gói GAN, MCP, advisor, lỗi spec, RepVGG `fuse`, `train_full`).
+- `--plugin autoencoder` / `reconstruction` là tên khác của `image_reconstruction` (trợ giúp CLI đã nói vậy nhưng trước đây báo lỗi).
+- `agent.md` §18: lộ trình nâng cấp đề xuất (ổn định, hiệu quả, thông minh).
+
+### Sửa
+- `design` crash khi advisor lỗi ở lần gọi đầu nhưng trả lời ở vòng tiến hóa; khối `ai_advisor` nay luôn có khi dùng advisor.
+- Dữ liệu hằng hoặc trùng điểm: không còn cảnh báo 0/0 trong ước lượng intrinsic dimension; `pca_dims_for_95pct_energy` không vượt số đặc trưng.
+- Các test e2e khẳng định chất lượng dùng ngân sách epoch, không còn đỏ khi máy chậm.
+
 ## [0.16.0] - 2026-11-10
 
 Mốc M17 và M18 (xem `agent.md` §16.6, `doc/algorithms.md` §3, `doc/ai-advisor.md`).

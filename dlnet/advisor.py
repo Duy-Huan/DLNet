@@ -118,10 +118,7 @@ def parse(text: str) -> dict:
     """The first JSON object in the reply (AI CLIs often wrap it in prose or ``` fences)."""
     m = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
     blob = m.group(1) if m else text[text.find("{") : text.rfind("}") + 1]
-    d = json.loads(blob)
-    if not isinstance(d, dict):
-        raise TypeError("advisor reply is not a JSON object")
-    return d
+    return json.loads(blob)  # text between braces is an object or invalid JSON (ValueError)
 
 
 def validate(reply: dict, cands, kind, dims, out_dim, head, train, max_params, rng) -> dict:

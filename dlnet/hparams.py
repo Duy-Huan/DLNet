@@ -19,12 +19,12 @@ from __future__ import annotations
 
 import copy
 import math
-import time
 
 import numpy as np
 import torch
 from torch import nn
 
+from . import clock
 from .core import Trainer
 
 MIN_BATCH, MAX_BATCH = 16, 512
@@ -195,7 +195,7 @@ def refine(results, data, build_fn, deadline, epochs_recipe=100, log=print, fold
             "val_searched": r["val_mean"],
             "val_estimated": None,
         }
-        if time.time() > deadline:
+        if clock.now() > deadline:
             continue
         try:
             est = estimate(r, data, build_fn, epochs_recipe)
@@ -206,7 +206,7 @@ def refine(results, data, build_fn, deadline, epochs_recipe=100, log=print, fold
             log(f"[hparams] {cfg['family']}: estimate failed ({e}); keeping searched")
             continue
         r["hparams"]["estimated"] = est
-        if (est["lr"], est["batch"]) == (cfg["lr"], cfg["batch"]) or time.time() > deadline:
+        if (est["lr"], est["batch"]) == (cfg["lr"], cfg["batch"]) or clock.now() > deadline:
             continue
         cand = {**cfg, "lr": est["lr"], "batch": est["batch"], "wd": est["wd"]}
         vals, tests, _, _ = eval_runs(

@@ -129,7 +129,8 @@ python -m dlnet design --data new.npz --meta-store meta_image.jsonl
 
 | Tùy chọn | Ý nghĩa |
 |---|---|
-| `--budget 10m` | tổng thời gian; luôn có ít nhất một kết quả kể cả khi hết giờ sớm |
+| `--budget 10m` | tổng thời gian (giây/phút/giờ); luôn có ít nhất một kết quả kể cả khi hết giờ sớm. Kết quả phụ thuộc tốc độ máy |
+| `--budget 400ep` | ngân sách **theo epoch**: mỗi epoch của bất kỳ ứng viên nào tính 1; các bước không huấn luyện (hồ sơ, baseline, proxy) không tính. Cùng lệnh cho cùng leaderboard trên máy nhanh hay chậm: dùng khi cần tái lập kết quả, so sánh hai cấu hình, hoặc chạy trong CI |
 | `--max-params 500k`, `--max-flops 50M`, `--max-vram 4000` | loại ứng viên vượt giới hạn trước khi huấn luyện (VRAM là ước lượng, chưa đối chiếu GPU) |
 | `--zoo 12`, `--evolve 1`, `--evolve-pop 8` | số kiến trúc từ zoo, số thế hệ tiến hóa, số con mỗi thế hệ |
 | `--per-family 8` | số cấu hình ngẫu nhiên mỗi họ mô hình |

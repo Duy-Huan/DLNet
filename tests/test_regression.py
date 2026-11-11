@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import json
 import time
-import types
 
 import pytest
 
@@ -71,7 +70,7 @@ def test_search_does_not_compare_candidates_with_different_epochs(monkeypatch):
         tick["t"] += 1.0
         return tick["t"]
 
-    monkeypatch.setattr(search, "time", types.SimpleNamespace(time=fake_time))
+    monkeypatch.setattr(search.clock, "now", fake_time)
     cands = [_cfg(width=w) for w in (8, 16, 24, 32)]
     res = search.run_search(
         _tab_data(), cands, 7.5, 2, build_model, rungs=(1, 2, 3), eta=1, seeds=1,
@@ -531,3 +530,47 @@ def test_image_tensors_are_contiguous():
     assert all(d["X" + k].is_contiguous() for k in ("tr", "va", "te"))
     s = array_data.build_segmentation(X, rng.integers(0, 2, (30, 8, 8)), 0)
     assert all(s["X" + k].is_contiguous() for k in ("tr", "va", "te"))
+
+
+def test_work_budget_is_reproducible_and_bounded(tmp_path):
+    """Was: every budget was wall-clock seconds, so the same command gave a different leaderboard
+    on a slower machine (and quality-asserting tests failed under coverage or a busy CI runner)."""
+    import json
+
+    from dlnet import cli, clock
+
+    rng = np.random.default_rng(0)
+    X = rng.normal(size=(120, 6)).astype("float32")
+    p = tmp_path / "t.npz"
+    np.savez(p, X=X.reshape(120, 6, 1), y=(X[:, 0] > 0).astype(int))
+
+    def go(out):
+        argv = ["design", "--data", str(p), "--budget", "60ep", "--topk", "2", "--per-family", "1",
+                "--zoo", "2", "--evolve", "1", "--evolve-pop", "2", "--out", str(out), "--no-cache",
+                "--no-builtin-meta"]  # fmt: skip
+        assert cli.main(argv) == 0
+        b = json.loads((out / "leaderboard.json").read_text())
+        return [(r["name"], r["val_mean"]) for r in b["top_k"]], clock.now()
+
+    a, spent_a = go(tmp_path / "a")
+    b, spent_b = go(tmp_path / "b")
+    assert a == b and spent_a == spent_b
+    assert spent_a <= 60 + 36  # one candidate may finish the rung it started (36 = longest rung)
+    assert cli.parse_budget_mode("400ep") == (400.0, "work")
+    assert cli.parse_budget_mode("2m") == (120.0, "time")
+    clock.start("time")
+
+
+def test_profile_of_constant_or_duplicated_data_has_no_warnings_and_valid_bounds():
+    """Was: RuntimeWarnings (0/0) and pca_dims_for_95pct_energy > n_features on constant data
+    (seen with id-only recommender inputs)."""
+    import warnings
+
+    from dlnet import profile
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        p = profile.profile({"Xnp": {"tr": np.zeros((40, 3))}, "task": "classification",
+                             "classes": [0, 1], "primary": "accuracy"})  # fmt: skip
+        assert np.isnan(profile.twonn_intrinsic_dim(np.ones((30, 2))))
+    assert p["pca_dims_for_95pct_energy"] <= 3 and p["scaling_exponent_hat"] is None

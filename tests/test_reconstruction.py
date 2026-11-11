@@ -133,7 +133,7 @@ def test_router_picks_the_autoencoder_plugin_for_label_free_images(img_npz, tmp_
 @pytest.mark.e2e
 def test_cli_design_end_to_end_and_package_runs(img_npz, tmp_path):
     out = tmp_path / "o"
-    argv = ["design", "--data", str(img_npz), "--budget", "60s", "--topk", "1", "--per-family", "1", "--zoo", "0", "--evolve", "0",
+    argv = ["design", "--data", str(img_npz), "--budget", "240ep", "--topk", "1", "--per-family", "1", "--zoo", "0", "--evolve", "0",
             "--no-proxies", "--out", str(out)]  # fmt: skip
     assert cli.main(argv) == 0
     board = json.loads((out / "leaderboard.json").read_text())

@@ -13,6 +13,14 @@ import numpy as np
 import torch
 from torch import nn
 
+try:  # inside the dlnet package: epochs count against a work budget (dlnet/clock.py)
+    from .clock import spend as _spend
+except ImportError:  # inside an exported package there is no budget
+
+    def _spend(_epochs):
+        return None
+
+
 # --------------------------------------------------------------------------- data
 
 
@@ -181,6 +189,7 @@ class Trainer:
             if scheduler is not None:
                 scheduler.step()
             self.epochs_done += 1
+            _spend(1)
         self.seconds += time.time() - t0
 
     @torch.no_grad()

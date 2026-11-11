@@ -11,10 +11,20 @@ from . import __version__
 
 
 def parse_budget(s: str) -> float:
-    m = re.fullmatch(r"(\d+(?:\.\d+)?)([smh]?)", s.strip())
+    """Seconds for 90s / 5m / 2h / 300; for 400ep a number of training epochs (see dlnet/clock.py)."""
+    return parse_budget_mode(s)[0]
+
+
+def parse_budget_mode(s: str) -> tuple[float, str]:
+    m = re.fullmatch(r"(\d+(?:\.\d+)?)(s|m|h|ep)?", s.strip())
     if not m:
-        raise SystemExit(f"bad --budget {s!r} (use e.g. 90s, 5m, 2h)")
-    return float(m.group(1)) * {"": 1, "s": 1, "m": 60, "h": 3600}[m.group(2)]
+        raise SystemExit(
+            f"bad --budget {s!r} (use e.g. 90s, 5m, 2h, or 400ep for a number of epochs)"
+        )
+    unit = m.group(2) or "s"
+    if unit == "ep":
+        return float(m.group(1)), "work"
+    return float(m.group(1)) * {"s": 1, "m": 60, "h": 3600}[unit], "time"
 
 
 def _apply_cost_model(plugin, data, cands, args):
@@ -62,11 +72,24 @@ def design(args) -> int:
     import numpy as np
     import torch
 
-    from . import advisor, export, hparams, meta, objectives, plugins, proxies, search, seeds, zoo
+    from . import (
+        advisor,
+        clock,
+        export,
+        hparams,
+        meta,
+        objectives,
+        plugins,
+        proxies,
+        search,
+        seeds,
+        zoo,
+    )
     from .zoo import space
 
-    t0 = time.time()
-    budget = parse_budget(args.budget)
+    t_wall = time.time()
+    budget, clock_mode = parse_budget_mode(args.budget)
+    t0 = clock.start(clock_mode)
     deadline = t0 + budget
     search_deadline = t0 + 0.8 * budget  # the last 20% goes to hyperparameter estimation
     export.check_out_dir(args.out)  # fail before spending the budget, not after
@@ -137,8 +160,9 @@ def design(args) -> int:
     # Zero-cost proxies of the untrained candidates: measured against real training below; they
     # vote in the seed selection only with --seed-proxies (agent.md 16.1). At most 10% of the budget.
     zc, t_px = {}, time.time()  # the proxy stage gets 10% of the budget from ITS start
+    px_limit = 0.1 * budget if clock_mode == "time" else float("inf")  # proxies train nothing
     for c in cands:
-        if args.no_proxies or time.time() > t_px + 0.1 * budget:
+        if args.no_proxies or time.time() > t_px + px_limit:
             break
         torch.manual_seed(args.seed)
         zc[id(c)] = proxies.score(
@@ -155,7 +179,7 @@ def design(args) -> int:
         extra = _apply_cost_model(plugin, data, [c for c in extra if c], args)
         print(f"[extra] {len(extra)} valid architectures from {args.extra_specs}")
         cands += extra
-    adv_cmd, adv = advisor.command(args.advisor, args.advisor_cmd), None
+    adv_cmd, adv, adv_log = advisor.command(args.advisor, args.advisor_cmd), None, []
     if adv_cmd and zinp:
         adv = advisor.advise(
             adv_cmd, card, args.context, args.objective, cands, zinp[0], zinp[1], data["out_dim"],
@@ -213,7 +237,7 @@ def design(args) -> int:
         target=objectives.parse_target(args.target_cost), weight=args.cost_weight,
     )  # fmt: skip
     trace = {}
-    t_search = time.time()
+    t_search = clock.now()
     gens = args.evolve if any(c.get("spec") for c in cands) else 0
     gen0_deadline = t_search + (0.55 if gens else 1.0) * (search_deadline - t_search)
     runner = search.run_hyperband if args.scheduler == "hyperband" else search.run_search
@@ -227,7 +251,7 @@ def design(args) -> int:
     pop_size = args.evolve_population or max(len(trace.get("rung1", [])), 4)
     population = [cv for cv in trace.get("rung1", []) if cv[0].get("spec")][-pop_size:]
     for g in range(1, gens + 1):
-        if time.time() > search_deadline - 5 or not population:
+        if clock.now() > search_deadline - (5 if clock_mode == "time" else 1) or not population:
             break
         S = args.tournament or max(2, len(population) // 4)
         pos = {i: p for p, i in enumerate(rank(population))}  # tournament fitness = objective rank
@@ -252,15 +276,15 @@ def design(args) -> int:
             )  # fmt: skip
             if a2:
                 kids += a2["proposals"]
-                adv.setdefault("evolution", []).append({"generation": g, "rationale": a2["rationale"],
-                                                        "proposals": len(a2["proposals"])})  # fmt: skip
+                adv_log.append({"generation": g, "rationale": a2["rationale"],
+                                "proposals": len(a2["proposals"])})  # fmt: skip
         kids = _apply_cost_model(
             plugin, data, kids, args
         )  # children are costed and filtered like the rest
         if not kids:
             break
         seen |= {zoo.signature(k["spec"]) for k in kids}
-        gen_deadline = time.time() + (search_deadline - time.time()) / (gens - g + 1)
+        gen_deadline = clock.now() + (search_deadline - clock.now()) / (gens - g + 1)
         sub = {}
         print(
             f"[evolve] generation {g}: {len(kids)} children of {[p['family'] for p in parents[:3]]}"
@@ -313,10 +337,13 @@ def design(args) -> int:
         }
     if meta_rec:
         extras["meta_recommendation"] = meta_rec
-    if adv:
-        extras["ai_advisor"] = {k: adv[k] for k in ("rationale", "dropped_ids", "invalid_proposals")} | {
-            "command": adv_cmd.split()[0], "proposals": len(adv["proposals"]),
-            "evolution": adv.get("evolution", []),
+    if adv_cmd:  # reported even when a call failed, so the user sees what the advisor did
+        extras["ai_advisor"] = {
+            "command": adv_cmd.split()[0],
+            "seed_selection": None if adv is None else {
+                k: adv[k] for k in ("rationale", "dropped_ids", "invalid_proposals")
+            } | {"proposals": len(adv["proposals"])},
+            "evolution": adv_log,
             "top1_from_advisor": chosen[0]["cfg"].get("origin") == "ai_advisor",
         }  # fmt: skip
     extras["seed_selection"] = {**seed_report, "data_card": card, "context": args.context or "",
@@ -340,7 +367,8 @@ def design(args) -> int:
     if cache and cache.hits:
         print(f"[cache] reused {cache.hits} finished runs from {cache.path}")
     v = export.export(args.out, plugin, data, prof, chosen, ref, args.seed, extras=extras)
-    print(f"[done] {time.time() - t0:.0f}s  -> {args.out}/leaderboard.md")
+    spent = f"{clock.now() - t0:.0f} epochs, " if clock_mode == "work" else ""
+    print(f"[done] {spent}{time.time() - t_wall:.0f}s  -> {args.out}/leaderboard.md")
     print(
         f"[verdict] beats_reference={v['beats_reference']} "
         f"val_margin={v['val_margin']} test_margin={v['test_margin']}"
@@ -410,8 +438,9 @@ def main(argv=None) -> int:
         "image_reconstruction (autoencoder) | timeseries | graph | recsys",
     )
     d.add_argument(
-        "--budget", default="5m", help="wall-clock budget of the whole run: 90s, 10m, 2h"
-    )
+        "--budget", default="5m",
+        help="budget of the whole run: wall clock (90s, 10m, 2h) or training epochs (400ep, reproducible)",
+    )  # fmt: skip
     d.add_argument("--topk", type=int, default=3, help="number of exported baselines")
     d.add_argument(
         "--per-family", type=int, default=8, help="random configurations per model family"

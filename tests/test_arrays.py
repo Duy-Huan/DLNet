@@ -140,7 +140,7 @@ def test_generate_only_valid_candidates(which, image_npz, series_npz):
 def test_cli_design_end_to_end_and_package_runs(which, image_npz, series_npz, tmp_path):
     data = image_npz if which == "image_classification" else series_npz
     out = tmp_path / "o"
-    argv = ["design", "--data", str(data), "--budget", "45s", "--topk", "1", "--per-family", "1",
+    argv = ["design", "--data", str(data), "--budget", "240ep", "--topk", "1", "--per-family", "1",
             "--out", str(out)]  # fmt: skip
     assert cli.main(argv) == 0
     board = json.loads((out / "leaderboard.json").read_text())
