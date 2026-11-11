@@ -168,7 +168,7 @@ python -m dlnet design --data new.npz --meta-store meta_image.jsonl
 
 **Ngân sách được chia thế nào (từ v0.21).** Mỗi rung của successive halving (4, 12, 30 epoch) được một phần bằng nhau, nên với ngân sách vừa phải ít ứng viên được thử hơn nhưng finalist được huấn luyện sâu hơn. Tiến hóa tự bỏ qua khi không đủ ngân sách (`[evolve] skipped`). Phần còn lại dùng để chạy lại các finalist tốt nhất (đo được nhiễu thật), sau đó mới ước lượng hyperparameter (`--hparams auto`: chỉ cho finalist có ≥ 2 lần chạy; `on`: luôn; `off`: tắt).
 
-DLNet chỉ bắt đầu một lần huấn luyện khi dự báo nó kết thúc trước hạn (dựa trên thời gian mỗi epoch đã đo), nên ngân sách giây được giữ sát; ngân sách epoch không bao giờ bị vượt. Mục **Budget** cuối `leaderboard.md` cho biết từng giai đoạn tốn bao nhiêu giây và epoch.
+DLNet chỉ bắt đầu một lần huấn luyện khi dự báo nó kết thúc trước hạn, nên ngân sách giây được giữ sát; ngân sách epoch không bao giờ bị vượt. Dự báo dùng thời gian mỗi epoch đã đo; với ứng viên chưa train, từ v1.0 DLNet đo thật một bước forward+backward rồi nhân với số bước mỗi epoch. Trước đây dự báo theo FLOPs, mà FLOPs không tính vòng lặp Python của MambaVision, KAT, xLSTM (chậm 10–100 lần so với FLOPs), nên `--budget 90s` từng chạy hơn 12 phút. Mục **Budget** cuối `leaderboard.md` cho biết từng giai đoạn tốn bao nhiêu giây và epoch.
 
 ## 8. Đọc kết quả
 
