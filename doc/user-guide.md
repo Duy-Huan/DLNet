@@ -69,6 +69,12 @@ python -m dlnet design --data interactions.npz --budget 10m
 python -m dlnet design --data cube.mat --gt gt.mat --split block --patch 9 --pca 30 --budget 10m
 ```
 
+**Họ miền tần số cho ảnh siêu phổ** (FFT → phép học trên phổ tần số → iFFT, `dlnet/zoo/ops_freq.py`): `gfnet2d` (GFNet, lọc toàn cục 2-D), `afno2d` (AFNO), `fno2d` (Fourier Neural Operator), `ffc2d` (Fast Fourier Convolution), `fcanet2d` (chú ý kênh bằng DCT), `spec_fft2d` (hệ số Fourier của phổ từng pixel rồi ResNet), `fourier_ss` (lọc Fourier dọc trục phổ rồi GFNet không gian). Các họ này nằm sẵn trong không gian tìm kiếm HSI; ngữ pháp (`--zoo`) cũng tự chèn các op `gfnet_block`, `fno_block`, `afno_block`, `ffc_block`, `fca`, `spectral_gf` vào kiến trúc lấy mẫu. Hai họ xử lý **trục phổ** (`spec_fft2d`, `fourier_ss`) chỉ có ý nghĩa vật lý khi giữ nguyên thứ tự băng: dùng `--pca 0` (với PCA, trục kênh là các thành phần chính, không phải bước sóng).
+
+```bash
+python -m dlnet design --data cube.mat --gt gt.mat --split block --patch 9 --pca 0 --budget 20m
+```
+
 Gợi ý ngân sách trên CPU: 5–15 phút cho vài nghìn mẫu nhỏ; tăng `--budget` khi dữ liệu lớn hơn. Kết quả trong ngân sách ngắn là **xếp hạng sơ bộ**: các hạng liền nhau có thể đổi chỗ khi huấn luyện đầy đủ (cột `group` trong leaderboard cho biết những mô hình không phân biệt được trong nhiễu).
 
 ## 5. Chọn hướng tối ưu

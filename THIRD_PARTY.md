@@ -68,7 +68,30 @@ Từ paper, viết từ trí nhớ (không có trong nguồn trên): GCN, GAT, G
 
 Khác với gốc (có chủ ý): head do DLNet thêm (PatchTST/iTransformer: trung bình token rồi linear, thay cho head dự báo); TabM mặc định nhỏ hơn bài báo (k = 8–16, rộng 128–256 thay vì 32 và 512) cho vừa ngân sách CPU. Loss của TabM tính riêng cho từng thành viên rồi lấy trung bình, dự đoán là trung bình xác suất, đúng như bài báo.
 
-**Đối chiếu**: mới bằng **đọc mã** (thứ tự và shape tham số giữ như mã gốc). Script so số `scripts/verify_modern.py` (chép trọng số từ mã gốc sang, so đầu ra ở chế độ eval) đã viết nhưng **chưa chạy**: môi trường phát triển không cho chạy mã tải từ ngoài. Chạy theo hướng dẫn ở đầu script.
+**Đối chiếu số học** (`scripts/verify_modern.py`, chép trọng số từ mã gốc sang theo tên, so đầu ra ở chế độ eval; chạy trên GitHub Actions bởi `.github/workflows/verify-modern.yml`, [lượt chạy](https://github.com/Duy-Huan/DLNet/actions/runs/43025944848)): **7/7 khớp**.
+
+| Khối | Mã gốc (ghim) | Sai khác lớn nhất |
+|---|---|---|
+| TabM backbone (k=8 w=64 d=3; k=4 w=32 d=2) | `tabm` 0.0.3 `TabM` | 0 (trùng từng bit) |
+| PLR(lite) | `rtdl_num_embeddings` 0.0.12 `PeriodicEmbeddings(lite=True)` | 0 |
+| PatchTST (2 cấu hình) | yuqinie98/PatchTST `204c21e`, `PatchTST_backbone` | 0 |
+| iTransformer (2 cấu hình) | thuml/iTransformer `c2426e6`, `Model` | 4,8e-7 |
+
+### Miền tần số, FFT/iFFT (v0.24, `dlnet/zoo/ops_freq.py`)
+
+| Nguồn chính thức (commit ghim) | Lớp gốc | Op / họ trong DLNet |
+|---|---|---|
+| github.com/raoyongming/GFNet `2de48b6`, arXiv:2107.00645 | `gfnet.py`: `GlobalFilter`, `Block`, `Mlp` | op `global_filter` (1/2/3-D, cả `seq`), `gfnet_block`; họ HSI `gfnet2d` |
+| github.com/NVlabs/AFNO-transformer `941e924`, arXiv:2111.13587 | `afno/afno2d.py` `AFNO2D`; `classification/afnonet.py` `Block` | op `afno`, `afno_block`; họ HSI `afno2d` |
+| github.com/pkumivision/FFC `39dcc99`, NeurIPS 2020 | `model_zoo/ffc.py` `FourierUnit`, `SpectralTransform`, `FFC`, `FFC_BN_ACT`; `ffc_resnet.py` `BasicBlock` | op `ffc_block`; họ HSI `ffc2d` |
+| github.com/cfzd/FcaNet `aa5fb63`, arXiv:2012.11879 | `model/layer.py` `MultiSpectralAttentionLayer`, `MultiSpectralDCTLayer`, `get_freq_indices` | op `fca`; họ HSI `fcanet2d` |
+| FNO, Li et al. arXiv:2010.08895 (`fourier_2d.py` gốc của zongyi-li không còn trong repo, nay là neuraloperator dùng tensorly) | `SpectralConv1d/2d/3d`, lớp FNO2d | op `spectral_conv`, `fno_block`; họ HSI `fno2d` |
+| FNet, Lee-Thorp et al. arXiv:2105.03824 (mã chính thức JAX) | lớp trộn Fourier + encoder post-LN | op `fnet_block` (`seq`) |
+| DLNet (không phải port) | GFNet lọc dọc **trục phổ**; hệ số Fourier của phổ từng pixel | op `spectral_gf`, `spectral_rfft`; họ HSI `fourier_ss`, `spec_fft2d` |
+
+Khác với gốc (có chủ ý): mọi khối nhận tensor channels-first của zoo và tự chuyển sang channels-last khi bản gốc dùng (GFNet, AFNO); FFC chỉ có stride 1 và nhận một map (kênh cuối là phần toàn cục); `torch.rfft(normalized=True)` đã bị bỏ khỏi torch nên dùng `torch.fft.rfft2(norm="ortho")` (bằng nhau). FFT chạy ở float32 rồi đổi lại kiểu.
+
+**Đối chiếu số học** (`scripts/verify_freq.py`, chép trọng số và thống kê BatchNorm ngẫu nhiên theo tên, so đầu ra eval; job CI `verify-freq`, [lượt chạy](https://github.com/Duy-Huan/DLNet/actions/runs/43027248014)): **11/11 trùng từng bit** (sai khác 0): GFNet Block ×2, AFNO2D ×3, FFC BasicBlock ×3 (có và không có LFU, tỉ lệ 0,5 và 0,25), FcaNet ×3 (top16, low4, bot8; 5×5, 7×7, 9×9). FNO và FNet không có mã PyTorch chính thức chạy được: kiểm bằng đáp án đóng trong `tests/test_freq.py` (lọc toàn cục = tích chập vòng tính trực tiếp, góc tần số FNO, FNet = phần thực FFT 2 chiều của numpy, cơ sở DCT trực chuẩn).
 
 ## Chưa port và lý do
 

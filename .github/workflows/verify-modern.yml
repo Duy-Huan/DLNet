@@ -1,4 +1,4 @@
-name: Verify modern families against official code
+name: Verify ported blocks against official code
 
 # Numerical equivalence of dlnet/zoo/ops_modern.py (TabM, PLR, PatchTST, iTransformer) with the
 # authors' code: scripts/verify_modern.py. The official code is pinned (PyPI versions, git commits)
@@ -10,7 +10,9 @@ on:
     branches: [dev]
     paths:
       - dlnet/zoo/ops_modern.py
+      - dlnet/zoo/ops_freq.py
       - scripts/verify_modern.py
+      - scripts/verify_freq.py
       - .github/workflows/verify-modern.yml
 
 permissions:
@@ -40,3 +42,29 @@ jobs:
         run: |
           PYTHONPATH=/tmp/m python scripts/verify_modern.py \
             --patchtst /tmp/PatchTST --itransformer /tmp/iTransformer
+
+  verify-freq:
+    # frequency-domain blocks (dlnet/zoo/ops_freq.py): GFNet, AFNO, FFC, FcaNet
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install DLNet (CPU torch)
+        run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -e . numpy
+      - name: Official code (pinned)
+        run: |
+          set -e
+          clone() { git clone -q "https://github.com/$1" "$2" && git -C "$2" checkout -q "$3"; }
+          clone raoyongming/GFNet /tmp/GFNet 2de48b626ea805de82a7f389fed930af1ae0340d
+          clone NVlabs/AFNO-transformer /tmp/AFNO 941e924ffdb34cb93897b5fd6e22e5965fdc1111
+          clone pkumivision/FFC /tmp/FFC 39dcc992c373b0705f64d0204c4c04669381b8ea
+          clone cfzd/FcaNet /tmp/FcaNet aa5fb63505575bb4e4e094613565379c3f6ada33
+      - name: Compare outputs
+        run: |
+          python scripts/verify_freq.py --gfnet /tmp/GFNet --afno /tmp/AFNO \
+            --ffc /tmp/FFC --fcanet /tmp/FcaNet

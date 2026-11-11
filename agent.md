@@ -283,7 +283,8 @@ Nguyên tắc: lõi **tổng quát trước**, kiểm chứng end-to-end sớm t
 | **M8** | Deep unfolding (khi có mô hình thuận) | **Xong cho bài toán thưa tuyến tính (v0.7.0)**, xem "Kết quả đo M8" ở §5: lệnh `dlnet unfold`, LISTA-CP hơn ISTA và FISTA (λ đã tune) 3,3–6,3 dB ở cùng số vòng K trên dữ liệu tổng hợp. Chưa có: ADMM/AMP, support selection, toán tử A không tường minh (ảnh), dữ liệu thật |
 | **M13** | Port nhóm còn thiếu: đồ thị, id/recommender, autoencoder/VAE, GAN, Mamba-2; cost model; hợp nhất họ cũ | **Xong (v0.11.0–v0.12.0)**, xem §13.7. Chưa có: CVAE, loss cặp (BPR), GAN có điều kiện/FID, đồ thị lớn (dense), graph cạnh học được |
 | **M14** | Khối ảnh từ thư viện chính thống (timm, smp, MONAI, torchvision); đối chiếu số học các khối viết từ trí nhớ | **Xong (v0.13.0)**, xem §13.8 |
-| **M25** | Mốc 4 sau kiểm định: TabM, PLR, PatchTST, iTransformer (pretrained bị chặn bởi mạng) | **v0.23.0**; đối chiếu bằng đọc mã, chưa so số (§9.7) |
+| **M25** | Mốc 4 sau kiểm định: TabM, PLR, PatchTST, iTransformer (pretrained bị chặn bởi mạng) | **v0.23.0**; đối chiếu số học 7/7 khớp trên CI (§9.7) |
+| **M26** | Module miền tần số (FFT/iFFT): GFNet, AFNO, FNO, FFC, FcaNet, FNet; lọc Fourier dọc trục phổ cho HSI; 7 họ HSI mới | **v0.24.0**; 11/11 khối trùng từng bit với mã gốc (CI), đo trên Indian Pines (§9.8) |
 | **M24** | Mốc 3 sau kiểm định: công thức huấn luyện hiện đại, gói có `model.pt`/`predict.py`/export, thông báo lỗi | **Xong (v0.22.0)**, xem §9.6 |
 | **M23** | Mốc 2 sau kiểm định: phân bổ ngân sách (SH chia đều theo rung, chặn tiến hóa, chạy lại finalist, `--hparams auto`, bỏ prior tay) | **Xong (v0.21.0)**, xem §9.5 |
 | **M22** | Mốc 1 sau kiểm định: sửa kết quả sai (Hyperband, ứng viên lỗi, xếp hạng cùng epoch, nhiễu một lần chạy, vai trò, verdict, cảnh báo) | **Xong (v0.20.0)**, xem §9.4 |
@@ -384,8 +385,37 @@ Kết luận trung thực: Top-K được huấn luyện sâu gấp 2,5 lần n�
   - diabetes (−RMSE): MLP −56,1, ResMLP −59,0, TabM −56,0, TabM+PLR −55,9 (trong nhiễu);
   - ts_freq (tổng hợp): TCN 1,00, ts_transformer cũ **0,37**, PatchTST 1,00, iTransformer 1,00.
   Kết luận: TabM không kém MLP, PLR giúp trên wine; với chuỗi, hai họ mới sửa được điểm yếu của Transformer cũ. Chỉ một bộ chuỗi (tổng hợp) nên chưa khái quát.
-- **Đối chiếu số học với mã gốc**: script `scripts/verify_modern.py` đã viết (chép trọng số từ `tabm`, `rtdl_num_embeddings`, repo PatchTST, iTransformer). **Chưa chạy** trong phiên phát triển: công cụ an toàn chặn việc chạy mã tải từ ngoài (bị chặn cả sau khi người dùng đồng ý). v0.23.0 phát hành với ghi chú: các khối này **viết theo mã chính thức, mới đối chiếu bằng đọc mã, chưa so số**. Người dùng chạy được trên máy mình bằng 4 lệnh ở đầu script; có kết quả thì ghi vào THIRD_PARTY.md mục Kiểm chứng.
+- **Đối chiếu số học với mã gốc** (`scripts/verify_modern.py`, chạy trên GitHub Actions vì môi trường phát triển không cho chạy mã tải từ ngoài; workflow `verify-modern.yml`): **7/7 khớp** sau bản phát hành v0.23.0 — TabM, PLR, PatchTST trùng từng bit, iTransformer sai khác ≤ 4,8e-7 ([lượt chạy](https://github.com/Duy-Huan/DLNet/actions/runs/43025944848)). Bảng: THIRD_PARTY.md.
 - **Bị chặn bởi mạng (không làm)**: mô hình pretrained (timm/torchvision/DINOv2 weights, TabPFN) — download.pytorch.org, huggingface.co, dl.fbaipublicfiles.com trả 403 qua proxy. **Chưa làm**: tìm kiếm dựa mô hình (DEHB, PriorBand, LC-PFN); graph transformer, DCNv2, Mamba cho HSI.
+
+### 9.8 Module miền tần số (M26, v0.24): FFT → phép học trên phổ → iFFT
+- **Lý do**: nhiều bài HSI gần đây chuyển phổ/không gian sang miền tần số (FFT), xử lý ở đó rồi biến đổi ngược. Thêm các khối chuẩn của hướng này, viết theo mã chính thức, vào `dlnet/zoo/ops_freq.py`:
+  - `global_filter`, `gfnet_block` (GFNet: lọc phức học được trên mọi tần số, tương đương tích chập vòng toàn cục; 1/2/3-D và `seq`);
+  - `afno`, `afno_block` (AFNO: MLP phức chéo khối, soft-shrink);
+  - `spectral_conv`, `fno_block` (FNO: giữ `modes` tần số thấp, trộn kênh bằng ma trận phức);
+  - `ffc_block` (FFC: nhánh cục bộ 3×3 và nhánh toàn cục Fourier trao đổi thông tin);
+  - `fca` (FcaNet: SE với pooling bằng các hệ số DCT);
+  - `fnet_block` (FNet: phần thực FFT 2 chiều thay self-attention, cho `seq`);
+  - HSI (DLNet, không phải port): `spectral_gf` (lọc GFNet dọc **trục phổ**, có residual), `spectral_rfft` (hệ số Fourier của phổ từng pixel làm kênh).
+- **Họ HSI mới**: `gfnet2d`, `fno2d`, `afno2d`, `ffc2d`, `fcanet2d`, `spec_fft2d`, `fourier_ss`; khối không gian của mô hình ghép thêm `gfnet`, `fno`, `afno`, `ffc`, `fca`. Ngữ pháp tự dùng các op mới qua thẻ `block`/`attn`/`stem`.
+- **Kiểm chứng**: `scripts/verify_freq.py` (job CI `verify-freq`, mã gốc ghim commit): GFNet, AFNO, FFC, FcaNet **11/11 trùng từng bit**. FNO/FNet không có mã PyTorch chính thức chạy được: `tests/test_freq.py` kiểm bằng đáp án đóng (lọc toàn cục = tích chập vòng tính trực tiếp; FNO giữ đúng các góc tần số; FNet = phần thực FFT 2-D của numpy; cơ sở DCT trực chuẩn), cùng autocast bf16 và `torch.export`.
+- **Đo** (`scripts/bench_freq_hsi.py`): Indian Pines, cùng split mỗi seed, 3 seed, 40 epoch, rộng 64, sâu 2, AdamW 1e-3, công thức `train_full`. OA test trung bình ± std (AA):
+  | Họ | pixel, PCA 30 | pixel, đủ 200 băng (`--pca 0`) | khối không gian, PCA 30 |
+  |---|---|---|---|
+  | `spec_fft2d` (mới) | 0,9871 ± 0,0044 (0,974) | **0,9871 ± 0,0031 (0,984)** | 0,484 ± 0,039 |
+  | `ffc2d` (mới) | **0,9871 ± 0,0026** (0,951) | 0,9818 (0,868) | 0,497 ± 0,057 |
+  | `fcanet2d` (mới) | 0,9870 (0,932) | 0,9810 (0,843) | 0,461 ± 0,087 |
+  | `resnet2d` (cũ) | 0,9864 ± 0,0029 (**0,982**) | 0,9855 ± 0,0016 (0,969) | **0,517 ± 0,043** |
+  | `cnn2d` (cũ) | 0,9819 | 0,9784 | 0,420 ± 0,076 |
+  | `gfnet2d` (mới) | 0,9783 | 0,9731 | 0,513 ± 0,016 |
+  | `fourier_ss` (mới) | 0,9799 | 0,9717 | 0,437 ± 0,007 |
+  | `afno2d` (mới) | 0,9773 | 0,9650 | 0,454 ± 0,059 |
+  | `fno2d` (mới) | 0,9720 | 0,9360 | 0,496 ± 0,047 |
+  | `convnext2d` (cũ) | 0,9692 | 0,9374 | 0,486 ± 0,056 |
+  | `hybridsn` (cũ) | 0,8256 | 0,8575 | (không chạy) |
+
+  Kết luận trung thực: **không họ tần số nào thắng ResNet quá nhiễu về OA**. Điểm đáng giữ: `spec_fft2d` (hệ số Fourier của phổ từng pixel) khi giữ đủ băng có OA ngang ResNet và AA trung bình cao hơn (0,984 so với 0,969) nhưng chỉ 2/3 seed (seed 2: 0,975 so với 0,978): gợi ý tốt hơn trên các lớp nhỏ, chưa chắc chắn; `ffc2d`, `fcanet2d` ngang ResNet ở PCA 30; `gfnet2d` ổn định nhất khi chia theo khối (std 0,016). FNO và AFNO kém hơn CNN trên patch 9×9 (quá ít tần số để mô hình hóa). Chia theo khối: mọi họ 0,42–0,52 với nhiễu ±0,02–0,09, không phân biệt được. Các họ vẫn ở trong không gian tìm kiếm để Hyperband/tiến hóa chọn theo dữ liệu, không ưu tiên sẵn.
+- **Lưu ý**: FFT trên trục phổ chỉ có nghĩa khi giữ thứ tự băng (`--pca 0`); FLOPs của chính FFT không được `cost.py` đếm.
 
 ## 10. Quy ước cho agent (người/AI) phát triển repo
 

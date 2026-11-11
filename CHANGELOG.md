@@ -6,7 +6,16 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+## [0.24.0] - 2026-11-11
+
+Mốc M26: module miền tần số (FFT/iFFT), `agent.md` §9.8.
+
 ### Thêm
+- `dlnet/zoo/ops_freq.py`: các op miền tần số viết theo mã chính thức: `global_filter`, `gfnet_block` (GFNet), `afno`, `afno_block` (AFNO), `spectral_conv`, `fno_block` (FNO), `ffc_block` (FFC), `fca` (FcaNet, DCT), `fnet_block` (FNet); cho ảnh siêu phổ: `spectral_gf` (lọc Fourier dọc trục phổ) và `spectral_rfft` (hệ số Fourier của phổ từng pixel). Ngữ pháp tìm kiếm tự dùng các op này.
+- Họ HSI mới: `gfnet2d`, `fno2d`, `afno2d`, `ffc2d`, `fcanet2d`, `spec_fft2d`, `fourier_ss`; khối không gian `gfnet`, `fno`, `afno`, `ffc`, `fca` cho mô hình ghép (`composed`).
+- Đo trên Indian Pines (`scripts/bench_freq_hsi.py`, 3 seed): không họ tần số nào thắng ResNet quá nhiễu về OA; `spec_fft2d` với đủ 200 băng đạt OA 0,987 (ResNet 0,986) và AA 0,984 (ResNet 0,969; hơn ở 2/3 seed). FNO/AFNO kém CNN trên patch 9×9. Số đầy đủ: `agent.md` §9.8.
+- `scripts/verify_freq.py` + job CI `verify-freq`: so số học GFNet, AFNO, FFC, FcaNet với mã gốc (ghim commit); `tests/test_freq.py`: đáp án đóng cho tích chập vòng, góc tần số FNO, FNet, cơ sở DCT, autocast và torch.export.
+- Đối chiếu số học các họ của v0.23.0 với mã gốc: **7/7 khớp** (TabM, PLR, PatchTST trùng từng bit; iTransformer ≤ 4,8e-7). `verify_modern.py` chép trọng số theo tên.
 - CI `verify-modern.yml`: chạy `scripts/verify_modern.py` trên GitHub Actions với mã gốc ghim phiên bản (tabm 0.0.3, rtdl_num_embeddings 0.0.12, commit PatchTST/iTransformer).
 
 ## [0.23.0] - 2026-11-11
@@ -394,7 +403,8 @@ Bản đầu tiên: prototype chạy được từ dữ liệu đến Top-K base
 - Chưa có zero-cost proxy, cost model FLOPs/VRAM, Tensor-LoRA, deep unfolding; chưa có plugin image và timeseries.
 - Kết quả trên Indian Pines và Pavia University là một lần chạy ngắn trên CPU: với chia theo khối, mạng sâu chưa vượt rõ baseline cổ điển.
 
-[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v0.23.0...HEAD
+[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v0.24.0...HEAD
+[0.24.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.24.0
 [0.23.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.23.0
 [0.22.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.22.0
 [0.21.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.21.0

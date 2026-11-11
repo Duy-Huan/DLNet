@@ -54,13 +54,24 @@ HSI = (
     "convnext2d",
     "spec_transformer",
     "ssrn",
+    "gfnet2d",
+    "fno2d",
+    "afno2d",
+    "ffc2d",
+    "fcanet2d",
+    "spec_fft2d",
+    "fourier_ss",
     "composed",
 )
 HSI_PRESETS = {
     "resnet2d": {"spatial": "res"}, "dwsep2d": {"spatial": "dwsep"}, "convnext2d": {"spatial": "convnext"},
     "spec_transformer": {"spectral": "transformer"}, "ssrn": {"joint": "ssrn"},
+    # frequency domain (dlnet/zoo/ops_freq.py)
+    "gfnet2d": {"spatial": "gfnet"}, "fno2d": {"spatial": "fno"}, "afno2d": {"spatial": "afno"},
+    "ffc2d": {"spatial": "ffc"}, "fcanet2d": {"spatial": "fca"},
 }  # fmt: skip
-HSI_SPECTRAL, HSI_SPATIAL = ("cnn1d", "transformer"), ("conv", "res", "dwsep", "convnext", "tucker")
+HSI_SPECTRAL = ("cnn1d", "transformer")
+HSI_SPATIAL = ("conv", "res", "dwsep", "convnext", "tucker", "gfnet", "fno", "afno", "ffc", "fca")
 FUSIONS = ("concat", "gated")
 GRAPH = ("gcn_net", "gat_net", "sage_net", "gin_net", "graph_mlp")
 RECSYS = ("mf", "ncf", "fm", "dlrm")
@@ -332,6 +343,19 @@ def _spatial(name, w, d, patch):
         block = lambda: N("convnext_block", k=7 if patch >= 7 else 3, ratio=4, layer_scale=1e-6)
     elif name == "tucker":
         block = lambda: N("tucker_conv", out=0, ratio=0.5, k=3)
+    elif name == "gfnet":  # GFNet: global filter in the 2-D Fourier domain of the patch
+        block = lambda: N("gfnet_block", mlp_ratio=4, dropout=0.0)
+    elif name == "fno":  # FNO layer: lowest frequencies mixed across channels
+        block = lambda: N("fno_block", modes=4)
+    elif name == "afno":  # AFNO: block-diagonal complex MLP on every frequency
+        block = lambda: N("afno_block", num_blocks=8 if w % 8 == 0 else 1, mlp_ratio=4,
+                          double_skip=0, dropout=0.0)  # fmt: skip
+    elif name == "ffc":  # FFC: local 3x3 conv branch + global Fourier branch
+        lfu = int(patch % 2 == 0 and (int(w * 0.5) // 2) % 4 == 0)
+        block = lambda: N("ffc_block", ratio=0.5, lfu=lfu)
+    elif name == "fca":  # FcaNet basic block: conv-conv, DCT channel attention, residual, ReLU
+        att = N("fca", reduction=16 if w >= 32 else 4, method="top16" if w % 16 == 0 else "top1")
+        block = lambda: S(R(S(cba(w), cba(w, act="identity"), att)), N("act", act="relu"))
     else:
         raise ValueError(f"unknown spatial block {name!r}")
     return S(cba(w), *[block() for _ in range(d)], N("gap", mode="avg"))
@@ -373,6 +397,10 @@ def hsi(cfg, dims):
         )
     if f == "cnn3d":
         return _joint("conv3d", w, d, bands)
+    if f == "spec_fft2d":  # each pixel's spectrum -> its Fourier coefficients, then a ResNet
+        return S(N("spectral_rfft"), _spatial("res", w, d, patch))
+    if f == "fourier_ss":  # spectral-axis Fourier filter, then spatial GFNet blocks
+        return S(N("spectral_gf"), _spatial("gfnet", w, d, patch))
     if f == "hybridsn":
         if patch < 7 or bands < 13:
             raise ValueError("hybridsn needs patch >= 7 and >= 13 spectral components")

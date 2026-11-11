@@ -92,6 +92,14 @@ SPACE = {
     "convnext2d": {"width": [32, 64], "depth": [1, 2, 3], "dropout": [0.0, 0.2]},
     "spec_transformer": {"width": [32, 64], "depth": [1, 2], "dropout": [0.0, 0.1]},
     "ssrn": {"width": [8, 16, 24], "depth": [1, 2], "dropout": [0.0, 0.2, 0.4]},
+    # frequency domain (FFT -> learned op on the spectrum -> iFFT), dlnet/zoo/ops_freq.py
+    "gfnet2d": {"width": [32, 64], "depth": [1, 2, 3], "dropout": [0.0, 0.2]},
+    "fno2d": {"width": [32, 64], "depth": [2, 3, 4], "dropout": [0.0, 0.2]},
+    "afno2d": {"width": [32, 64], "depth": [1, 2, 3], "dropout": [0.0, 0.2]},
+    "ffc2d": {"width": [32, 64], "depth": [1, 2, 3], "dropout": [0.0, 0.2]},
+    "fcanet2d": {"width": [32, 64], "depth": [1, 2, 3], "dropout": [0.0, 0.2, 0.4]},
+    "spec_fft2d": {"width": [32, 64], "depth": [1, 2, 3], "dropout": [0.0, 0.2, 0.4]},
+    "fourier_ss": {"width": [32, 64], "depth": [1, 2, 3], "dropout": [0.0, 0.2]},
     # block choice comes from the grammar (hsi_lib.sample_composed), sizes from here
     "composed": {"width": [32, 64], "depth": [1, 2], "dropout": [0.0, 0.2, 0.4]},
 }

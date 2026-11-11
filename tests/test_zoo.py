@@ -23,7 +23,13 @@ PROBE = {
     "graph": (8, 12),
     "ids": (5, 7),
 }
-PROBE_OVERRIDE = {("gmf", "seq"): (2, 16)}  # ops with a fixed arity
+PROBE_OVERRIDE = {
+    ("gmf", "seq"): (2, 16),  # ops with a fixed arity
+    # official defaults need more channels: 16 DCT frequencies (FcaNet top16), and FFC's local
+    # Fourier unit splits the global half of the channels into 4
+    ("fca", "map"): (32, 16, 16),
+    ("ffc_block", "map"): (32, 16, 16),
+}
 
 
 def _probe(name, kind):
