@@ -57,6 +57,19 @@ Công cụ dùng nội bộ nên **không xét giấy phép** khi lấy module (
 
 Từ paper, viết từ trí nhớ (không có trong nguồn trên): GCN, GAT, GraphSAGE, GIN (đồ thị), CBAM, ECA, Inception, MobileNetV1 `dw_sep`, ResNet v2 `preact_block`, MLP-Mixer, GLU, DCN `cross_net`, FT-Transformer `feature_tokens`, U-Net.
 
+### Họ mạnh 2022–2025 (v0.23, `dlnet/zoo/ops_modern.py`)
+
+| Nguồn chính thức | Lớp gốc | Op / họ trong DLNet |
+|---|---|---|
+| `tabm` 0.0.3 (PyPI, tác giả Yandex Research), TabM arXiv:2410.24210 | `TabM` (`arch_type="tabm"`, `MLPBackboneBatchEnsemble`, `LinearBatchEnsemble`, `LinearEnsemble`) | op `tabm`, head `ensemble`, họ `tabm` |
+| `rtdl_num_embeddings` 0.0.12 (PyPI), arXiv:2203.05556 | `PeriodicEmbeddings(lite=True)` | op `plr_embed`, họ `tabm_plr` |
+| github.com/yuqinie98/PatchTST, arXiv:2211.14730 | `PatchTST_backbone` (RevIN, patching, `TSTiEncoder`, BatchNorm, residual attention) | op `patchtst`, họ `patchtst` |
+| github.com/thuml/iTransformer, arXiv:2310.06625 | `Model` (`DataEmbedding_inverted`, `EncoderLayer`, `FullAttention`, LayerNorm) | op `itransformer`, họ `itransformer` |
+
+Khác với gốc (có chủ ý): head do DLNet thêm (PatchTST/iTransformer: trung bình token rồi linear, thay cho head dự báo); TabM mặc định nhỏ hơn bài báo (k = 8–16, rộng 128–256 thay vì 32 và 512) cho vừa ngân sách CPU. Loss của TabM tính riêng cho từng thành viên rồi lấy trung bình, dự đoán là trung bình xác suất, đúng như bài báo.
+
+**Đối chiếu số học** (`scripts/verify_modern.py`, chép trọng số từ mã gốc sang, so đầu ra ở chế độ eval): xem mục Kiểm chứng.
+
 ## Chưa port và lý do
 
 | Nguồn | Lớp / phần chưa có | Lý do |

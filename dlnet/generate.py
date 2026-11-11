@@ -15,6 +15,10 @@ SPACE = {
     "ft_transformer": {"width": [32, 64], "depth": [1, 2], "dropout": [0.0, 0.1]},
     "moe_mlp": {"width": [64, 128, 256], "depth": [1, 2], "dropout": [0.0, 0.1], "experts": [2, 4, 8], "routing": ["soft", "topk"]},
     "fm_mlp": {"width": [64, 128], "depth": [2, 3], "dropout": [0.0, 0.1], "rank": [4, 8, 16]},
+    # TabM: the paper's default is k = 32, d_block = 512; smaller here to fit CPU budgets
+    "tabm": {"width": [128, 256], "depth": [2, 3], "dropout": [0.0, 0.1], "k": [8, 16]},
+    "tabm_plr": {"width": [128, 256], "depth": [2], "dropout": [0.0, 0.1], "k": [8, 16], "emb": [8, 16],
+                 "sigma": [0.01, 0.1]},
 }  # fmt: skip
 TRAIN = {"lr": [1e-3, 3e-3], "wd": [1e-4, 1e-2], "batch": [64, 128]}
 
