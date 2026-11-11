@@ -4,7 +4,7 @@
         --pca 30 --seeds 0 1 2 --epochs 40 --out ip_pca30.json
 
 Every family: width 64, depth 2, dropout 0.2, AdamW lr 1e-3, wd 1e-4, batch 64, the full recipe of
-core.train_full (warm-up + cosine, best-validation checkpoint), the same pixel split per seed.
+core.train_full (warm-up + cosine, best-validation checkpoint), the same split per seed (pixel, or spatial blocks with --split block).
 Reports test OA (accuracy), AA (balanced accuracy), kappa, parameters and seconds.
 """
 
@@ -46,6 +46,7 @@ if __name__ == "__main__":
     ap.add_argument("--gt", required=True)
     ap.add_argument("--pca", type=int, default=30)
     ap.add_argument("--patch", type=int, default=9)
+    ap.add_argument("--split", default="pixel", choices=["pixel", "block"])
     ap.add_argument("--seeds", type=int, nargs="+", default=[0, 1, 2])
     ap.add_argument("--epochs", type=int, default=40)
     ap.add_argument("--families", nargs="+", default=[*BASE, *FREQ])
@@ -54,7 +55,7 @@ if __name__ == "__main__":
     cube, gt = hsi_data.load(a.data, a.gt)
     rows = []
     for seed in a.seeds:
-        data = hsi_data.build(cube, gt, "pixel", seed, a.patch, a.pca)
+        data = hsi_data.build(cube, gt, a.split, seed, a.patch, a.pca)
         for f in a.families:
             r = run(data, f, seed, a.epochs)
             rows.append(r)
