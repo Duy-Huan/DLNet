@@ -293,18 +293,19 @@ KAT_INIT = {  # rational_kat_cu kat_rational/init.json (order (5, 4))
 
 
 def rational_1d_group(x, w_num, w_den, groups):
-    """kat_1dgroup_torch.Rational_CUDA_A_1DGroup: P(x) / (1 + |b1 x| + ... + |bm x^m|) per group."""
+    """P(x) / (1 + |b1| |x| + ... + |bm| |x|^m) per group, as the Triton kernel of rational_kat_cu
+    (kat_1dgroup_triton / rational_triton: `tl.abs` on the coefficients AND on x) and the paper.
+    Its torch CPU path (Rational_CUDA_A_1DGroup) uses signed powers x^i in the denominator, which
+    differs for x < 0; DLNet follows the kernel used to train KAT."""
     b, n, d = x.shape
     ln, ld = w_num.shape[1], w_den.shape[1]
     z = x.view(b, n, groups, d // groups).permute(2, 0, 1, 3).reshape(groups, -1)
-    xps = [z]
-    for _ in range(max(ln, ld) - 2):
-        xps.append(xps[-1] * z)
-    xps = torch.stack([torch.ones_like(z), *xps], dim=1)
-    num = torch.bmm(w_num.unsqueeze(1), xps).squeeze(1)
-    den_w = torch.cat([torch.ones(groups, 1, device=x.device, dtype=x.dtype), w_den,
-                       torch.zeros(groups, max(0, ln - ld - 1), device=x.device, dtype=x.dtype)], dim=1)  # fmt: skip
-    den = torch.bmm(den_w.abs().unsqueeze(1), xps).squeeze(1)
+    zp, ap = [torch.ones_like(z)], [torch.ones_like(z)]
+    for _ in range(max(ln, ld + 1) - 1):
+        zp.append(zp[-1] * z)
+        ap.append(ap[-1] * z.abs())
+    num = torch.einsum("gk,gkn->gn", w_num, torch.stack(zp[:ln], dim=1))
+    den = 1 + torch.einsum("gk,gkn->gn", w_den.abs(), torch.stack(ap[1 : ld + 1], dim=1))
     return (num / den).view(groups, b, n, d // groups).permute(1, 2, 0, 3).reshape(b, n, d)
 
 

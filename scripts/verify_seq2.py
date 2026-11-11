@@ -183,8 +183,14 @@ def check_kat(root):
         mine = s2.KAN(d, d * ratio, d).eval()
         perturb(ref, 0.05)
         copy(ref, mine)
-        x = torch.randn(2, 5, d)
-        ok &= report(f"GR-KAN (KAT KAN) d={d} ratio={ratio}", ref(x), mine(x), 1e-4)
+        # the repository's torch path uses signed powers in the denominator, its Triton kernel |x|:
+        # they agree when every rational sees x >= 0 (here: positive inputs, positive fc1)
+        with torch.no_grad():
+            for lin in (ref.fc1, mine.fc1):
+                lin.weight.abs_()
+                lin.bias.abs_()
+        x = torch.rand(2, 5, d)
+        ok &= report(f"GR-KAN (KAT KAN) d={d} ratio={ratio}, x >= 0", ref(x), mine(x), 1e-4)
     return ok
 
 
