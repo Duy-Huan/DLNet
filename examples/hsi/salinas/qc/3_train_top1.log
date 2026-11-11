@@ -1,0 +1,6 @@
+$ /usr/local/bin/python train.py --data /home/user/DLNet/examples/hsi/salinas/input/Salinas_corrected.mat --gt /home/user/DLNet/examples/hsi/salinas/input/Salinas_gt.mat --epochs 30 --seed 0
+data: {'n_labeled': 54129, 'n_dropped_by_margin': 0, 'pca_energy_kept': 0.9996393501819633, 'bands': 204, 'pca_components': 30, 'n_train': 1083, 'n_val': 1083, 'n_test': 51963, 'classes_missing_train': [], 'classes_missing_test': [], 'frac': [0.02, 0.02, 0.96], 'block': 16}
+params=89,744 epochs=30
+val : {'accuracy': 0.9981532779316713, 'balanced_accuracy': 0.9973169191919191, 'kappa': 0.9979441796354473, 'score': 0.9981532779316713}
+test: {'accuracy': 0.9941111945037815, 'balanced_accuracy': 0.9949425856659131, 'kappa': 0.9934398098620931, 'score': 0.9941111945037815}
+saved /home/user/DLNet/examples/hsi/salinas/output/top1_afno2d/model.pt and preprocess.json; predict with: python predict.py --data <new file>

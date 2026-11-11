@@ -23,3 +23,12 @@ $ /usr/local/bin/python -m dlnet design --data /home/user/DLNet/examples/hsi/sal
 [equalize] afno2d: trained on to 30 epochs, val=0.9972
 [equalize] ffc2d: trained on to 30 epochs, val=0.9963
 [equalize] resnet2d: trained on to 30 epochs, val=0.9945
+[runs] cnn2d: 3 runs, val=0.9951 +/- 0.0017
+[hparams] estimating lr / batch size / weight decay for the finalists
+[warning] --split pixel with --patch 9: validation/test pixels sit inside the patches of training pixels, so scores are optimistic (spatial leakage). Use --split block for an honest estimate of performance on new areas.
+[warning] Some models were trained only once: their +/- is the sampling error of the validation set, not run-to-run noise. A larger --budget repeats the finalists.
+[warning] Only 14 of 188 candidates could be trained within the budget; raise --budget, or lower --zoo / --per-family, or use --seeds N.
+[proxies] Spearman with rung-1 validation (n=14): {'naswot': -0.273, 'synflow': 0.182, 'grad_norm': 0.727, 'snip': 0.643, 'zico': 0.294, 'params': 0.666, 'seed_prior': None}
+[budget] load 5.0s/0ep, reference 23.2s/0ep, generate 21.2s/0ep, proxies 63.9s/0ep, seed_selection 0.0s/0ep, search 284.0s/158ep, evolution 0.0s/0ep, equalize 143.2s/54ep, runs 51.9s/60ep, hparams 0.0s/0ep, export 0.0s/0ep
+[done] 592s  -> /home/user/DLNet/examples/hsi/salinas/output/leaderboard.md
+[verdict] beats_reference=True val_margin=0.02031 test_margin=0.02069
