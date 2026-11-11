@@ -165,6 +165,13 @@ SPACE = {
     "cnn": {"width": [16, 32], "depth": [2, 3], "dropout": [0.0, 0.2]},
     "resnet": {"width": [8, 16, 32], "depth": [1, 2], "dropout": [0.0, 0.2]},
     "vit": {"width": [32, 64], "depth": [2, 4], "dropout": [0.0, 0.1], "patch": [2, 4, 7, 8]},
+    "mambavision": {
+        "width": [32, 64],
+        "depth": [2, 4],
+        "dropout": [0.0, 0.1],
+        "patch": [2, 4, 7, 8],
+    },
+    "kat": {"width": [32, 64], "depth": [2, 4], "dropout": [0.0, 0.1], "patch": [2, 4, 7, 8]},
     **{
         f: {
             "width": [8, 16, 32],
@@ -190,6 +197,16 @@ SPACE = {
     "ts_transformer": {"width": [32, 64], "depth": [1, 2], "dropout": [0.0, 0.1]},
     "patchtst": {"width": [32, 64], "depth": [1, 2, 3], "dropout": [0.0, 0.1], "patch": [8, 16]},
     "itransformer": {"width": [32, 64, 128], "depth": [1, 2], "dropout": [0.0, 0.1]},
+    "timemixer": {
+        "width": [16, 32],
+        "depth": [1, 2],
+        "dropout": [0.0, 0.1],
+        "down": [1, 2],
+        "moving_avg": [25, 5],
+    },
+    "timexer": {"width": [32, 64], "depth": [1, 2], "dropout": [0.0, 0.1], "patch": [8, 4, 16]},
+    "xlstm": {"width": [32, 64], "depth": [1, 2], "dropout": [0.0, 0.1]},
+    "gated_deltanet": {"width": [32, 64], "depth": [1, 2], "dropout": [0.0, 0.1]},
 }
 REF_MAX_FEATURES = 512  # flattened inputs larger than this are PCA-reduced for the references
 REF_PCA = 64

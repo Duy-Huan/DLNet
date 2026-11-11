@@ -93,6 +93,65 @@ Khác với gốc (có chủ ý): mọi khối nhận tensor channels-first củ
 
 **Đối chiếu số học** (`scripts/verify_freq.py`, chép trọng số và thống kê BatchNorm ngẫu nhiên theo tên, so đầu ra eval; job CI `verify-freq`, [lượt chạy](https://github.com/Duy-Huan/DLNet/actions/runs/43027248014)): **11/11 trùng từng bit** (sai khác 0): GFNet Block ×2, AFNO2D ×3, FFC BasicBlock ×3 (có và không có LFU, tỉ lệ 0,5 và 0,25), FcaNet ×3 (top16, low4, bot8; 5×5, 7×7, 9×9). FNO và FNet không có mã PyTorch chính thức chạy được: kiểm bằng đáp án đóng trong `tests/test_freq.py` (lọc toàn cục = tích chập vòng tính trực tiếp, góc tần số FNO, FNet = phần thực FFT 2 chiều của numpy, cơ sở DCT trực chuẩn).
 
+### v1.0: khối và họ 2023–2025 (`ops_next.py`, `ops_hsi.py`, `ops_domain.py`, `ops_graph2.py`, `ops_seq2.py`)
+
+Mỗi khối viết lại bằng torch thuần theo mã chính thức (commit ghim trong `.github/workflows/verify-modern.yml`), giữ tên tham số để chép trọng số theo tên.
+
+| Nhóm | Nguồn chính thức (commit) | Lớp gốc | Op / họ DLNet |
+|---|---|---|---|
+| Attention | qiuzh20/gated_attention `f4c2a5f` (NeurIPS 2025) | `Qwen3Attention`, `Qwen3DecoderLayer` (cổng headwise / elementwise) | `gated_attn_block` |
+| Attention | microsoft/unilm Diff-Transformer `31c5b90` (ICLR 2025) | `MultiheadDiffAttn` | `diff_attn_block` |
+| Chuẩn hóa | jiachenzhu/DyT `aab5dde` (CVPR 2025) | `DynamicTanh` | `dyt` |
+| Vị trí | naver-ai/rope-vit `48d8df5` (ECCV 2024) | `RoPEAttention`, `compute_axial_cis`, `compute_mixed_cis` | `rope_vit_block` (axial / mixed) |
+| Tích chập | BGU-CS-VIL/WTConv `4a84da2` (ECCV 2024) | `WTConv2d` (db1), `WTConvNeXtBlock` | `wtconv`, `wtconvnext_block` |
+| Tích chập | timm 1.0.31 (MobileNetV4, ECCV 2024) | `UniversalInvertedResidual`, `MobileAttention`, `MultiQueryAttention2d` | `uib`, `mobile_mqa` |
+| Tích chập | jameslahm/lsnet `cbe737c` (CVPR 2025) | `Block`, `LSConv`, `LKP`, `SKA` (Triton → unfold) | `lsnet_block` |
+| Tích chập | ma-xu/Rewrite-the-Stars `c999eb5` (CVPR 2024) | `starnet.Block` | `star_block` |
+| Attention tuyến tính | mit-han-lab/efficientvit `de7d773` (ICCV 2023) | `EfficientViTBlock`, `LiteMLA`, `MBConv` | `efficientvit_block` |
+| Attention tích chập | Visual-Attention-Network/SegNeXt `c87bcae` (NeurIPS 2022) | `mscan.Block`, `SpatialAttention`, `AttentionModule` | `msca`, `msca_block` |
+| HSI | li-yapeng/MambaHSI `a705284` (TGRS 2024) | `BothMamba`, `SpaMamba`, `SpeMamba` | `mambahsi_block`, họ `mambahsi` |
+| HSI | RockAilab/MambaHSI_Plus `5ef6282` (TGRS 2025) | `BothMamba`, `ECALayer`, `Spa/SpeMambaProcessor` | `mambahsi_plus_block`, họ `mambahsi_plus` |
+| HSI | zgr6010/HSI_SSFTT `994f5d7` (TGRS 2022) | `SSFTTnet` (bỏ lớp cuối) | `ssftt`, họ `ssftt` |
+| HSI | zhangxc0105/FAHM `6a3049e` (2025) | `FAHM`, `FGEM`, `RotaryEmbedding` | `fahm`, họ `fahm` |
+| Bảng | dholzmueller/pytabkit `d232eec` (NeurIPS 2024) | RealMLP-TD: `PLREmbeddingsLayerCosBias`, `ScaleLayer`, `WeightLayer` (ntk), `BiasLayer`, `ParametricActivationLayer` | `realmlp`, họ `realmlp` |
+| Chuỗi | kwuking/TimeMixer `e246105` (ICLR 2024) | `Model.classification`, `PastDecomposableMixing` | `timemixer`, họ `timemixer` |
+| Chuỗi | thuml/TimeXer `7601190` (NeurIPS 2024) | `Model.forecast_multi`, `EnEmbedding`, `EncoderLayer` | `timexer`, họ `timexer` |
+| Chuỗi | NVlabs/GatedDeltaNet `b53d6d3` (ICLR 2025) | `GatedDeltaNet` + `recurrent_gated_delta_rule_ref` | `gated_deltanet_block`, họ `gated_deltanet` |
+| Chuỗi | NX-AI/xlstm `ab22ead` (NeurIPS 2024) | `mLSTMLayer`, `mLSTMCell`, `parallel_stabilized_simple` | `mlstm_block`, họ `xlstm` |
+| Đồ thị | rampasek/GraphGPS `2801570` (NeurIPS 2022) | `GPSLayer` (GIN + Transformer), `get_rw_landing_probs` | `gps_layer`, `rwse`, `graph_lin`, họ `gps_net` |
+| Đồ thị | cornell-zhang/Polynormer `fc8c276` (ICLR 2024) | `Polynormer`, `GlobalAttn` (GATConv của PyG viết dạng dense) | `polynormer`, họ `polynormer_net` |
+| Đồ thị | qitianwu/SGFormer `87d36a9` (NeurIPS 2023) | `SGFormer`, `TransConv`, `models.GCN` | `sgformer`, họ `sgformer_net` |
+| CTR | reczoo/FuxiCTR `183da1c` | `FinalMLP` (AAAI 2023), `WuKongLayer` (ICML 2024) | `finalmlp`, `wukong`, họ `finalmlp`, `wukong` |
+| CTR | salmon1802/FCN `8eaa864` (DCNv3) | `ExponentialCrossNetwork`, `LinearCrossNetwork`, `MultiHeadFeatureEmbedding` | `dcnv3`, họ `dcnv3` |
+| KAN | Adamdad/kat `d254de7` + rational_kat_cu `181bae8` (ICLR 2025) | `KAN`, `KAT_Group` | `gr_kan`, `kat_block`, họ ảnh `kat` |
+| Ảnh | NVlabs/MambaVision `7860a50` (CVPR 2025) | `MambaVisionMixer`, `Block` | `mambavision_block`, họ ảnh `mambavision` |
+
+Khác với gốc (có chủ ý, ghi trong docstring từng lớp):
+- Kernel CUDA/Triton được thay bằng dạng tham chiếu mà chính repo cung cấp. Cụ thể: SKA của LSNet viết lại bằng unfold; Gated DeltaNet dùng `recurrent_gated_delta_rule_ref`; mLSTM dùng `parallel_stabilized_simple`; Mamba dùng quét tuần tự.
+- MambaHSI gốc quét mọi pixel của cả cảnh thành một chuỗi. Trên patch, DLNet quét từng patch.
+- Head (lớp cuối) của bản gốc được thay bằng head của DLNet: SSFTT, FAHM, TimeXer (FlattenHead), DCNv3 (logit, Tri-BCE), FinalMLP (đầu ra `out` đặc trưng), WuKong (MLP), Polynormer/SGFormer.
+- RealMLP không port hệ số learning rate riêng từng nhóm tham số, khởi tạo phụ thuộc dữ liệu, và lịch dropout/weight decay.
+- KAT dùng mẫu số 1 + Σ|b_i|·|x|^i như kernel Triton và paper. Đường torch/CPU của repo dùng x^i có dấu, khác kernel khi x < 0.
+- Giữ nguyên các điểm lạ của mã gốc để tính đúng cùng một hàm:
+  - MambaVision cộng bias của `dt_proj` hai lần;
+  - FAHM cho phép lớp ẩn 0 đơn vị;
+  - SSFTT chia attention cho dim^0,5.
+- Tham số khai báo nhưng không dùng trong forward thì bỏ:
+  - `bn4` của FAHM và BatchNorm của `Channel_Merge`;
+  - `out_cross_layer` của TimeMixer và nhánh mùa của block cuối;
+  - `D` của Gated DeltaNet thì giữ nhưng không huấn luyện.
+
+**Đối chiếu số học** (5 job CI: `verify-next`, `verify-hsi`, `verify-domain`, `verify-seq2`, cùng `verify-freq`/`verify` cũ; chép trọng số và thống kê BatchNorm ngẫu nhiên theo tên, so đầu ra eval):
+- `verify-next` **32/32**:
+  - Trùng từng bit: UIB ×4, DyT ×2, Diff Attention ×4, RoPE ×4, WTConv ×3, LSNet ×2, StarNet ×2, EfficientViT ×3, SegNeXt ×2.
+  - Bộ lọc Haar khớp pywt db1.
+  - Gated Attention ×3 lệch ≤ 4,8e-7; Mobile MQA ×2 lệch ≤ 3,9e-7.
+- `verify-hsi` **8/8**, trùng từng bit: MambaHSI ×2, MambaHSI+ ×2, SSFTT ×2, FAHM ×2.
+- `verify-domain` **19/19**: RealMLP ×2, TimeMixer ×2, RWSE, GPSLayer ×2, FinalMLP ×2, WuKong ×2, DCNv3 ×2 trùng từng bit; TimeXer ×2 ≤ 8,3e-7; Polynormer ≤ 3,6e-7; SGFormer ≤ 1,2e-7.
+- `verify-seq2`: Gated DeltaNet (phép truy hồi trùng bit, lớp ≤ 2,4e-7) ×3, mLSTM ×2 trùng từng bit, GR-KAN ×2 (x ≥ 0), MambaVision ×2: SEQ2_PLACEHOLDER.
+
+**Chưa port**: OverLoCK (CVPR 2025) cần kernel NATTEN và kiến trúc ba mạng con truyền ngữ cảnh cho nhau, không lắp vào ngữ pháp tuần tự; xLSTM-Mixer cần sLSTM (chưa port, có mLSTM); TabR/ModernNCA cần truy hồi kNN trên tập train trong mỗi batch (vòng huấn luyện khác); mô hình pretrained (proxy chặn trọng số).
+
 ## Chưa port và lý do
 
 | Nguồn | Lớp / phần chưa có | Lý do |

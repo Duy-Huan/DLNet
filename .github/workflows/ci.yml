@@ -20,12 +20,16 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # tags, for the README.md / doc/ check below
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - run: pip install "ruff>=0.5"
       - run: ruff check .
       - run: ruff format --check .
+      - name: README.md and doc/ updated with the code (agent.md sec. 17; strict on release commits)
+        run: python scripts/release.py docs
 
   test:
     name: test (py${{ matrix.python }})

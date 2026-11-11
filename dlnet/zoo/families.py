@@ -32,17 +32,39 @@ TABULAR = (
     "fm_mlp",
     "tabm",
     "tabm_plr",
+    "realmlp",
 )
 ENSEMBLE_FAMILIES = (
     "tabm",
     "tabm_plr",
 )  # one output layer and one loss per member (head "ensemble")
-IMAGE = ("cnn", "resnet", "vit", "lenet", "allconv", "vgg", "densenet", "mobilenetv2")
+IMAGE = (
+    "cnn",
+    "resnet",
+    "vit",
+    "lenet",
+    "allconv",
+    "vgg",
+    "densenet",
+    "mobilenetv2",
+    "mambavision",
+    "kat",
+)
 SEGMENTATION = (
     "fcn", "unet", "deconvnet", "unetpp", "fpn", "deeplabv3", "deeplabv3plus", "pspnet", "linknet",
     "upernet", "segformer",
 )  # fmt: skip
-TIMESERIES = ("tcn", "gru", "ts_transformer", "patchtst", "itransformer")
+TIMESERIES = (
+    "tcn",
+    "gru",
+    "ts_transformer",
+    "patchtst",
+    "itransformer",
+    "timemixer",
+    "timexer",
+    "xlstm",
+    "gated_deltanet",
+)
 HSI = (
     "cnn1d",
     "cnn2d",
@@ -61,6 +83,10 @@ HSI = (
     "fcanet2d",
     "spec_fft2d",
     "fourier_ss",
+    "mambahsi",
+    "mambahsi_plus",
+    "ssftt",
+    "fahm",
     "composed",
 )
 HSI_PRESETS = {
@@ -73,8 +99,17 @@ HSI_PRESETS = {
 HSI_SPECTRAL = ("cnn1d", "transformer")
 HSI_SPATIAL = ("conv", "res", "dwsep", "convnext", "tucker", "gfnet", "fno", "afno", "ffc", "fca")
 FUSIONS = ("concat", "gated")
-GRAPH = ("gcn_net", "gat_net", "sage_net", "gin_net", "graph_mlp")
-RECSYS = ("mf", "ncf", "fm", "dlrm")
+GRAPH = (
+    "gcn_net",
+    "gat_net",
+    "sage_net",
+    "gin_net",
+    "graph_mlp",
+    "gps_net",
+    "polynormer_net",
+    "sgformer_net",
+)
+RECSYS = ("mf", "ncf", "fm", "dlrm", "finalmlp", "dcnv3", "wukong")
 RECONSTRUCTION = ("conv_ae", "vae")
 BACKBONES = ("lenet", "allconv", "vgg", "resnet", "densenet", "mobilenetv2")
 
@@ -144,6 +179,18 @@ def tabular(cfg, dims):
         return S(
             {"op": "moe", "experts": experts, "mode": cfg.get("routing", "soft"), "k": 2},
             lin(w, "gelu"),
+        )
+    if f == "realmlp":  # RealMLP-TD (NeurIPS 2024): PBLD embedding, front scale, NTK layers
+        return S(
+            N(
+                "realmlp",
+                width=w,
+                depth=d,
+                act=cfg.get("act", "selu"),
+                p_drop=p,
+                emb="pbld",
+                smooth_clip=1,
+            )
         )
     if f in ("tabm", "tabm_plr"):  # TabM (arXiv:2410.24210): plain, or on PLR(lite) embeddings
         body = N("tabm", k=cfg.get("k", 16), width=w, depth=d, dropout=p,
@@ -257,6 +304,15 @@ def image(cfg, dims):
             N("seq_pool", mode="cls"),
             N("norm", norm="layer"),
         )
+    if f == "mambavision":  # MambaVision (CVPR 2025): Mamba mixer blocks, then attention blocks
+        half = max(1, d // 2)
+        return S(N("patchify", dim=w, patch=cfg["patch"]), N("pos", mode="learned"),
+                 rep(half, N("mambavision_block", mlp_ratio=4)), rep(max(1, d - half), TB(4, 4, p)),
+                 N("seq_pool", mode="mean"), N("norm", norm="layer"))  # fmt: skip
+    if f == "kat":  # Kolmogorov-Arnold Transformer (ICLR 2025): ViT with GR-KAN instead of the MLP
+        return S(N("patchify", dim=w, patch=cfg["patch"]), N("cls_token"), N("pos", mode="learned"),
+                 rep(d, N("kat_block", heads=4, ratio=4, groups=8)), N("seq_pool", mode="cls"),
+                 N("norm", norm="layer"))  # fmt: skip
     if f in BACKBONES:
         return S(*encoder_stages(f, w, d, size, cfg.get("attention", "none")))
     raise ValueError(f"unknown image family {f!r}")
@@ -299,6 +355,16 @@ def timeseries(cfg, dims):
         )
     if f == "gru":
         return S(N("tokens"), N("rnn", cell="gru", hidden=w, layers=d, bidir=1, dropout=p))
+    if f in (
+        "xlstm",
+        "gated_deltanet",
+    ):  # mLSTM (xLSTM, NeurIPS 2024) / Gated DeltaNet (ICLR 2025) over time
+        blk = (
+            N("mlstm_block", heads=4, proj_factor=2.0)
+            if f == "xlstm"
+            else N("gated_deltanet_block", heads=4, ratio=2)
+        )
+        return S(cba(w, 1, 1, "identity", "none"), N("tokens"), rep(d, blk))
     if f == "ts_transformer":
         return S(
             cba(w, 1, 1, "identity", "none"),
@@ -308,6 +374,23 @@ def timeseries(cfg, dims):
         )
     if f == "patchtst":  # PatchTST (arXiv:2211.14730)
         return S(N("patchtst", d=w, layers=d, heads=4, patch=cfg.get("patch", 8), dropout=p))
+    if f == "timemixer":  # TimeMixer (ICLR 2024): decomposable multi-scale mixing
+        return S(
+            N(
+                "timemixer",
+                d_model=w,
+                e_layers=d,
+                down_layers=cfg.get("down", 1),
+                moving_avg=cfg.get("moving_avg", 25),
+                dropout=p,
+            )
+        )
+    if (
+        f == "timexer"
+    ):  # TimeXer (NeurIPS 2024): patch tokens + global token + variate cross-attention
+        return S(
+            N("timexer", patch_len=cfg.get("patch", 8), d_model=w, heads=4, e_layers=d, dropout=p)
+        )
     if f == "itransformer":  # iTransformer (arXiv:2310.06625)
         return S(N("itransformer", d=w, layers=d, heads=4, dropout=p))
     raise ValueError(f"unknown time-series family {f!r}")
@@ -397,6 +480,22 @@ def hsi(cfg, dims):
         )
     if f == "cnn3d":
         return _joint("conv3d", w, d, bands)
+    if f in (
+        "mambahsi",
+        "mambahsi_plus",
+    ):  # 1x1 embedding, GN, SiLU; blocks with 2x2 pooling between
+        blk = N(f + "_block", token_num=4, group_num=4 if f == "mambahsi" else 2)
+        body, side = [], patch
+        for i in range(d):
+            body.append(blk)
+            if i < d - 1 and side >= 4:
+                body.append(N("pool", mode="avg", k=2, s=2))
+                side //= 2
+        return S(cba(w, 1, act="swish", norm="group"), *body, N("gap", mode="avg"))
+    if f == "ssftt":  # SSFTT (TGRS 2022): 3-D/2-D conv, Gaussian tokenizer, transformer
+        return S(N("ssftt", tokens=4, dim=64, heads=8, depth=1))
+    if f == "fahm":  # FAHM (2025): frequency-domain embedding + RoPE + Mamba, 3 stages
+        return S(N("fahm", size=cfg.get("size", "small"), groups=2))
     if f == "spec_fft2d":  # each pixel's spectrum -> its Fourier coefficients, then a ResNet
         return S(N("spectral_rfft"), _spatial("res", w, d, patch))
     if f == "fourier_ss":  # spectral-axis Fourier filter, then spatial GFNet blocks
@@ -491,6 +590,24 @@ def graph(cfg, dims):
         "sage_net": lambda: N("sage", out=w),
         "gin_net": lambda: N("gin", out=w),
     }
+    ro = N("graph_readout", mode=cfg.get("readout", "mean"))
+    if (
+        f == "gps_net"
+    ):  # GraphGPS: RWSE, input projection, GPS layers (local GIN + global attention)
+        heads = 4 if w % 4 == 0 else 1
+        return S(
+            N("rwse", k=8),
+            N("graph_lin", out=w),
+            *[N("gps_layer", heads=heads, dropout=p) for _ in range(d)],
+            ro,
+        )
+    if f == "polynormer_net":  # Polynormer (ICLR 2024): local then global polynomial attention
+        return S(
+            N("polynormer", hidden=w, heads=1, local_layers=max(d, 1), global_layers=2, dropout=p),
+            ro,
+        )
+    if f == "sgformer_net":  # SGFormer (NeurIPS 2023): simple global attention + GCN branch
+        return S(N("sgformer", hidden=w, layers=max(d, 1), heads=1, dropout=p), ro)
     if f == "graph_mlp":  # no message passing: the flattened features and adjacency
         return S(N("flatten"), N("mlp", width=w, depth=d, act="gelu", dropout=p))
     if f not in layer:
@@ -514,6 +631,13 @@ def recsys(cfg, dims):
             "merge": "concat",
         }
         return S(emb, both, N("mlp", width=2 * w, depth=d, act="relu", dropout=p))
+    if f == "finalmlp":  # FinalMLP (AAAI 2023): two gated MLP streams, bilinear aggregation
+        return S(emb, N("finalmlp", hidden=4 * w, depth=d + 1, heads=1, out=16, dropout=p))
+    if f == "dcnv3":  # DCNv3 / FCN: exponential + linear cross networks
+        return S(emb, N("dcnv3", exp_layers=d + 1, lin_layers=d + 1, dropout=p))
+    if f == "wukong":  # WuKong (ICML 2024): stacked FM blocks + linear compression, then an MLP
+        return S(emb, N("wukong", layers=d + 1, lcb=16, fmb=16, rank_k=8, dropout=p), N("flatten"),
+                 N("mlp", width=2 * w, depth=2, act="relu", dropout=p))  # fmt: skip
     raise ValueError(f"unknown recsys family {f!r}")
 
 

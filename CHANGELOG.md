@@ -6,6 +6,32 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+- Quy tắc tài liệu: mọi thay đổi hay nâng cấp phải cập nhật `README.md` và `doc/` (agent.md §17 quy tắc 0); `python scripts/release.py docs` kiểm trong job `lint` (lỗi trên commit phát hành, cảnh báo trên commit thường); `tests/test_docs.py` kiểm số module trong README và link README.
+
+Mốc M27: **v1.0**, làm đầy kho khối theo khảo sát `qa/reports/v0.24.0/module-survey.md`; `agent.md` §9.9.
+
+### Thêm
+- **33 op mới** (100 → 133), viết lại bằng torch thuần theo mã chính thức (commit ghim), so số học với mã gốc trên GitHub Actions:
+  - attention / chuẩn hóa: `gated_attn_block` (Gated Attention, NeurIPS 2025), `diff_attn_block` (Differential Transformer, ICLR 2025), `dyt` (DyT, CVPR 2025), `rope_vit_block` (RoPE 2-D);
+  - tích chập: `wtconv`, `wtconvnext_block` (WTConv), `uib`, `mobile_mqa` (MobileNetV4), `lsnet_block` (LSNet, CVPR 2025), `star_block` (StarNet), `efficientvit_block` (EfficientViT), `msca`, `msca_block` (SegNeXt);
+  - chuỗi: `gated_deltanet_block` (Gated DeltaNet, ICLR 2025), `mlstm_block` (xLSTM), `mambavision_block` (MambaVision, CVPR 2025), `gr_kan`, `kat_block` (KAT, ICLR 2025);
+  - HSI: `mambahsi_block`, `mambahsi_plus_block`, `ssftt`, `fahm`;
+  - bảng / chuỗi thời gian: `realmlp` (RealMLP, NeurIPS 2024), `timemixer` (ICLR 2024), `timexer` (NeurIPS 2024);
+  - đồ thị: `gps_layer`, `rwse`, `graph_lin` (GraphGPS), `polynormer` (ICLR 2024), `sgformer` (NeurIPS 2023);
+  - recommender: `finalmlp`, `dcnv3`, `wukong`.
+- **17 họ mới**:
+  - HSI: `mambahsi`, `mambahsi_plus`, `ssftt`, `fahm`;
+  - bảng: `realmlp`;
+  - chuỗi thời gian: `timemixer`, `timexer`, `xlstm`, `gated_deltanet`;
+  - ảnh: `mambavision`, `kat`;
+  - đồ thị: `gps_net`, `polynormer_net`, `sgformer_net`;
+  - recommender: `finalmlp`, `dcnv3`, `wukong`.
+- Đối chiếu số học (CI `verify-next`, `verify-hsi`, `verify-domain`, `verify-seq2`): xem THIRD_PARTY.md mục v1.0. `tests/test_v1.py`: đáp án đóng, tính nhân quả, autocast, `torch.export`.
+- `scripts/bench_v1.py`: đo cùng split các họ mới với họ cũ (bảng, ảnh, chuỗi); số trong `agent.md` §9.9.
+
+### Chưa làm
+- OverLoCK (NATTEN, kiến trúc ba nhánh), xLSTM-Mixer (sLSTM), TabR/ModernNCA (truy hồi kNN khi huấn luyện), mô hình pretrained (proxy chặn).
+
 ## [0.24.0] - 2026-11-11
 
 Mốc M26: module miền tần số (FFT/iFFT), `agent.md` §9.8.

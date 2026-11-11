@@ -75,6 +75,19 @@ python -m dlnet design --data cube.mat --gt gt.mat --split block --patch 9 --pca
 python -m dlnet design --data cube.mat --gt gt.mat --split block --patch 9 --pca 0 --budget 20m
 ```
 
+**Họ mới của v1.0** (viết theo mã chính thức, so số học với mã gốc; danh sách nguồn ở `THIRD_PARTY.md`):
+
+| Dữ liệu | Họ mới | Ghi chú |
+|---|---|---|
+| Ảnh siêu phổ | `mambahsi`, `mambahsi_plus`, `ssftt`, `fahm` | Mamba / Transformer cho HSI; các họ Mamba chạy chậm trên CPU (quét tuần tự) |
+| Bảng | `realmlp` | RealMLP-TD (NeurIPS 2024) |
+| Chuỗi thời gian | `timemixer`, `timexer`, `xlstm`, `gated_deltanet` | `xlstm` / `gated_deltanet` trộn được thông tin giữa các kênh |
+| Ảnh | `mambavision`, `kat` | lai Mamba–attention; ViT với GR-KAN |
+| Đồ thị | `gps_net`, `polynormer_net`, `sgformer_net` | graph transformer (đồ thị nhỏ, ma trận kề dày) |
+| Recommender | `finalmlp`, `dcnv3`, `wukong` | mô hình CTR |
+
+Ngữ pháp `--zoo` còn tự dùng các khối mới như `gated_attn_block`, `diff_attn_block`, `dyt`, `rope_vit_block`, `wtconv`, `uib`, `mobile_mqa`, `lsnet_block`, `star_block`, `efficientvit_block`, `msca_block`, `gr_kan`. Xem danh sách bằng `python -m dlnet zoo`.
+
 Gợi ý ngân sách trên CPU: 5–15 phút cho vài nghìn mẫu nhỏ; tăng `--budget` khi dữ liệu lớn hơn. Kết quả trong ngân sách ngắn là **xếp hạng sơ bộ**: các hạng liền nhau có thể đổi chỗ khi huấn luyện đầy đủ (cột `group` trong leaderboard cho biết những mô hình không phân biệt được trong nhiễu).
 
 ## 5. Chọn hướng tối ưu

@@ -285,6 +285,7 @@ Nguyên tắc: lõi **tổng quát trước**, kiểm chứng end-to-end sớm t
 | **M14** | Khối ảnh từ thư viện chính thống (timm, smp, MONAI, torchvision); đối chiếu số học các khối viết từ trí nhớ | **Xong (v0.13.0)**, xem §13.8 |
 | **M25** | Mốc 4 sau kiểm định: TabM, PLR, PatchTST, iTransformer (pretrained bị chặn bởi mạng) | **v0.23.0**; đối chiếu số học 7/7 khớp trên CI (§9.7) |
 | **M26** | Module miền tần số (FFT/iFFT): GFNet, AFNO, FNO, FFC, FcaNet, FNet; lọc Fourier dọc trục phổ cho HSI; 7 họ HSI mới | **v0.24.0**; 11/11 khối trùng từng bit với mã gốc (CI), đo trên Indian Pines (§9.8) |
+| **M27** | v1.0: 33 op và 17 họ mới (2023–2025) theo khảo sát `qa/reports/v0.24.0/module-survey.md` (attention/chuẩn hóa/tích chập mới; HSI Mamba/Transformer; RealMLP; TimeMixer/TimeXer/xLSTM/Gated DeltaNet; GraphGPS/Polynormer/SGFormer; FinalMLP/DCNv3/WuKong; KAT; MambaVision) | **v1.0.0**; so số học với mã gốc trên CI (§9.9) |
 | **M24** | Mốc 3 sau kiểm định: công thức huấn luyện hiện đại, gói có `model.pt`/`predict.py`/export, thông báo lỗi | **Xong (v0.22.0)**, xem §9.6 |
 | **M23** | Mốc 2 sau kiểm định: phân bổ ngân sách (SH chia đều theo rung, chặn tiến hóa, chạy lại finalist, `--hparams auto`, bỏ prior tay) | **Xong (v0.21.0)**, xem §9.5 |
 | **M22** | Mốc 1 sau kiểm định: sửa kết quả sai (Hyperband, ứng viên lỗi, xếp hạng cùng epoch, nhiễu một lần chạy, vai trò, verdict, cảnh báo) | **Xong (v0.20.0)**, xem §9.4 |
@@ -417,6 +418,31 @@ Kết luận trung thực: Top-K được huấn luyện sâu gấp 2,5 lần n�
   Kết luận trung thực: **không họ tần số nào thắng ResNet quá nhiễu về OA**. Điểm đáng giữ: `spec_fft2d` (hệ số Fourier của phổ từng pixel) khi giữ đủ băng có OA ngang ResNet và AA trung bình cao hơn (0,984 so với 0,969) nhưng chỉ 2/3 seed (seed 2: 0,975 so với 0,978): gợi ý tốt hơn trên các lớp nhỏ, chưa chắc chắn; `ffc2d`, `fcanet2d` ngang ResNet ở PCA 30; `gfnet2d` ổn định nhất khi chia theo khối (std 0,016). FNO và AFNO kém hơn CNN trên patch 9×9 (quá ít tần số để mô hình hóa). Chia theo khối: mọi họ 0,42–0,52 với nhiễu ±0,02–0,09, không phân biệt được. Các họ vẫn ở trong không gian tìm kiếm để Hyperband/tiến hóa chọn theo dữ liệu, không ưu tiên sẵn.
 - **Lưu ý**: FFT trên trục phổ chỉ có nghĩa khi giữ thứ tự băng (`--pca 0`); FLOPs của chính FFT không được `cost.py` đếm.
 
+### 9.9 v1.0 (M27): làm đầy kho khối theo khảo sát 2023–2025
+- **Nguồn**: khảo sát `qa/reports/v0.24.0/module-survey.md`. Mọi khối viết lại bằng torch thuần theo mã chính thức, ghim commit; bảng nguồn và các chỗ khác gốc nằm trong THIRD_PARTY.md, mục v1.0. Kho từ 100 lên 133 op (33 op mới) và thêm 17 họ; tổng 80 họ trên 8 miền dữ liệu.
+  - **Drop-in** (`ops_next.py`): `gated_attn_block`, `diff_attn_block`, `dyt`, `rope_vit_block`, `wtconv`, `wtconvnext_block`, `uib`, `mobile_mqa`, `lsnet_block`, `star_block`, `efficientvit_block`, `msca`, `msca_block`. Ngữ pháp tự dùng qua thẻ.
+  - **HSI** (`ops_hsi.py`): họ `mambahsi`, `mambahsi_plus`, `ssftt`, `fahm`.
+  - **Bảng / chuỗi** (`ops_domain.py`, `ops_seq2.py`): họ `realmlp`, `timemixer`, `timexer`, `xlstm` (mLSTM), `gated_deltanet`.
+  - **Đồ thị / CTR** (`ops_graph2.py`): họ `gps_net` (kèm RWSE), `polynormer_net`, `sgformer_net`, `finalmlp`, `dcnv3`, `wukong`.
+  - **Ảnh**: họ `mambavision`, `kat` (GR-KAN).
+- **Kiểm chứng**: 5 job CI so đầu ra với mã gốc sau khi chép trọng số (THIRD_PARTY.md). `tests/test_v1.py` kiểm bằng đáp án đóng:
+  - wavelet Haar khôi phục hoàn hảo;
+  - SKA bằng tổng trực tiếp;
+  - delta rule một bước;
+  - các bộ trộn nhân quả không nhìn trước;
+  - RWSE bằng lũy thừa ma trận numpy;
+  - GAT cho nút cô lập ra 0 như PyG;
+  - mỗi họ mới huấn luyện được, chạy dưới autocast bf16 và `torch.export` được (trừ các họ có vòng lặp Python).
+- **Đo** (`scripts/bench_v1.py`, `scripts/bench_freq_hsi.py`; cùng split, cùng epoch, 3 seed nếu không ghi khác): BENCH_V1_PLACEHOLDER
+- **Chưa làm và lý do**:
+  - OverLoCK cần kernel NATTEN, và kiến trúc ba mạng con truyền ngữ cảnh không lắp vào ngữ pháp tuần tự.
+  - xLSTM-Mixer cần sLSTM.
+  - TabR/ModernNCA cần truy hồi kNN trong vòng huấn luyện.
+  - Pretrained bị proxy chặn.
+- **Hạn chế đã biết**:
+  - Các họ Mamba/mLSTM/Gated DeltaNet chạy bằng quét tuần tự Python, chậm trên CPU với chuỗi dài. Ví dụ `mambahsi_plus` trên Indian Pines chậm hơn ResNet nhiều lần.
+  - FLOPs của các vòng quét không được `cost.py` đếm đầy đủ.
+
 ## 10. Quy ước cho agent (người/AI) phát triển repo
 
 - Mọi thay đổi kiến trúc phải cập nhật `agent.md` và `ArchSpec` schema.
@@ -426,7 +452,7 @@ Kết luận trung thực: Top-K được huấn luyện sâu gấp 2,5 lần n�
 - Không commit dữ liệu thô hoặc khóa/bí mật.
 - **Môi trường Python:** không commit `.venv` (nặng hàng GB, riêng từng máy, vượt giới hạn 100 MB/file của GitHub; `tests/test_env_setup.py` chặn). Môi trường tái lập bằng `scripts/setup_env.sh` / `scripts/setup_env.ps1` (hoặc `requirements*.txt`), kiểm bằng `dlnet selfcheck`; job CI `env-setup` chạy đúng quy trình này trên Ubuntu, macOS, Windows. Thêm phụ thuộc mới: sửa `pyproject.toml` (extras `design`/`dev`), không sửa riêng script.
 - Trước khi làm, chọn skill phù hợp trong `skills/` (§15).
-- Đổi hành vi người dùng thấy được thì cập nhật `doc/` trong cùng commit (§17).
+- **Mọi thay đổi hay nâng cấp đều phải cập nhật `README.md` và tài liệu trong `doc/`** (§17, quy tắc 0); CI kiểm bằng `python scripts/release.py docs`.
 - **Thuật toán chuẩn:** mọi bộ ước lượng chất lượng mạng hoặc hyperparameter phải tham khảo `ref/optimazeDL/` và implement đúng công thức của paper/mã chính thức (§16); không tự chế.
 - Mỗi thay đổi người dùng thấy được phải thêm một dòng vào `CHANGELOG.md` mục `[Unreleased]`; phát hành theo §11.2.
 - Mỗi lỗi sửa phải có regression test đi kèm (`tests/test_regression.py`, đỏ trước xanh sau); thay đổi chỉ xanh khi `lint`, `test`, `regression`, `e2e` đều xanh.
@@ -848,6 +874,7 @@ Chưa làm: epochs (hiện là công thức mặc định 100 epoch, cosine, ch�
 | `doc/cli.md`, `doc/zoo.md` | tham chiếu lệnh, danh mục module | **sinh tự động** (`python scripts/gen_docs.py`), không sửa tay |
 
 **Quy tắc (bắt buộc cho mọi thay đổi và mọi bản phát hành):**
+0. **Mỗi khi có thay đổi hay nâng cấp, phải cập nhật `README.md` và tài liệu trong `doc/`** (ít nhất một trang viết tay: `user-guide.md`, `architecture.md` hoặc `algorithms.md`; `cli.md`/`zoo.md` sinh tự động không tính). Số liệu trong README (số module, số họ, phiên bản, tính năng) phải khớp mã; `tests/test_docs.py` kiểm số module. Tự động: `python scripts/release.py docs` so với tag gần nhất; mã trong `dlnet/` đổi mà README hoặc `doc/` không đổi thì job `lint` báo cảnh báo trên commit thường và **báo lỗi trên commit phát hành** (phiên bản chưa có tag), nên không phát hành được khi tài liệu chưa cập nhật.
 1. Commit nào đổi hành vi người dùng thấy (lệnh, tùy chọn, định dạng dữ liệu, đầu ra, thuật toán, kết quả đo) thì sửa luôn trang `doc/` liên quan trong **cùng commit**, giống quy tắc CHANGELOG. Thêm tùy chọn CLI hoặc op mới: chạy `python scripts/gen_docs.py`.
 2. Tài liệu chỉ mô tả điều đã có trong mã và đã đo; điều chưa làm hoặc kết quả âm tính ghi rõ như trong `agent.md`.
 3. Commit phát hành dùng `python scripts/release.py bump X.Y.Z`: đổi phiên bản trong `pyproject.toml`, `dlnet/__init__.py`, `doc/README.md`, mở mục CHANGELOG, sinh lại `doc/cli.md`, `doc/zoo.md`.
