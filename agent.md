@@ -452,7 +452,7 @@ Kết luận trung thực: Top-K được huấn luyện sâu gấp 2,5 lần n�
 - Không commit dữ liệu thô hoặc khóa/bí mật.
 - **Môi trường Python:** không commit `.venv` (nặng hàng GB, riêng từng máy, vượt giới hạn 100 MB/file của GitHub; `tests/test_env_setup.py` chặn). Môi trường tái lập bằng `scripts/setup_env.sh` / `scripts/setup_env.ps1` (hoặc `requirements*.txt`), kiểm bằng `dlnet selfcheck`; job CI `env-setup` chạy đúng quy trình này trên Ubuntu, macOS, Windows. Thêm phụ thuộc mới: sửa `pyproject.toml` (extras `design`/`dev`), không sửa riêng script.
 - Trước khi làm, chọn skill phù hợp trong `skills/` (§15).
-- Đổi hành vi người dùng thấy được thì cập nhật `doc/` trong cùng commit (§17).
+- **Mọi thay đổi hay nâng cấp đều phải cập nhật `README.md` và tài liệu trong `doc/`** (§17, quy tắc 0); CI kiểm bằng `python scripts/release.py docs`.
 - **Thuật toán chuẩn:** mọi bộ ước lượng chất lượng mạng hoặc hyperparameter phải tham khảo `ref/optimazeDL/` và implement đúng công thức của paper/mã chính thức (§16); không tự chế.
 - Mỗi thay đổi người dùng thấy được phải thêm một dòng vào `CHANGELOG.md` mục `[Unreleased]`; phát hành theo §11.2.
 - Mỗi lỗi sửa phải có regression test đi kèm (`tests/test_regression.py`, đỏ trước xanh sau); thay đổi chỉ xanh khi `lint`, `test`, `regression`, `e2e` đều xanh.
@@ -874,6 +874,7 @@ Chưa làm: epochs (hiện là công thức mặc định 100 epoch, cosine, ch�
 | `doc/cli.md`, `doc/zoo.md` | tham chiếu lệnh, danh mục module | **sinh tự động** (`python scripts/gen_docs.py`), không sửa tay |
 
 **Quy tắc (bắt buộc cho mọi thay đổi và mọi bản phát hành):**
+0. **Mỗi khi có thay đổi hay nâng cấp, phải cập nhật `README.md` và tài liệu trong `doc/`** (ít nhất một trang viết tay: `user-guide.md`, `architecture.md` hoặc `algorithms.md`; `cli.md`/`zoo.md` sinh tự động không tính). Số liệu trong README (số module, số họ, phiên bản, tính năng) phải khớp mã; `tests/test_docs.py` kiểm số module. Tự động: `python scripts/release.py docs` so với tag gần nhất; mã trong `dlnet/` đổi mà README hoặc `doc/` không đổi thì job `lint` báo cảnh báo trên commit thường và **báo lỗi trên commit phát hành** (phiên bản chưa có tag), nên không phát hành được khi tài liệu chưa cập nhật.
 1. Commit nào đổi hành vi người dùng thấy (lệnh, tùy chọn, định dạng dữ liệu, đầu ra, thuật toán, kết quả đo) thì sửa luôn trang `doc/` liên quan trong **cùng commit**, giống quy tắc CHANGELOG. Thêm tùy chọn CLI hoặc op mới: chạy `python scripts/gen_docs.py`.
 2. Tài liệu chỉ mô tả điều đã có trong mã và đã đo; điều chưa làm hoặc kết quả âm tính ghi rõ như trong `agent.md`.
 3. Commit phát hành dùng `python scripts/release.py bump X.Y.Z`: đổi phiên bản trong `pyproject.toml`, `dlnet/__init__.py`, `doc/README.md`, mở mục CHANGELOG, sinh lại `doc/cli.md`, `doc/zoo.md`.

@@ -53,3 +53,31 @@ def test_release_bump_updates_doc_version(tmp_path):
     release.bump("9.9.9", "2030-01-01", tmp_path)
     assert "Phiên bản tài liệu: **9.9.9**" in (tmp_path / "doc" / "README.md").read_text()
     assert release.check(tmp_path) == []
+
+
+def test_readme_module_count_matches_the_zoo():
+    pytest = __import__("pytest")
+    pytest.importorskip("torch")
+    from dlnet import zoo
+
+    m = re.search(r"\((\d+) module", (ROOT / "README.md").read_text())
+    assert m and int(m.group(1)) == len(zoo.OPS), (
+        "README.md module count is stale (agent.md sec. 17)"
+    )
+
+
+def test_readme_links_point_to_existing_files():
+    for target in re.findall(r"\]\(([^)#:]+)(?:#[^)]*)?\)", (ROOT / "README.md").read_text()):
+        assert (ROOT / target).exists(), f"README.md: broken link {target}"
+
+
+def test_docs_rule_requires_readme_and_a_hand_written_page():
+    sys.path.insert(0, str(ROOT / "scripts"))
+    import release
+
+    assert release.docs_errors(["tests/x.py"]) == []
+    assert len(release.docs_errors(["dlnet/core.py"])) == 2
+    assert (
+        len(release.docs_errors(["dlnet/core.py", "README.md", "doc/zoo.md"])) == 1
+    )  # generated page
+    assert release.docs_errors(["dlnet/core.py", "README.md", "doc/user-guide.md"]) == []

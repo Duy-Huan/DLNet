@@ -6,6 +6,8 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+- Quy tắc tài liệu: mọi thay đổi hay nâng cấp phải cập nhật `README.md` và `doc/` (agent.md §17 quy tắc 0); `python scripts/release.py docs` kiểm trong job `lint` (lỗi trên commit phát hành, cảnh báo trên commit thường); `tests/test_docs.py` kiểm số module trong README và link README.
+
 Mốc M27: **v1.0**, làm đầy kho khối theo khảo sát `qa/reports/v0.24.0/module-survey.md`; `agent.md` §9.9.
 
 ### Thêm

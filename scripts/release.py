@@ -4,6 +4,7 @@ python scripts/release.py check          # version and CHANGELOG are consistent
 python scripts/release.py version        # print the version from pyproject.toml
 python scripts/release.py notes 0.1.0    # print the CHANGELOG section of that version
 python scripts/release.py bump 0.2.0     # release commit edits: versions, CHANGELOG, doc/ (agent.md sec. 17)
+python scripts/release.py docs [BASE]    # code changed since BASE (default: last tag) => README.md and doc/ too
 """
 
 from __future__ import annotations
@@ -95,6 +96,44 @@ def check(root: Path = ROOT) -> list[str]:
 DOC_VERSION = r"Phiên bản tài liệu: \*\*([^*]+)\*\*"
 
 
+HAND_DOCS = ("doc/user-guide.md", "doc/architecture.md", "doc/algorithms.md")
+
+
+def _git(*args: str, root: Path = ROOT) -> str:
+    import subprocess
+
+    return subprocess.run(
+        ["git", *args], cwd=root, capture_output=True, text=True, check=True
+    ).stdout
+
+
+def docs_errors(changed: list[str]) -> list[str]:
+    """agent.md sec. 17 rule 0: a change to the package comes with README.md and a hand-written
+    doc/ page (doc/cli.md, doc/zoo.md are generated and do not count)."""
+    if not any(f.startswith("dlnet/") for f in changed):
+        return []
+    errors = []
+    if "README.md" not in changed:
+        errors.append("dlnet/ changed but README.md was not updated (agent.md sec. 17)")
+    if not any(f in changed for f in HAND_DOCS):
+        errors.append(
+            f"dlnet/ changed but none of {', '.join(HAND_DOCS)} was updated (agent.md sec. 17)"
+        )
+    return errors
+
+
+def docs(base: str | None = None, root: Path = ROOT) -> tuple[list[str], bool]:
+    """(errors, strict). Strict on a release commit (version not yet tagged), a warning otherwise,
+    so work in progress on dev stays green while the release cannot skip the docs."""
+    tags = _git("tag", "--list", "v*", "--sort=-v:refname", root=root).split()
+    tag = base or (tags[0] if tags else None)  # tags live on main, not on dev: newest by version
+    if tag is None:
+        return [], False
+    changed = _git("diff", "--name-only", f"{tag}...HEAD", root=root).split()
+    strict = f"v{pyproject_version(root)}" != tag
+    return docs_errors(changed), strict
+
+
 def bump(new: str, today: str, root: Path = ROOT) -> None:
     """Release commit edits: version in pyproject / __init__ / doc/README.md, CHANGELOG section and
     links, regenerated doc/cli.md and doc/zoo.md."""
@@ -127,6 +166,15 @@ def main(argv: list[str] | None = None) -> int:
             print(f"::error::{e}")
         print("release check: " + ("FAILED" if errs else f"ok ({pyproject_version()})"))
         return 1 if errs else 0
+    if a[:1] == ["docs"] and len(a) <= 2:
+        errs, strict = docs(a[1] if len(a) == 2 else None)
+        for e in errs:
+            print(f"::{'error' if strict else 'warning'}::{e}")
+        print(
+            "docs check: "
+            + ("ok" if not errs else "FAILED" if strict else "warning (not a release commit)")
+        )
+        return 1 if errs and strict else 0
     if a[:1] == ["version"]:
         print(pyproject_version())
         return 0
