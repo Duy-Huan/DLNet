@@ -31,7 +31,7 @@ jobs:
       - name: Install DLNet (CPU torch) and what the authors' model files import
         run: |
           pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
-          pip install -e . numpy scipy pyyaml pillow "timm==1.0.31" "einops==0.8.1"
+          pip install -e . numpy scipy pyyaml pillow beartype "timm==1.0.31" "einops==0.8.1"
       - name: Compare every card with the authors' model
         run: python scripts/verify_papers.py --cards papers --work /tmp/papers
       - uses: actions/upload-artifact@v4

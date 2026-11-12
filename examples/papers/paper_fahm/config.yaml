@@ -1,0 +1,115 @@
+{
+  "arch": {
+    "family": "paper_fahm",
+    "spec": {
+      "op": "graph",
+      "nodes": [
+        {
+          "id": "fahm",
+          "op": "fahm",
+          "size": "tiny",
+          "groups": 2
+        }
+      ]
+    },
+    "input": {
+      "kind": "map",
+      "dims": [
+        30,
+        7,
+        7
+      ]
+    },
+    "head": "cls",
+    "out_dim": 16,
+    "dropout": 0.0,
+    "origin": "paper:FAHM",
+    "lr": 0.001,
+    "wd": 0.0001,
+    "batch": 64
+  },
+  "in_dim": 30,
+  "out_dim": 16,
+  "paper": {
+    "name": "FAHM",
+    "title": "Frequency-Aware Hierarchical Mamba for Hyperspectral Image Classification",
+    "code": "https://github.com/zhangxc0105/FAHM",
+    "reported": []
+  },
+  "official": {
+    "skip_verify": "needs the compiled CUDA kernel selective_scan_cuda",
+    "repo": "https://github.com/zhangxc0105/FAHM",
+    "commit": "6a3049e",
+    "entry": "model/fahm.py:FAHM",
+    "init_args": {
+      "img_size": 7,
+      "in_chans": 30,
+      "num_classes": 16,
+      "n_groups": [
+        2,
+        2,
+        2
+      ],
+      "embed_dims": [
+        64,
+        32,
+        16
+      ],
+      "depths": [
+        1,
+        1,
+        1
+      ]
+    },
+    "sys_path": [
+      "."
+    ],
+    "stub_modules": [
+      "torchsummaryX",
+      "fvcore",
+      "fvcore.nn"
+    ],
+    "method": "forward_features",
+    "input_ops": [
+      [
+        "flatten",
+        2
+      ]
+    ],
+    "output_ops": [
+      [
+        "mean",
+        1
+      ]
+    ],
+    "compare": "features",
+    "ignore_params": [
+      "head.",
+      "rope.",
+      "pre_conv.bn4.",
+      "merge.0.batch_norm.",
+      "merge.1.batch_norm.",
+      "merge.2.batch_norm."
+    ]
+  },
+  "training": null,
+  "fidelity_level": "C",
+  "fidelity": null,
+  "check": {
+    "name": "FAHM",
+    "level": "C",
+    "issues": [],
+    "nodes": [
+      {
+        "id": "fahm",
+        "kind": "vec",
+        "shape": [
+          16
+        ]
+      }
+    ],
+    "params": 68817,
+    "reported_params": null,
+    "ok": true
+  }
+}

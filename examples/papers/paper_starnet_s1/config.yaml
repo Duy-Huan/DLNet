@@ -1,0 +1,617 @@
+{
+  "arch": {
+    "family": "paper_starnet_s1",
+    "spec": {
+      "op": "graph",
+      "nodes": [
+        {
+          "id": "stem",
+          "op": "graph",
+          "nodes": [
+            {
+              "id": "conv",
+              "op": "conv",
+              "out": 32,
+              "k": 3,
+              "s": 2,
+              "pad": 1
+            },
+            {
+              "id": "bn",
+              "op": "norm",
+              "norm": "batch"
+            }
+          ]
+        },
+        {
+          "id": "stem_act",
+          "op": "act",
+          "act": "relu6"
+        },
+        {
+          "id": "down1",
+          "op": "graph",
+          "nodes": [
+            {
+              "id": "conv",
+              "op": "conv",
+              "out": 24,
+              "k": 3,
+              "s": 2,
+              "pad": 1
+            },
+            {
+              "id": "bn",
+              "op": "norm",
+              "norm": "batch"
+            }
+          ]
+        },
+        {
+          "id": "stage1",
+          "op": "rep",
+          "n": 2,
+          "body": {
+            "op": "graph",
+            "nodes": [
+              {
+                "id": "dw",
+                "op": "conv",
+                "out": 24,
+                "k": 7,
+                "groups": "depthwise"
+              },
+              {
+                "id": "dw_bn",
+                "op": "norm",
+                "norm": "batch"
+              },
+              {
+                "id": "f1",
+                "from": "dw_bn",
+                "op": "conv",
+                "out": 96,
+                "k": 1
+              },
+              {
+                "id": "f2",
+                "from": "dw_bn",
+                "op": "conv",
+                "out": 96,
+                "k": 1
+              },
+              {
+                "id": "relu6",
+                "from": "f1",
+                "op": "act",
+                "act": "relu6"
+              },
+              {
+                "id": "star",
+                "from": [
+                  "relu6",
+                  "f2"
+                ],
+                "op": "mul"
+              },
+              {
+                "id": "g",
+                "op": "conv",
+                "out": 24,
+                "k": 1
+              },
+              {
+                "id": "g_bn",
+                "op": "norm",
+                "norm": "batch"
+              },
+              {
+                "id": "dw2",
+                "op": "conv",
+                "out": 24,
+                "k": 7,
+                "groups": "depthwise"
+              },
+              {
+                "id": "sum",
+                "from": [
+                  "dw2",
+                  "input"
+                ],
+                "op": "add"
+              }
+            ]
+          }
+        },
+        {
+          "id": "down2",
+          "op": "graph",
+          "nodes": [
+            {
+              "id": "conv",
+              "op": "conv",
+              "out": 48,
+              "k": 3,
+              "s": 2,
+              "pad": 1
+            },
+            {
+              "id": "bn",
+              "op": "norm",
+              "norm": "batch"
+            }
+          ]
+        },
+        {
+          "id": "stage2",
+          "op": "rep",
+          "n": 2,
+          "body": {
+            "op": "graph",
+            "nodes": [
+              {
+                "id": "dw",
+                "op": "conv",
+                "out": 48,
+                "k": 7,
+                "groups": "depthwise"
+              },
+              {
+                "id": "dw_bn",
+                "op": "norm",
+                "norm": "batch"
+              },
+              {
+                "id": "f1",
+                "from": "dw_bn",
+                "op": "conv",
+                "out": 192,
+                "k": 1
+              },
+              {
+                "id": "f2",
+                "from": "dw_bn",
+                "op": "conv",
+                "out": 192,
+                "k": 1
+              },
+              {
+                "id": "relu6",
+                "from": "f1",
+                "op": "act",
+                "act": "relu6"
+              },
+              {
+                "id": "star",
+                "from": [
+                  "relu6",
+                  "f2"
+                ],
+                "op": "mul"
+              },
+              {
+                "id": "g",
+                "op": "conv",
+                "out": 48,
+                "k": 1
+              },
+              {
+                "id": "g_bn",
+                "op": "norm",
+                "norm": "batch"
+              },
+              {
+                "id": "dw2",
+                "op": "conv",
+                "out": 48,
+                "k": 7,
+                "groups": "depthwise"
+              },
+              {
+                "id": "sum",
+                "from": [
+                  "dw2",
+                  "input"
+                ],
+                "op": "add"
+              }
+            ]
+          }
+        },
+        {
+          "id": "down3",
+          "op": "graph",
+          "nodes": [
+            {
+              "id": "conv",
+              "op": "conv",
+              "out": 96,
+              "k": 3,
+              "s": 2,
+              "pad": 1
+            },
+            {
+              "id": "bn",
+              "op": "norm",
+              "norm": "batch"
+            }
+          ]
+        },
+        {
+          "id": "stage3",
+          "op": "rep",
+          "n": 8,
+          "body": {
+            "op": "graph",
+            "nodes": [
+              {
+                "id": "dw",
+                "op": "conv",
+                "out": 96,
+                "k": 7,
+                "groups": "depthwise"
+              },
+              {
+                "id": "dw_bn",
+                "op": "norm",
+                "norm": "batch"
+              },
+              {
+                "id": "f1",
+                "from": "dw_bn",
+                "op": "conv",
+                "out": 384,
+                "k": 1
+              },
+              {
+                "id": "f2",
+                "from": "dw_bn",
+                "op": "conv",
+                "out": 384,
+                "k": 1
+              },
+              {
+                "id": "relu6",
+                "from": "f1",
+                "op": "act",
+                "act": "relu6"
+              },
+              {
+                "id": "star",
+                "from": [
+                  "relu6",
+                  "f2"
+                ],
+                "op": "mul"
+              },
+              {
+                "id": "g",
+                "op": "conv",
+                "out": 96,
+                "k": 1
+              },
+              {
+                "id": "g_bn",
+                "op": "norm",
+                "norm": "batch"
+              },
+              {
+                "id": "dw2",
+                "op": "conv",
+                "out": 96,
+                "k": 7,
+                "groups": "depthwise"
+              },
+              {
+                "id": "sum",
+                "from": [
+                  "dw2",
+                  "input"
+                ],
+                "op": "add"
+              }
+            ]
+          }
+        },
+        {
+          "id": "down4",
+          "op": "graph",
+          "nodes": [
+            {
+              "id": "conv",
+              "op": "conv",
+              "out": 192,
+              "k": 3,
+              "s": 2,
+              "pad": 1
+            },
+            {
+              "id": "bn",
+              "op": "norm",
+              "norm": "batch"
+            }
+          ]
+        },
+        {
+          "id": "stage4",
+          "op": "rep",
+          "n": 3,
+          "body": {
+            "op": "graph",
+            "nodes": [
+              {
+                "id": "dw",
+                "op": "conv",
+                "out": 192,
+                "k": 7,
+                "groups": "depthwise"
+              },
+              {
+                "id": "dw_bn",
+                "op": "norm",
+                "norm": "batch"
+              },
+              {
+                "id": "f1",
+                "from": "dw_bn",
+                "op": "conv",
+                "out": 768,
+                "k": 1
+              },
+              {
+                "id": "f2",
+                "from": "dw_bn",
+                "op": "conv",
+                "out": 768,
+                "k": 1
+              },
+              {
+                "id": "relu6",
+                "from": "f1",
+                "op": "act",
+                "act": "relu6"
+              },
+              {
+                "id": "star",
+                "from": [
+                  "relu6",
+                  "f2"
+                ],
+                "op": "mul"
+              },
+              {
+                "id": "g",
+                "op": "conv",
+                "out": 192,
+                "k": 1
+              },
+              {
+                "id": "g_bn",
+                "op": "norm",
+                "norm": "batch"
+              },
+              {
+                "id": "dw2",
+                "op": "conv",
+                "out": 192,
+                "k": 7,
+                "groups": "depthwise"
+              },
+              {
+                "id": "sum",
+                "from": [
+                  "dw2",
+                  "input"
+                ],
+                "op": "add"
+              }
+            ]
+          }
+        },
+        {
+          "id": "norm",
+          "op": "norm",
+          "norm": "batch"
+        },
+        {
+          "id": "pool",
+          "op": "gap"
+        }
+      ]
+    },
+    "input": {
+      "kind": "map",
+      "dims": [
+        3,
+        224,
+        224
+      ]
+    },
+    "head": "cls",
+    "out_dim": 1000,
+    "dropout": 0.0,
+    "origin": "paper:StarNet-S1",
+    "lr": 0.003,
+    "wd": 0.025,
+    "batch": 2048
+  },
+  "in_dim": 3,
+  "out_dim": 1000,
+  "paper": {
+    "name": "StarNet-S1",
+    "title": "Rewrite the Stars",
+    "venue": "CVPR 2024",
+    "url": "https://arxiv.org/abs/2403.19967",
+    "code": "https://github.com/ma-xu/Rewrite-the-Stars",
+    "reported": [
+      {
+        "params": 2900000
+      },
+      {
+        "dataset": "ImageNet-1k",
+        "metric": "accuracy",
+        "value": 0.735,
+        "protocol": "224 x 224, 300 epochs, top-1"
+      }
+    ]
+  },
+  "official": {
+    "repo": "https://github.com/ma-xu/Rewrite-the-Stars",
+    "commit": "c999eb5",
+    "entry": "imagenet/starnet.py:StarNet",
+    "init_args": {
+      "base_dim": 24,
+      "depths": [
+        2,
+        2,
+        8,
+        3
+      ],
+      "num_classes": 1000
+    }
+  },
+  "training": {
+    "optimizer": "adamw",
+    "lr": 0.003,
+    "weight_decay": 0.025,
+    "batch": 2048,
+    "epochs": 300
+  },
+  "fidelity_level": "B",
+  "fidelity": {
+    "paper": "StarNet-S1",
+    "official": {
+      "repo": "https://github.com/ma-xu/Rewrite-the-Stars",
+      "commit": "c999eb5",
+      "entry": "imagenet/starnet.py:StarNet"
+    },
+    "compared": "the whole network",
+    "ignored_official_params": [],
+    "params_official": 2869168,
+    "params_card": 2869168,
+    "params_match": true,
+    "unmatched_official": [],
+    "unmatched_card": [],
+    "max_abs_diff": 0.0,
+    "level": "B",
+    "torch": "2.15.0+cpu",
+    "measured_by": "https://github.com/Duy-Huan/DLNet/actions/runs/43257787470"
+  },
+  "check": {
+    "name": "StarNet-S1",
+    "level": "B",
+    "issues": [],
+    "nodes": [
+      {
+        "id": "stem",
+        "kind": "map",
+        "shape": [
+          32,
+          112,
+          112
+        ]
+      },
+      {
+        "id": "stem_act",
+        "kind": "map",
+        "shape": [
+          32,
+          112,
+          112
+        ]
+      },
+      {
+        "id": "down1",
+        "kind": "map",
+        "shape": [
+          24,
+          56,
+          56
+        ]
+      },
+      {
+        "id": "stage1",
+        "kind": "map",
+        "shape": [
+          24,
+          56,
+          56
+        ]
+      },
+      {
+        "id": "down2",
+        "kind": "map",
+        "shape": [
+          48,
+          28,
+          28
+        ]
+      },
+      {
+        "id": "stage2",
+        "kind": "map",
+        "shape": [
+          48,
+          28,
+          28
+        ]
+      },
+      {
+        "id": "down3",
+        "kind": "map",
+        "shape": [
+          96,
+          14,
+          14
+        ]
+      },
+      {
+        "id": "stage3",
+        "kind": "map",
+        "shape": [
+          96,
+          14,
+          14
+        ]
+      },
+      {
+        "id": "down4",
+        "kind": "map",
+        "shape": [
+          192,
+          7,
+          7
+        ]
+      },
+      {
+        "id": "stage4",
+        "kind": "map",
+        "shape": [
+          192,
+          7,
+          7
+        ]
+      },
+      {
+        "id": "norm",
+        "kind": "map",
+        "shape": [
+          192,
+          7,
+          7
+        ]
+      },
+      {
+        "id": "pool",
+        "kind": "vec",
+        "shape": [
+          192
+        ]
+      }
+    ],
+    "params": 2869168,
+    "reported_params": 2900000,
+    "params_diff": -0.0106,
+    "ok": true
+  }
+}

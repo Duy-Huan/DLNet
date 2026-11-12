@@ -31,6 +31,9 @@ if __name__ == "__main__":
         if not off or "architecture" not in card:
             print(f"{path.stem:<18} skipped (no `official` + `architecture`: nothing to compare)")
             continue
+        if off.get("skip_verify"):
+            print(f"{path.stem:<18} skipped ({off['skip_verify']}); stays at level C")
+            continue
         root = Path(a.work) / paper.slug(card)
         if not root.exists():
             subprocess.run(["git", "clone", "-q", off["repo"], str(root)], check=True)

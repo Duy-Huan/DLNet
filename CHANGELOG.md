@@ -6,6 +6,10 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-11-12
+
+- Kiểm chứng thẻ với mã gốc (GitHub Actions `verify-papers`): StarNet-S1 và SSFTT đạt mức B, đầu ra trùng từng bit, số tham số bằng nhau; kết quả ở `papers/*.fidelity.json`. Gói mẫu của 4 thẻ ở `examples/papers/`. Thẻ có `official.skip_verify` (FAHM: mã gốc cần kernel CUDA) được bỏ qua và giữ mức C.
+
 - **Thẻ mạng từ paper** (`dlnet/paper.py`, thư mục `papers/`): một mạng đã công bố viết thành YAML dễ đọc (`paper`: nguồn và số paper báo; `official`: repo, commit, lớp của tác giả; `architecture`: mỗi khối một dòng `{id, from, module, repeats, args}`; `blocks`: khối riêng của paper, có tham số `$dim`; `training`). Lệnh `dlnet paper check | build | verify`. `build` xuất gói như mọi baseline (`model.py` PyTorch thuần, `architecture.svg`); `--into <thư mục đầu ra>` cho gói dùng chung dữ liệu, `train.py` và notebook của lượt chạy đó.
 - **Mức trung thành được đo**: A = dùng chính lớp của tác giả; B = chép trọng số mô hình gốc sang mạng của thẻ rồi so đầu ra (`paper verify`, job CI `verify-papers`, kết quả ghi `<thẻ>.fidelity.json`); C = viết từ paper, chỉ kiểm kích thước và số tham số so với paper.
 - Kho: tổ hợp `graph` (đồ thị có hướng: `from`, `concat`, `add`, `mul`) và hai lớp nguyên thủy cho thẻ `conv`, `linear` (135 module); sơ đồ khối vẽ được đồ thị có đường tắt.
@@ -464,7 +468,8 @@ Bản đầu tiên: prototype chạy được từ dữ liệu đến Top-K base
 - Chưa có zero-cost proxy, cost model FLOPs/VRAM, Tensor-LoRA, deep unfolding; chưa có plugin image và timeseries.
 - Kết quả trên Indian Pines và Pavia University là một lần chạy ngắn trên CPU: với chia theo khối, mạng sâu chưa vượt rõ baseline cổ điển.
 
-[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.2.0
 [1.1.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.1.0
 [1.0.2]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.0.2
 [1.0.1]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.0.1

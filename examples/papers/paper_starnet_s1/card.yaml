@@ -1,0 +1,60 @@
+# StarNet-S1 (Ma et al., "Rewrite the Stars", CVPR 2024), written block by block from the paper's
+# figure with primitive layers, then compared with the authors' model (starnet_s1.fidelity.json,
+# job `verify-papers`). Each block: depthwise 7x7 conv + BN, two 1x1 branches whose product is the
+# "star operation" (ReLU6 on one of them), 1x1 conv + BN, depthwise 7x7 conv, residual.
+paper:
+  name: StarNet-S1
+  title: Rewrite the Stars
+  venue: CVPR 2024
+  url: https://arxiv.org/abs/2403.19967
+  code: https://github.com/ma-xu/Rewrite-the-Stars
+  reported:
+    - {params: 2900000}                    # Table: 2.9M
+    - {dataset: ImageNet-1k, metric: accuracy, value: 0.735, protocol: "224 x 224, 300 epochs, top-1"}
+
+official:
+  repo: https://github.com/ma-xu/Rewrite-the-Stars
+  commit: c999eb5
+  entry: imagenet/starnet.py:StarNet
+  init_args: {base_dim: 24, depths: [2, 2, 8, 3], num_classes: 1000}
+
+input: {kind: map, dims: [3, 224, 224]}
+head: cls
+classes: 1000
+
+blocks:
+  star:                                    # args: dim
+    - {id: dw,    module: conv, args: {out: $dim, k: 7, groups: depthwise}}
+    - {id: dw_bn, module: norm, args: {norm: batch}}
+    - {id: f1,    from: dw_bn, module: conv, args: {out: "$dim * 4", k: 1}}
+    - {id: f2,    from: dw_bn, module: conv, args: {out: "$dim * 4", k: 1}}
+    - {id: relu6, from: f1, module: act, args: {act: relu6}}
+    - {id: star,  from: [relu6, f2], module: mul}
+    - {id: g,     module: conv, args: {out: $dim, k: 1}}
+    - {id: g_bn,  module: norm, args: {norm: batch}}
+    - {id: dw2,   module: conv, args: {out: $dim, k: 7, groups: depthwise}}
+    - {id: sum,   from: [dw2, input], module: add}
+  down:                                    # args: dim; 3x3 conv, stride 2, BN
+    - {id: conv, module: conv, args: {out: $dim, k: 3, s: 2, pad: 1}}
+    - {id: bn,   module: norm, args: {norm: batch}}
+
+architecture:
+  - {id: stem,      module: down, args: {dim: 32}}
+  - {id: stem_act,  module: act, args: {act: relu6}}
+  - {id: down1,     module: down, args: {dim: 24}}
+  - {id: stage1,    module: star, repeats: 2, args: {dim: 24}}
+  - {id: down2,     module: down, args: {dim: 48}}
+  - {id: stage2,    module: star, repeats: 2, args: {dim: 48}}
+  - {id: down3,     module: down, args: {dim: 96}}
+  - {id: stage3,    module: star, repeats: 8, args: {dim: 96}}
+  - {id: down4,     module: down, args: {dim: 192}}
+  - {id: stage4,    module: star, repeats: 3, args: {dim: 192}}
+  - {id: norm,      module: norm, args: {norm: batch}}
+  - {id: pool,      module: gap}
+
+training:                                  # the paper's ImageNet recipe (AdamW)
+  optimizer: adamw
+  lr: 3.0e-3
+  weight_decay: 0.025
+  batch: 2048
+  epochs: 300
