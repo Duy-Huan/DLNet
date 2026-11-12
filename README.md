@@ -52,7 +52,7 @@ Moi baseline co kem hyperparameter (lr, weight decay, batch, epochs, schedule) o
 `--cv-splits K`: xep hang finalist tren K lan chia du lieu khac nhau (HSI chia khoi mac dinh 3), de +/- std gom ca nhieu do cach chia.
 `leaderboard.md` co them bang tuong quan cua zero-cost proxy (chi de tham khao, khong loai ung vien). Chay lai dung lenh cu se dung lai cac lan huan luyen da xong (`--no-cache` de tat).
 
-`model.py` cua moi goi la chinh mang duoc sinh ra, viet bang PyTorch thuan (chi `import torch`, khong phu thuoc DLNet): chep rieng file do vao notebook la dung duoc (`from model import build_model`). Goi cu: `python -m dlnet standalone <goi>`.
+`predict.py --export model.pt2` luu do thi `torch.export` (chi do thi va trong so). `model.py` cua moi goi la chinh mang duoc sinh ra, viet bang PyTorch thuan (chi `import torch`, khong phu thuoc DLNet): chep rieng file do vao notebook la dung duoc (`from model import build_model`). Goi cu: `python -m dlnet standalone <goi>`.
 
 Ket qua: `dlnet_out/leaderboard.md` va `dlnet_out/top1_*/ ...` (moi goi doc lap: `model.py`, `core.py`, `train.py`,
 `config.yaml`, `report.md`, `tests/`). Train day du mot goi: `python train.py -h`.

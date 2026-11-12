@@ -210,6 +210,8 @@ model = build_model()  # torch.nn.Module
 model.load_state_dict(torch.load("dlnet_out/top1_resnet/model.pt"))  # tùy chọn: trọng số đã train
 ```
 
+`model.pt2` (từ `predict.py --export model.pt2`) chỉ chứa đồ thị và trọng số; trước v1.0.1 file này lỡ kèm cả tập dữ liệu nên rất lớn, xuất lại là hết.
+
 Docstring đầu file ghi kích thước đầu vào, đầu ra, số tham số và nguồn (paper, repo) của từng khối. `config.yaml` là định dạng của DLNet (nội dung JSON), không phải chuẩn của PyTorch: nó giữ spec, hyperparameter (`hyperparameters`) và cách dựng lại dữ liệu; `model.py` không cần nó. Gói xuất từ bản cũ (có thư mục `zoo/`): `python -m dlnet standalone dlnet_out/top1_resnet`.
 
 `train.py` dùng công thức của lần tìm kiếm (`config.yaml` → `recipe`: warm-up rồi cosine, augmentation và label smoothing nếu `modern`), giữ checkpoint tốt nhất theo validation, rồi **lưu `model.pt` (trọng số) và `preprocess.json`** (thống kê chuẩn hóa của TRAIN, tên cột, danh sách lớp, ...).
