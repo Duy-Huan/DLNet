@@ -1,0 +1,324 @@
+{
+  "task": "classification",
+  "metric": "miou",
+  "verdict": {
+    "beats_reference": false,
+    "val_margin": -0.168,
+    "val_noise": 0.02515,
+    "test_margin": -0.17283,
+    "test_noise": 0.02476,
+    "top1_val": 0.09823,
+    "best_reference": "pixel_random_forest_5x5",
+    "best_reference_val": 0.26623
+  },
+  "top_k": [
+    {
+      "rank": 1,
+      "name": "top1_fcn",
+      "roles": [
+        "top1"
+      ],
+      "group": 0,
+      "params": 20707,
+      "hyperparameters": {
+        "optimizer": "AdamW",
+        "lr": 0.003,
+        "weight_decay": 0.01,
+        "batch_size": 64,
+        "epochs": 100,
+        "lr_schedule": "cosine",
+        "grad_clip_norm": 5.0,
+        "dropout": 0.1,
+        "width": 8,
+        "depth": 2,
+        "encoder": "mobilenetv2",
+        "attention": "none",
+        "source": {
+          "adopted": "searched",
+          "searched": {
+            "lr": 0.003,
+            "batch": 64,
+            "wd": 0.01
+          },
+          "estimated": null,
+          "val_searched": 0.09822988480498192,
+          "val_estimated": null,
+          "methods": [
+            "LR range test (Smith 1506.01186)",
+            "gradient noise scale B_simple (McCandlish 1812.06162)",
+            "normalized weight decay (Loshchilov & Hutter 1711.05101)"
+          ]
+        }
+      },
+      "val_mean": 0.09823,
+      "val_std": 0.00572,
+      "val_noise": 0.02515,
+      "noise_source": "validation sampling",
+      "epochs": 4,
+      "origin": null,
+      "flops": 89617920,
+      "vram_mb": 4529.197,
+      "n_runs": 3,
+      "n_splits": 1,
+      "test_std": 0.00652,
+      "test": {
+        "accuracy": 0.44205,
+        "balanced_accuracy": 0.16932,
+        "kappa": 0.23055,
+        "miou": 0.0956,
+        "score": 0.0956
+      }
+    }
+  ],
+  "reference": [
+    {
+      "name": "pixel_random_forest_5x5",
+      "val": 0.26623,
+      "test": {
+        "accuracy": 0.70207,
+        "balanced_accuracy": 0.33234,
+        "kappa": 0.61361,
+        "miou": 0.26843,
+        "score": 0.26843
+      }
+    },
+    {
+      "name": "pixel_logistic_regression_5x5",
+      "val": 0.15113,
+      "test": {
+        "accuracy": 0.50583,
+        "balanced_accuracy": 0.20883,
+        "kappa": 0.33983,
+        "miou": 0.14597,
+        "score": 0.14597
+      }
+    }
+  ],
+  "warnings": [
+    "top1 was trained only 4 epochs: its rank is a rough early estimate. Increase --budget, or reduce --zoo / --per-family.",
+    "Only 1 of 100 candidates could be trained within the budget; raise --budget, or lower --zoo / --per-family, or use --seeds N.",
+    "Only 1 of the 3 requested models could be exported (too few trained candidates)."
+  ],
+  "search_coverage": {
+    "candidates": 100,
+    "trained": 1,
+    "top_k_requested": 3,
+    "top_k_exported": 1
+  },
+  "objective": {
+    "objective": "accuracy",
+    "cost": "params",
+    "tolerance": 0.01,
+    "target_cost": null,
+    "cost_weight": -0.07,
+    "pareto_front": [
+      {
+        "family": "fcn",
+        "val_mean": 0.09823,
+        "params": 20707,
+        "flops": 89617920
+      }
+    ]
+  },
+  "module_zoo": {
+    "initial_candidates": 12,
+    "evolution": [],
+    "top_origins": [
+      "legacy family"
+    ],
+    "ops_registered": 133
+  },
+  "seed_selection": {
+    "rules_fired": [
+      "-1 global_attention: 420 training images (1000000000 per class at least): global attention needs much data"
+    ],
+    "rankers": [
+      "prior"
+    ],
+    "weights": {
+      "prior": 1.0,
+      "meta": 1.0,
+      "proxies": 0.0
+    },
+    "kept": 100,
+    "pool": 100,
+    "top": [
+      {
+        "family": "fcn",
+        "origin": "family",
+        "traits": [
+          "fine_detail",
+          "light",
+          "local_conv"
+        ],
+        "score": 71.5
+      },
+      {
+        "family": "fcn",
+        "origin": "family",
+        "traits": [
+          "fine_detail",
+          "local_conv"
+        ],
+        "score": 71.5
+      },
+      {
+        "family": "fcn",
+        "origin": "family",
+        "traits": [
+          "fine_detail",
+          "local_conv"
+        ],
+        "score": 71.5
+      },
+      {
+        "family": "fcn",
+        "origin": "family",
+        "traits": [
+          "channel_attention",
+          "fine_detail",
+          "local_conv"
+        ],
+        "score": 71.5
+      },
+      {
+        "family": "fcn",
+        "origin": "family",
+        "traits": [
+          "fine_detail",
+          "light",
+          "local_conv"
+        ],
+        "score": 71.5
+      },
+      {
+        "family": "unet",
+        "origin": "family",
+        "traits": [
+          "fine_detail",
+          "local_conv"
+        ],
+        "score": 71.5
+      },
+      {
+        "family": "unet",
+        "origin": "family",
+        "traits": [
+          "fine_detail",
+          "light",
+          "local_conv"
+        ],
+        "score": 71.5
+      },
+      {
+        "family": "unet",
+        "origin": "family",
+        "traits": [
+          "channel_attention",
+          "fine_detail",
+          "local_conv"
+        ],
+        "score": 71.5
+      },
+      {
+        "family": "unet",
+        "origin": "family",
+        "traits": [
+          "fine_detail",
+          "light",
+          "local_conv"
+        ],
+        "score": 71.5
+      },
+      {
+        "family": "unet",
+        "origin": "family",
+        "traits": [
+          "fine_detail",
+          "light",
+          "local_conv"
+        ],
+        "score": 71.5
+      }
+    ],
+    "used_for_pruning": false,
+    "data_card": {
+      "n_train": 420,
+      "channels": 3,
+      "height": 90,
+      "width": 120,
+      "spectral_slope": 2.658,
+      "high_freq_energy": 0.0355,
+      "corr_length": 17.0,
+      "corr_length_rel": 0.189,
+      "edge_density": 0.1552,
+      "channel_correlation": 0.988
+    },
+    "context": "",
+    "goal": "accuracy",
+    "portfolio": null,
+    "scheduler": "sh"
+  },
+  "budget": {
+    "budget": "10m",
+    "mode": "time",
+    "threads": 3,
+    "device": "cpu",
+    "amp": "auto",
+    "wall_seconds": 427.5,
+    "epochs_trained": 16.0,
+    "stages": [
+      {
+        "stage": "load",
+        "seconds": 12.48,
+        "epochs": 0.0
+      },
+      {
+        "stage": "reference",
+        "seconds": 43.2,
+        "epochs": 0.0
+      },
+      {
+        "stage": "generate",
+        "seconds": 17.32,
+        "epochs": 0.0
+      },
+      {
+        "stage": "proxies",
+        "seconds": 65.2,
+        "epochs": 0.0
+      },
+      {
+        "stage": "seed_selection",
+        "seconds": 0.0,
+        "epochs": 0.0
+      },
+      {
+        "stage": "search",
+        "seconds": 151.1,
+        "epochs": 8.0
+      },
+      {
+        "stage": "evolution",
+        "seconds": 0.0,
+        "epochs": 0.0
+      },
+      {
+        "stage": "runs",
+        "seconds": 138.1,
+        "epochs": 8.0
+      },
+      {
+        "stage": "hparams",
+        "seconds": 0.0,
+        "epochs": 0.0
+      },
+      {
+        "stage": "export",
+        "seconds": 0.0,
+        "epochs": 0.0
+      }
+    ],
+    "overrun_pct": -28.8
+  }
+}

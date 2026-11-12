@@ -20,3 +20,18 @@ Please also refer to the documentation for alternative solver options:
 [zoo] 12 architectures from the module zoo (preset, random)
 [cost] 100 candidates; FLOPs/sample min 24,460,800 median 151,884,304 max 1,093,651,200
 [generate] 100 valid candidates from families ['deconvnet', 'deeplabv3', 'deeplabv3plus', 'fcn', 'fpn', 'linknet', 'pspnet', 'segformer', 'unet', 'unetpp', 'upernet', 'zoo_basic_block_bottleneck_dw_sep', 'zoo_basic_block_fcn_preact_block', 'zoo_basic_block_ghost_bottleneck_convmixer_block', 'zoo_dw_sep_bottleneck_ghost_bottleneck', 'zoo_fused_mbconv_ghost_bottleneck_linknet', 'zoo_mbconv_segformer', 'zoo_mbconv_unet', 'zoo_preact_block_mbconv_regnet_block', 'zoo_unet_res_block_basic_block_deeplabv3', 'zoo_vgg_stage_deconv', 'zoo_vgg_stage_fcn', 'zoo_vgg_stage_unet']
+[surrogate] not enough past datasets
+[seeds] -1 global_attention: 420 training images (1000000000 per class at least): global attention needs much data
+[seeds] 100/100 candidates, rankers ['prior']; first: ['fcn', 'fcn', 'fcn', 'fcn', 'fcn']
+[search] 100 candidates, rungs=(4, 12, 30)
+[search] rung 1 (4 ep): kept 1; best val=0.1058
+[search] time budget reached; ranking with what is done
+[evolve] skipped: the remaining search budget cannot train 8 children to 12 epochs (raise --budget or lower --evolve-pop)
+[runs] fcn: 3 runs, val=0.0982 +/- 0.0057
+[hparams] estimating lr / batch size / weight decay for the finalists
+[warning] top1 was trained only 4 epochs: its rank is a rough early estimate. Increase --budget, or reduce --zoo / --per-family.
+[warning] Only 1 of 100 candidates could be trained within the budget; raise --budget, or lower --zoo / --per-family, or use --seeds N.
+[warning] Only 1 of the 3 requested models could be exported (too few trained candidates).
+[budget] load 12.5s/0ep, reference 43.2s/0ep, generate 17.3s/0ep, proxies 65.2s/0ep, seed_selection 0.0s/0ep, search 151.1s/8ep, evolution 0.0s/0ep, runs 138.1s/8ep, hparams 0.0s/0ep, export 0.0s/0ep
+[done] 428s  -> /home/user/DLNet/examples/image_segmentation/camvid/output/leaderboard.md
+[verdict] beats_reference=False val_margin=-0.168 test_margin=-0.17283

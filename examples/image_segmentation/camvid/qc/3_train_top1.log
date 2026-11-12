@@ -1,0 +1,5 @@
+$ /usr/local/bin/python train.py --data /home/user/DLNet/examples/image_segmentation/camvid/input/data.npz --epochs 30 --seed 0
+params=20,707 epochs=30
+val : {'accuracy': 0.8143498022305975, 'balanced_accuracy': 0.42754752406681845, 'kappa': 0.761713065785107, 'miou': 0.3543021579295131, 'score': 0.3543021579295131}
+test: {'accuracy': 0.8047934851349203, 'balanced_accuracy': 0.4272728713154661, 'kappa': 0.7525237475369383, 'miou': 0.3531989240090706, 'score': 0.3531989240090706}
+saved /home/user/DLNet/examples/image_segmentation/camvid/output/top1_fcn/model.pt and preprocess.json; predict with: python predict.py --data <new file>

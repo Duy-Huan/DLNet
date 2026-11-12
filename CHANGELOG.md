@@ -6,6 +6,8 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-11-12
+
 - Sửa (QA `examples/`, phân đoạn ảnh): `design` dựng sẵn mọi ứng viên trước khi tìm kiếm, nên (a) một mô hình không cấp phát được (khối attention trên ảnh 256×256 đòi 60 GB) làm hỏng cả lượt chạy, và (b) 100 mô hình nằm cùng lúc trong bộ nhớ làm máy hết RAM. Nay ứng viên được dựng lần lượt khi tới lượt (`search._open`); ứng viên không dựng được bị loại và ghi vào cảnh báo; ứng viên bị bỏ vì không vừa ngân sách được giải phóng ngay.
 - Sửa (QA `examples/`, Oxford-IIIT Pet 37 giống): file ảnh/chuỗi/đồ thị có nhãn nguyên 0..K−1 (hoặc 1..K) với hơn 20 lớp bị hiểu là bài hồi quy mà không báo gì. Nay `detect_task(y, labels=True)` nhận đó là phân loại (kiểu số nguyên, mã liên tiếp, mỗi lớp ≥ 2 mẫu); bảng CSV giữ quy tắc cũ. Mọi trường hợp còn mơ hồ (số nguyên, hơn 20 giá trị) có cảnh báo kèm cách ép `--task`.
 
@@ -452,7 +454,8 @@ Bản đầu tiên: prototype chạy được từ dữ liệu đến Top-K base
 - Chưa có zero-cost proxy, cost model FLOPs/VRAM, Tensor-LoRA, deep unfolding; chưa có plugin image và timeseries.
 - Kết quả trên Indian Pines và Pavia University là một lần chạy ngắn trên CPU: với chia theo khối, mạng sâu chưa vượt rõ baseline cổ điển.
 
-[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v1.0.2...HEAD
+[1.0.2]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.0.2
 [1.0.1]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.0.1
 [1.0.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.0.0
 [0.24.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.24.0

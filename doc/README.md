@@ -1,6 +1,6 @@
 # Tài liệu DLNet
 
-Phiên bản tài liệu: **1.0.1** (phải trùng `version` trong `pyproject.toml`; `python scripts/release.py check` kiểm tra điều này).
+Phiên bản tài liệu: **1.0.2** (phải trùng `version` trong `pyproject.toml`; `python scripts/release.py check` kiểm tra điều này).
 
 DLNet nhận một bộ dữ liệu (bảng, ảnh, mask phân đoạn, chuỗi thời gian, ảnh siêu phổ, đồ thị, tương tác người dùng–mục) và trả về **Top-K mạng PyTorch** đã được huấn luyện thử, xếp hạng trung thực so với baseline cổ điển, mỗi mạng là một gói Python tự chạy (`model.py`, `train.py`, `config.yaml`, test).
 

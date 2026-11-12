@@ -358,6 +358,19 @@ không phải số tốt nhất đạt được trên các bộ này. Chia pixel
 {rows}
 
 {missing}
+
+## Lỗi của DLNet mà các lượt chạy này tìm ra (đã sửa, có regression test)
+
+1. Huấn luyện các họ Mamba / Gated DeltaNet chậm bất thường: backward O(L²) của vòng quét (v1.0.0).
+2. `--budget 90s` chạy hơn 12 phút: ứng viên chậm được định giá theo FLOPs (v1.0.0).
+3. `model.py` không chứa mạng mà chỉ gọi thư mục `zoo/`: nay là mã PyTorch thuần của chính mạng (v1.0.0).
+4. `model.pt2` kèm cả tập dữ liệu (74 MB cho mô hình 73 nghìn tham số) (v1.0.1).
+5. Phân đoạn ảnh lớn làm hỏng lượt chạy hoặc hết bộ nhớ: mọi ứng viên bị dựng sẵn (v1.0.2).
+6. 37 lớp của Oxford-IIIT Pet bị hiểu là bài hồi quy, không cảnh báo (v1.0.2).
+
+Chi tiết: `agent.md` §9.10. Điều các lượt chạy cho thấy mà CHƯA sửa: với 10 phút CPU, ảnh từ 64x64 trở lên
+chỉ kịp huấn luyện 1-2 ứng viên (số gói xuất ra ít hơn 3, DLNet có cảnh báo), và kết quả khi đó có thể thua
+baseline cổ điển (cột cuối); `predict.py` ghi nhãn kiểu int64 (file lớn hơn cần thiết).
 """
 
 

@@ -1,0 +1,36 @@
+{
+  "task": "classification",
+  "n_train": 420,
+  "n_features": 32400,
+  "n_classes": 11,
+  "primary_metric": "miou",
+  "intrinsic_dim": 9.71,
+  "scaling_exponent_hat": 0.412,
+  "pca_dims_for_95pct_energy": 161,
+  "intrinsic_dim_estimators": {
+    "twonn": {
+      "mean": 9.098,
+      "std": 0.097
+    },
+    "mle": {
+      "mean": 5.276,
+      "std": 0.608
+    },
+    "value": 7.187,
+    "rel_disagreement": 0.532,
+    "stable": false
+  },
+  "capacity_hint": {
+    "min_width": 16,
+    "scaling_exponent": 0.557,
+    "used_for_pruning": false
+  },
+  "max_params": 126000,
+  "kind": "segmentation",
+  "shape": [
+    3,
+    90,
+    120
+  ],
+  "n_pixels_train": 4405855
+}
