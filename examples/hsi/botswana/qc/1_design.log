@@ -1,0 +1,12 @@
+$ /usr/local/bin/python -m dlnet design --data /home/user/DLNet/examples/hsi/botswana/input/Botswana.mat --gt /home/user/DLNet/examples/hsi/botswana/input/Botswana_gt.mat --plugin hsi --out /home/user/DLNet/examples/hsi/botswana/output --budget 10m --topk 3 --seed 0 --threads 2 --no-cache --split pixel --pca 30
+[device] cpu, precision float32 (--device, --amp)
+[threads] 2 (of 4 CPUs; --threads to change)
+[plugin] hsi  data=/home/user/DLNet/examples/hsi/botswana/input/Botswana.mat
+[warning] --split pixel with --patch 9: validation/test pixels sit inside the patches of training pixels, so scores are optimistic (spatial leakage). Use --split block for an honest estimate of performance on new areas.
+[load] task=classification features=30 classes=14 seed=0
+[profile] {'primary_metric': 'accuracy (OA); also AA, Kappa', 'cube_shape': [1476, 256, 145], 'n_classes': 14, 'n_train': 325, 'n_val': 325, 'n_test': 2598, 'n_features': 30, 'patch': 9, 'split': 'pixel', 'frac': [0.1, 0.1, 0.8], 'dropped_by_margin': 0, 'pca_energy_kept': 0.9982, 'multilinear_rank_99': [302, 167, 4], 'multilinear_rank_levels': {'0.9': [59, 43, 1], '0.95': [115, 75, 2], '0.99': [302, 167, 4]}, 'intrinsic_dim': 10.57, 'scaling_exponent_hat': 0.378, 'intrinsic_dim_estimators': {'twonn': {'mean': 11.044, 'std': 0.697}, 'mle': {'mean': 13.344, 'std': 0.219}, 'value': 12.194, 'rel_disagreement': 0.189, 'stable': True}, 'capacity_hint': {'min_width': 32, 'scaling_exponent': 0.328, 'used_for_pruning': False}, 'classes_missing_train': [], 'classes_missing_test': [], 'max_params': 162500}
+[reference] classical baselines on the same split(s)
+[reference] random_forest_spectral_spatial val=0.9908
+[reference] svm_rbf_spectral_spatial   val=0.9662
+[reference] random_forest_spectral     val=0.9015
+[reference] svm_rbf_spectral           val=0.8554
