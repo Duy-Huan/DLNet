@@ -182,3 +182,19 @@ def test_level_a_package_uses_the_authors_class(tmp_path):
     )
     assert "torch.Size([2, 4]) 268" in r.stdout, r.stderr[-400:]
     assert "identical by construction" in (pkg / "report.md").read_text()
+
+
+def test_stubbed_imports_do_not_break_code_that_walks_sys_modules(tmp_path):
+    """CI run 1 of verify-papers: a stub answered `__file__` with a function, and every later
+    card failed with "'function' object has no attribute 'endswith'"."""
+    import inspect
+
+    repo = _official(tmp_path)
+    src = repo / "src" / "net.py"
+    src.write_text("import some_missing_tool\n" + src.read_text())
+    text = VERIFIED.replace("  input_ops", "  stub_modules: [some_missing_tool]\n  input_ops")
+    card = paper.load(_card(tmp_path, text, name="stub.yaml"))
+    assert paper.verify(card, repo)["level"] == "B"
+    stub = sys.modules.pop("some_missing_tool")
+    assert stub.anything() is None and not hasattr(stub, "__file__")
+    assert inspect.getmodule(paper) is paper  # walks sys.modules
