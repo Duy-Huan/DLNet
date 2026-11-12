@@ -196,6 +196,20 @@ python dlnet_out/top1_resnet/train.py --data images.npz --device cpu --amp off  
 python -m pytest dlnet_out/top1_resnet/tests -q
 ```
 
+### Notebook huấn luyện (Jupyter / Google Colab) và sơ đồ khối
+
+Mỗi thư mục đầu ra có **`baselines.ipynb`** và mỗi gói có **`architecture.svg`** (từ v1.1). Notebook gồm:
+
+1. **Setup**: chạy tại chỗ thì không cần đổi gì; trên Colab chọn `SOURCE = "git"` (clone repo, vào đúng thư mục) hoặc `"zip"` (tải lên một file zip); tự cài những gì thiếu (`torchview`, `graphviz`, `matplotlib`), tự chọn GPU.
+2. **Dữ liệu**: cùng file, cùng cách chia và tiền xử lý như lần tìm kiếm (dùng mã dữ liệu của chính gói).
+3. **Từng baseline**: sơ đồ khối kiểu paper (`architecture.svg`), đồ thị từng lớp của [torchview](https://github.com/mert-kurttutan/torchview), rồi huấn luyện đầy đủ theo công thức của gói (warm-up + cosine, giữ checkpoint tốt nhất), đường cong loss / validation, chỉ số test; lưu `model.pt`, `preprocess.json`.
+4. **So sánh** các baseline (bảng, đường cong, biểu đồ cột).
+5. **Dùng lại**: nạp lần lượt từng gói đã lưu, đánh giá lại, vẽ kết quả (bản đồ lớp HSI, mặt nạ phân đoạn, ma trận nhầm lẫn).
+
+`EPOCHS = None` dùng số epoch của từng gói; đặt `EPOCHS = 30` để chạy nhanh. Thư mục đầu ra cũ: `python -m dlnet notebook dlnet_out --data images.npz` (HSI thêm `--gt`, bảng thêm `--target`; `--git-url`, `--git-subdir` để notebook tự clone trên Colab).
+
+**Sơ đồ khối** (`dlnet/diagram.py`, không cần thư viện ngoài): vẽ từ spec của mạng, từ trên xuống: khối tô màu theo loại (tích chập, attention, miền tần số, hồi quy / state space, MLP, pooling, chuẩn hóa), tham số chính, kích thước đầu ra thật bên phải; residual là khung nét đứt có đường tắt vào nút ⊕; nhánh song song vẽ cạnh nhau rồi gộp; khối lặp ghi "x n"; encoder–decoder vẽ các tầng encoder, decoder và các đường skip.
+
 ### Dùng mạng trong notebook hoặc dự án riêng
 
 `model.py` của mỗi gói là **chính mạng được sinh ra, viết bằng PyTorch thuần**: không import DLNet, chép riêng file này đi là dùng được.

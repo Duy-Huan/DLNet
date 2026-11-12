@@ -28,7 +28,7 @@ def test_every_command_and_objective_is_documented():
 
     for o in OBJECTIVES:
         assert f"--objective {o}" in guide, o
-    for cmd in ("design", "zoo", "unfold", "gan", "selfcheck", "standalone"):
+    for cmd in ("design", "zoo", "unfold", "gan", "selfcheck", "standalone", "notebook"):
         assert f"dlnet {cmd}" in guide or f"dlnet {cmd}" in (ROOT / "doc" / "cli.md").read_text()
 
 

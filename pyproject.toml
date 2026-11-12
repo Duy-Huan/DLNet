@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dlnet"
-version = "1.0.2"
+version = "1.1.0"
 description = "Framework tu dong thiet ke mang deep learning tu du lieu, dong goi baseline PyTorch"
 requires-python = ">=3.10"
 dependencies = []

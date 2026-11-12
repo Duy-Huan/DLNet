@@ -14,3 +14,5 @@
 Short search budget only. Re-train with the full recipe (see `python train.py -h`); neighbouring ranks may reorder.
 
 Use: `python train.py --data ...` writes model.pt and preprocess.json; then `python predict.py --data new_file` predicts in the original label units (`--export model.pt2` saves a deployable graph). Training recipe: modern {'augment': True, 'label_smoothing': 0.1}.
+
+Block diagram: `architecture.svg`. Training notebook (Jupyter / Colab): `../baselines.ipynb`.

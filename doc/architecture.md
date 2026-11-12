@@ -81,12 +81,14 @@ Một plugin (`dlnet/plugins/__init__.py: DomainPlugin`) cài: `detect` (độ t
 ```
 dlnet_out/
   leaderboard.md, leaderboard.json   xếp hạng, baseline, kết luận, Pareto front, proxy, data card, ngân sách
+  baselines.ipynb                    notebook Jupyter / Colab: setup, dữ liệu, sơ đồ, huấn luyện, so sánh, dùng lại (dlnet/notebook.py)
   profile.json                       hồ sơ dữ liệu
   reference/results.json             baseline cổ điển
   top1_<họ>/                         một gói độc lập cho mỗi baseline
     model.py                          CHÍNH MẠNG ĐƯỢC SINH RA, viết bằng PyTorch thuần (chỉ import torch): mã các khối + lời gọi dựng mạng
     core.py  array_data.py            vòng huấn luyện và dựng dữ liệu (không phụ thuộc DLNet)
     config.yaml                       spec, hyperparameter, cách dựng lại dữ liệu
+    architecture.svg                  sơ đồ khối kiểu paper vẽ từ spec (dlnet/diagram.py)
     train.py                          huấn luyện đầy đủ: python train.py --data ...  -> model.pt, preprocess.json
     predict.py, inference.py          dự đoán trên file mới (nhãn gốc), xuất torch.export / ONNX
     report.md                         số đo, nguồn gốc, chi phí

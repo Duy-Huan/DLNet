@@ -96,11 +96,36 @@ def load_features(path: str, columns: list, target: str | None = None) -> np.nda
     return np.array(X.to_numpy(dtype=np.float32), copy=True)  # writable (pandas may share memory)
 
 
-def detect_task(y: np.ndarray) -> str:
+def detect_task(y: np.ndarray, labels: bool = False) -> str:
+    """classification | regression, guessed from the targets.
+
+    Strings and booleans are classes; whole numbers with at most 20 distinct values are classes.
+    `labels=True` (image, series, graph, ids files, whose `y` is normally a label array): an
+    INTEGER-typed y holding the consecutive codes 0..K-1 or 1..K, every one at least twice, is a
+    label set of any size. Without it the 37 breeds of Oxford-IIIT Pet were silently fitted as a
+    regression (agent.md 9.10). Still ambiguous cases get a warning from `task_note`."""
     if y.dtype.kind in "OSUb":
         return "classification"
     integer_like = y.dtype.kind in "iu" or np.allclose(y, np.round(y))
-    return "classification" if integer_like and len(np.unique(y)) <= 20 else "regression"
+    values, counts = np.unique(y, return_counts=True)
+    if integer_like and len(values) <= 20:
+        return "classification"
+    consecutive = values[0] in (0, 1) and values[-1] - values[0] + 1 == len(values)
+    if labels and y.dtype.kind in "iu" and counts.min() >= 2 and consecutive:
+        return "classification"
+    return "regression"
+
+
+def task_note(y: np.ndarray, task: str) -> str | None:
+    """Warning for a guessed task that could as well be the other one (whole numbers, many values)."""
+    if y.dtype.kind in "OSUb" or not (y.dtype.kind in "iu" or np.allclose(y, np.round(y))):
+        return None
+    k = len(np.unique(y))
+    if k <= 20 or k > len(y) // 2:
+        return None
+    other = "regression" if task == "classification" else "classification"
+    return (f"the target holds {k} distinct whole numbers and was read as {task}; "
+            f"if it is a {other} target, run again with --task {other}")  # fmt: skip
 
 
 def encode_target(y: np.ndarray, task: str):
@@ -398,6 +423,7 @@ class Trainer:
         for _ in range(epochs):
             perm = torch.randperm(len(X), generator=self.gen)
             steps, bad = 0, torch.zeros((), device=self.device)
+            total = torch.zeros((), device=self.device)
             for i in range(0, len(X), self.batch):
                 b = perm[i : i + self.batch]
                 if len(b) < 2:
@@ -414,6 +440,7 @@ class Trainer:
                         loss = loss + self.model.kl_weight * k
                 steps += 1
                 bad += ~torch.isfinite(loss.detach())  # counted on the device: no sync per batch
+                total += loss.detach().float()
                 self.opt.zero_grad()
                 self.scaler.scale(loss).backward()
                 self.scaler.unscale_(self.opt)
@@ -425,6 +452,8 @@ class Trainer:
                 raise FloatingPointError(
                     f"training diverged: every loss of epoch {self.epochs_done + 1} is NaN/inf"
                 )
+            meta = self.device.type == "meta"  # stands in for a GPU in tests: no values
+            self.last_train_loss = float(total / steps) if steps and not meta else math.nan
             if scheduler is not None:
                 scheduler.step()
             self.epochs_done += 1
@@ -467,9 +496,12 @@ def train_full(model, data, lr, wd, batch, epochs, seed=0, device=None, amp=None
 
     sched = torch.optim.lr_scheduler.LambdaLR(tr.opt, factor)
     best, best_state = -math.inf, None
-    for _ in range(epochs):
+    tr.history = []  # one row per epoch: training loss, validation score, learning rate
+    for e in range(epochs):
+        lr = tr.opt.param_groups[0]["lr"]
         tr.fit(1, scheduler=sched)
         v = tr.evaluate("va")["score"]
+        tr.history.append({"epoch": e + 1, "train_loss": tr.last_train_loss, "val": v, "lr": lr})
         if v > best:
             best, best_state = v, copy.deepcopy(model.state_dict())
     model.load_state_dict(best_state)

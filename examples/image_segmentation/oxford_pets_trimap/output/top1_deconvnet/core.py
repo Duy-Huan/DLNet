@@ -423,6 +423,7 @@ class Trainer:
         for _ in range(epochs):
             perm = torch.randperm(len(X), generator=self.gen)
             steps, bad = 0, torch.zeros((), device=self.device)
+            total = torch.zeros((), device=self.device)
             for i in range(0, len(X), self.batch):
                 b = perm[i : i + self.batch]
                 if len(b) < 2:
@@ -439,6 +440,7 @@ class Trainer:
                         loss = loss + self.model.kl_weight * k
                 steps += 1
                 bad += ~torch.isfinite(loss.detach())  # counted on the device: no sync per batch
+                total += loss.detach().float()
                 self.opt.zero_grad()
                 self.scaler.scale(loss).backward()
                 self.scaler.unscale_(self.opt)
@@ -450,6 +452,8 @@ class Trainer:
                 raise FloatingPointError(
                     f"training diverged: every loss of epoch {self.epochs_done + 1} is NaN/inf"
                 )
+            meta = self.device.type == "meta"  # stands in for a GPU in tests: no values
+            self.last_train_loss = float(total / steps) if steps and not meta else math.nan
             if scheduler is not None:
                 scheduler.step()
             self.epochs_done += 1
@@ -492,9 +496,12 @@ def train_full(model, data, lr, wd, batch, epochs, seed=0, device=None, amp=None
 
     sched = torch.optim.lr_scheduler.LambdaLR(tr.opt, factor)
     best, best_state = -math.inf, None
-    for _ in range(epochs):
+    tr.history = []  # one row per epoch: training loss, validation score, learning rate
+    for e in range(epochs):
+        lr = tr.opt.param_groups[0]["lr"]
         tr.fit(1, scheduler=sched)
         v = tr.evaluate("va")["score"]
+        tr.history.append({"epoch": e + 1, "train_loss": tr.last_train_loss, "val": v, "lr": lr})
         if v > best:
             best, best_state = v, copy.deepcopy(model.state_dict())
     model.load_state_dict(best_state)

@@ -342,6 +342,9 @@ Mỗi thư mục `<lĩnh vực>/<bộ>/` là một lần dùng DLNet như ngư�
   Trong mỗi gói, `model.py` là **chính mạng được sinh ra, PyTorch thuần** (không import DLNet); gói top-1 đã được
   train đầy đủ nên có thêm `model.pt` (trọng số) và `model.pt2` (đồ thị `torch.export`).
 - `qc/`: log từng bước, `QC.md`, `qc.json`, `predictions.npy` và hình (bản đồ lớp HSI, ảnh chồng nhãn, ma trận nhầm lẫn).
+- `output/baselines.ipynb`: notebook Jupyter / **Google Colab** để huấn luyện lại, so sánh và dùng các baseline của bộ đó
+  (trên Colab: *File > Open notebook > GitHub*, hoặc tải file lên; ô Setup tự clone repo này và vào đúng thư mục).
+  Mỗi gói có thêm `architecture.svg`: sơ đồ khối kiểu paper của mạng.
 
 Chạy lại: `python examples/prepare_data.py --cache <thư mục tải>` rồi `python examples/run_example.py <bộ>|all`
 (mặc định `--budget 10m --epochs 30 --threads 2`, CPU). Năm bước được kiểm: (1) design, (2) pytest của từng gói,
