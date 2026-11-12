@@ -296,6 +296,14 @@ def check(card: dict, out_dim: int | None = None) -> dict:
 # ----------------------------------------------------------------------- authors' code
 
 
+def _stub_attr(attr):
+    """Attributes of a stubbed import: any callable, but no dunder (code that walks sys.modules
+    reads __file__ / __spec__ and must get AttributeError, not a function)."""
+    if attr.startswith("__"):
+        raise AttributeError(attr)
+    return lambda *a, **k: None
+
+
 def _official_class(card, root):
     """The authors' model class, imported from a checkout of their repository at `root`."""
     off = card["official"]
@@ -309,7 +317,7 @@ def _official_class(card, root):
     for name in off.get("stub_modules") or []:  # imports the model file does not need to run
         if name not in sys.modules:
             m = types.ModuleType(name)
-            m.__getattr__ = lambda attr: lambda *a, **k: None
+            m.__getattr__ = _stub_attr
             sys.modules[name] = m
     for p in [path.parent, *(root / x for x in off.get("sys_path") or [])]:
         if str(p) not in sys.path:

@@ -38,7 +38,10 @@ if __name__ == "__main__":
         try:
             r = paper.verify(card, root)
         except Exception as e:  # noqa: BLE001  report every card, then fail
+            import traceback
+
             print(f"{path.stem:<18} ERROR {type(e).__name__}: {e}")
+            traceback.print_exc(limit=-6)
             bad += 1
             continue
         print(f"{path.stem:<18} level {r['level']}  params {r['params_card']:,} vs {r['params_official']:,}  "

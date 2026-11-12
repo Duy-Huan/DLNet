@@ -27,7 +27,7 @@ QUICK = [
     ("ruff format --check", [PY, "-m", "ruff", "format", "--check", "."]),
     ("release check (versions, CHANGELOG)", [PY, "scripts/release.py", "check"]),
     ("docs rule (README.md, doc/)", [PY, "scripts/release.py", "docs"]),
-    ("repo hygiene + docs tests", [*PYTEST, "tests/test_env_setup.py", "tests/test_docs.py", "tests/test_release.py"]),
+    ("repo hygiene + docs tests", [*PYTEST, "tests/test_env_setup.py", "tests/test_docs.py", "tests/test_release.py", "tests/test_paper.py"]),
 ]  # fmt: skip
 DEFAULT = [*QUICK, ("regression suite", [*PYTEST, "-m", "regression"])]
 FULL = [
