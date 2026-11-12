@@ -454,6 +454,8 @@ Kết luận trung thực: Top-K được huấn luyện sâu gấp 2,5 lần n�
 - **`model.py` không chứa mạng**: gói xuất ra chỉ có `from zoo import build_model` + bản sao `zoo/`. Nay `model.py` là nguồn PyTorch thuần của chính mạng (`dlnet/standalone.py`), được chạy thử và so với mạng đã tìm kiếm trước khi ghi; 238/238 cặp (op, kiểu) và 79 họ đều giống hệt.
 - **Quy trình**: file dữ liệu > 50 MB và mã chưa format làm đỏ CI nhiều lượt; thêm `scripts/ci_local.py` + hook pre-push (chạy cổng CI trên máy trước khi push), và push chỉ đổi dữ liệu/kết quả ví dụ không kích hoạt CI.
 - **`model.pt2` chứa cả tập dữ liệu** (sau v1.0.0): đầu vào mẫu của `torch.export` là lát cắt chung vùng nhớ với toàn bộ dữ liệu; CIFAR-10: 74 MB cho mô hình 73 nghìn tham số. Sao riêng đầu vào mẫu: 0,4 MB.
+- **Dựng sẵn mọi ứng viên** (sau v1.0.1): ISBI 256×256: một khối attention đòi 60 GB làm hỏng cả lượt `design`; Oxford Pets trimap: 100 mô hình cùng nằm trong bộ nhớ làm máy khởi động lại. Nay dựng lần lượt, loại ứng viên không dựng được (`search._open`). Còn lại: một ứng viên đòi vài GB (dưới RAM máy) vẫn được thử; ước lượng bộ nhớ của cost model không tính ma trận attention bên trong khối.
+- **37 lớp bị hiểu là hồi quy** (sau v1.0.1): nhãn nguyên hơn 20 giá trị → hồi quy, không cảnh báo. Nay file ảnh/chuỗi nhận mã lớp liên tiếp là phân loại; trường hợp mơ hồ có cảnh báo.
 - Kết quả QA từng bộ: `examples/README.md`.
 
 ## 10. Quy ước cho agent (người/AI) phát triển repo

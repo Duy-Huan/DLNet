@@ -59,6 +59,29 @@ class Pace:
         return epochs * float(np.median(self.per_epoch)) if self.per_epoch else 0.0
 
 
+def _open(a, data, build_fn, failures, log=print) -> bool:
+    """Build the candidate's model and trainer on first use; False if it cannot be built.
+
+    Candidates are built one at a time, when their turn comes: building all of them before the
+    search (as until v1.0.1) kept every model in memory and let ONE model that cannot be allocated
+    end the whole run (segmentation at 256x256: an attention block asked for 60 GB; agent.md 9.10).
+    """
+    if a.get("tr") is not None:
+        return True
+    if a.get("dead"):
+        return False
+    try:
+        a["tr"] = _new_trainer(a["cfg"], data, 0, build_fn)
+    except Exception as e:  # noqa: BLE001  one candidate that cannot be built must not end the run
+        a["dead"] = True
+        failures.append(
+            {"candidate": _label(a["cfg"]), "error": f"{type(e).__name__}: {str(e)[:200]}"}
+        )
+        log(f"[search] {_label(a['cfg'])} could not be built: {failures[-1]['error']}")
+        return False
+    return True
+
+
 def _label(cfg) -> str:
     return f"{cfg['family']} ({cfg.get('origin', 'family')})"
 
@@ -244,7 +267,7 @@ def run_search(
     if not cands:
         raise ValueError("no candidates to search")
     cands = interleave(cands)
-    alive = [{"cfg": c, "tr": _new_trainer(c, data, 0, build_fn)} for c in cands]
+    alive = [{"cfg": c, "tr": None} for c in cands]  # built lazily, see _open
     log(f"[search] {len(alive)} candidates, rungs={rungs}")
     pace, failures = Pace(), (trace if trace is not None else {}).setdefault("failed", [])
     # Successive halving gives every rung the same share of the budget (Jamieson & Talwalkar 2016,
@@ -257,9 +280,12 @@ def run_search(
         for a in alive:
             if clock.now() > rung_deadline:
                 break
-            if not clock.fits(
-                pace.cost(a["cfg"], ep - a["tr"].epochs_done, a["tr"]), rung_deadline
-            ):
+            if not _open(a, data, build_fn, failures, log):
+                continue
+            cost = pace.cost(a["cfg"], ep - a["tr"].epochs_done, a["tr"])
+            if not clock.fits(cost, rung_deadline):
+                if r == 0:  # keep the price, free the model (rebuilt if nothing else fits)
+                    a["cost"], a["tr"] = cost, None
                 continue  # would end after the deadline; a cheaper candidate may still fit
             tried.add(id(a))
             if _train_step(a, ep - a["tr"].epochs_done, failures, log):
@@ -268,8 +294,10 @@ def run_search(
         # Nothing fitted rung 1: train the cheapest candidates (predicted) until one has a score,
         # so even a spent budget yields a result without starting with the slowest one.
         if r == 0 and not finished:
-            untried = [a for a in alive if id(a) not in tried]
-            for a in sorted(untried, key=lambda a: pace.cost(a["cfg"], ep, a["tr"])):
+            untried = [a for a in alive if id(a) not in tried and not a.get("dead")]
+            for a in sorted(untried, key=lambda a: a.get("cost", math.inf)):
+                if not _open(a, data, build_fn, failures, log):
+                    continue
                 if _train_step(a, ep - a["tr"].epochs_done, failures, log):
                     pace.record(a["tr"], a["cfg"])
                     finished.append(a)
@@ -376,7 +404,8 @@ def run_hyperband(
             if not pool or (clock.now() >= deadline and done):  # >=: a work budget ends exactly
                 break
             take, pool = pool[: rungs[0][0]], pool[rungs[0][0] :]
-            alive = [{"cfg": c, "tr": _new_trainer(c, data, 0, build_fn)} for c in take]
+            alive = [{"cfg": c, "tr": None} for c in take]
+            alive = [a for a in alive if _open(a, data, build_fn, failures, log)]
             for i, (n_i, ep) in enumerate(rungs):
                 if i and clock.now() > deadline:  # budget spent: keep what the last rung gave
                     break

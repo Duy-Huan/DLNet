@@ -645,3 +645,20 @@ def test_exported_graph_does_not_carry_the_data_set(tmp_path):
     path = inference.export(model, data[:2], tmp_path / "m.pt2")
     assert path.stat().st_size < 200_000
     torch.testing.assert_close(torch.export.load(str(path)).module()(data[:2]), model(data[:2]))
+
+
+def test_many_integer_classes_of_an_image_file_are_classes_not_a_regression():
+    """QA v1.0 (examples/oxford_pets_breeds): 37 breeds coded 0..36 were fitted as a regression
+    (more than 20 distinct integers), and nothing said so."""
+    from dlnet import core
+
+    y = np.repeat(np.arange(37), 5)
+    assert core.detect_task(y) == "regression"  # a table column: unchanged, but now with a note
+    assert "--task classification" in core.task_note(y, "regression")
+    assert core.detect_task(y, labels=True) == "classification"
+    assert core.detect_task(y + 1, labels=True) == "classification"  # codes 1..K
+    assert core.detect_task(y.astype(float), labels=True) == "regression"  # float targets: values
+    assert core.detect_task(np.arange(200), labels=True) == "regression"  # every value once
+    assert core.detect_task(np.repeat(np.arange(0, 90, 3), 4), labels=True) == "regression"  # gaps
+    assert core.task_note(np.repeat(np.arange(5), 9), "classification") is None
+    assert core.task_note(np.linspace(0, 1, 50), "regression") is None

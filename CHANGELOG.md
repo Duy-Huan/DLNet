@@ -6,6 +6,9 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+- Sửa (QA `examples/`, phân đoạn ảnh): `design` dựng sẵn mọi ứng viên trước khi tìm kiếm, nên (a) một mô hình không cấp phát được (khối attention trên ảnh 256×256 đòi 60 GB) làm hỏng cả lượt chạy, và (b) 100 mô hình nằm cùng lúc trong bộ nhớ làm máy hết RAM. Nay ứng viên được dựng lần lượt khi tới lượt (`search._open`); ứng viên không dựng được bị loại và ghi vào cảnh báo; ứng viên bị bỏ vì không vừa ngân sách được giải phóng ngay.
+- Sửa (QA `examples/`, Oxford-IIIT Pet 37 giống): file ảnh/chuỗi/đồ thị có nhãn nguyên 0..K−1 (hoặc 1..K) với hơn 20 lớp bị hiểu là bài hồi quy mà không báo gì. Nay `detect_task(y, labels=True)` nhận đó là phân loại (kiểu số nguyên, mã liên tiếp, mỗi lớp ≥ 2 mẫu); bảng CSV giữ quy tắc cũ. Mọi trường hợp còn mơ hồ (số nguyên, hơn 20 giá trị) có cảnh báo kèm cách ép `--task`.
+
 ## [1.0.1] - 2026-11-12
 
 - Sửa: `predict.py --export model.pt2` ghi kèm cả tập dữ liệu vào file (ví dụ CIFAR-10: mô hình 73 nghìn tham số ra file 74 MB), vì đầu vào mẫu là một lát cắt chung vùng nhớ với toàn bộ dữ liệu. Nay đầu vào mẫu được sao riêng (`inference.export`): file còn 0,4 MB, đồ thị và dự đoán không đổi. Có regression test.

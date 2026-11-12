@@ -89,7 +89,8 @@ class TabularPlugin(DomainPlugin):
         X, y, cols = core.load_csv(args.data, args.target, warns)
         task = core.detect_task(y) if args.task == "auto" else args.task
         d = core.prepare(X, y, task, seed=args.seed)
-        d["warnings"] = warns
+        note = core.task_note(y, task) if args.task == "auto" else None
+        d["warnings"] = warns + ([note] if note else [])
         d["preprocess"].update(columns=cols, target=args.target)
         return d
 
