@@ -6,3 +6,17 @@ $ /usr/local/bin/python -m dlnet design --data /home/user/DLNet/examples/image_s
 [profile] {'n_train': 888, 'n_features': 27648, 'n_classes': 3, 'primary_metric': 'miou', 'intrinsic_dim': 25.42, 'scaling_exponent_hat': 0.157, 'pca_dims_for_95pct_energy': 275, 'intrinsic_dim_estimators': {'twonn': {'mean': 25.258, 'std': 0.941}, 'mle': {'mean': 18.4, 'std': 0.141}, 'value': 21.829, 'rel_disagreement': 0.314, 'stable': False}, 'capacity_hint': {'min_width': 64, 'scaling_exponent': 0.183, 'used_for_pruning': False}, 'max_params': 266400, 'kind': 'segmentation', 'shape': [3, 96, 96], 'n_pixels_train': 8183808}
 [datacard] {'n_train': 888, 'channels': 3, 'height': 96, 'width': 96, 'spectral_slope': 2.897, 'high_freq_energy': 0.0239, 'corr_length': 13.0, 'corr_length_rel': 0.135, 'edge_density': 0.1374, 'channel_correlation': 0.905}
 [reference] classical baselines on the same split(s)
+[reference] pixel_random_forest_5x5    val=0.3560
+[reference] pixel_logistic_regression_5x5 val=0.1989
+[zoo] 12 architectures from the module zoo (preset, random)
+[cost] 100 candidates; FLOPs/sample min 19,611,648 median 240,063,744 max 4,147,426,304
+[generate] 100 valid candidates from families ['deconvnet', 'deeplabv3', 'deeplabv3plus', 'fcn', 'fpn', 'linknet', 'pspnet', 'segformer', 'unet', 'unetpp', 'upernet', 'zoo_basic_block_deeplabv3', 'zoo_basic_block_fpn', 'zoo_basic_block_unet', 'zoo_basic_block_unetpp', 'zoo_deeplabv3plus_fused_mbconv_gc_block', 'zoo_fcn_mbconv_regnet_block', 'zoo_ghost_bottleneck_basic_block_convnext_block', 'zoo_mambahsi_plus_block_bottleneck_fcn', 'zoo_mbconv_unet', 'zoo_preact_block_basic_block_bottleneck', 'zoo_split_attn_linknet_mobile_mqa', 'zoo_vgg_stage_fcn']
+[surrogate] not enough past datasets
+[seeds] -1 global_attention: 888 training images (1000000000 per class at least): global attention needs much data
+[seeds] 100/100 candidates, rankers ['prior']; first: ['fcn', 'fcn', 'fcn', 'fcn', 'fcn']
+[search] 100 candidates, rungs=(4, 12, 30)
+[search] rung 1 (4 ep): kept 2; best val=0.4102
+[search] rung 2 (12 ep): kept 1; best val=0.4919
+[search] rung 3 (30 ep): kept 1; best val=0.5743
+[evolve] skipped: the remaining search budget cannot train 8 children to 12 epochs (raise --budget or lower --evolve-pop)
+[equalize] deeplabv3: trained on to 30 epochs, val=0.5338
