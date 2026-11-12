@@ -84,13 +84,16 @@ dlnet_out/
   profile.json                       hồ sơ dữ liệu
   reference/results.json             baseline cổ điển
   top1_<họ>/                         một gói độc lập cho mỗi baseline
-    model.py  core.py  array_data.py  zoo/    mã dựng và huấn luyện (không phụ thuộc DLNet)
+    model.py                          CHÍNH MẠNG ĐƯỢC SINH RA, viết bằng PyTorch thuần (chỉ import torch): mã các khối + lời gọi dựng mạng
+    core.py  array_data.py            vòng huấn luyện và dựng dữ liệu (không phụ thuộc DLNet)
     config.yaml                       spec, hyperparameter, cách dựng lại dữ liệu
     train.py                          huấn luyện đầy đủ: python train.py --data ...  -> model.pt, preprocess.json
     predict.py, inference.py          dự đoán trên file mới (nhãn gốc), xuất torch.export / ONNX
     report.md                         số đo, nguồn gốc, chi phí
     tests/test_model.py               kiểm tra shape
 ```
+
+**`model.py` độc lập (v1.0, `dlnet/standalone.py`).** Trước v1.0 `model.py` chỉ là `from zoo import build_model` kèm bản sao cả thư mục `zoo/`; mạng thật nằm trong spec của `config.yaml`. Nay `model.py` chứa nguồn của đúng các lớp mà mạng dùng (chép từ `dlnet/zoo`, không thừa) và hàm `build_model()` viết ra cây module bằng các lời gọi constructor tường minh. Cách sinh: dựng mạng một lần trong khi ghi lại đối số `__init__` của mọi module, viết lại cây module thành biểu thức, rồi lần theo tên để gom nguồn. Trước khi ghi, file được chạy thử và so với mạng đã tìm kiếm: cùng tên và kích thước tham số, cùng seed cho cùng trọng số khởi tạo, cùng đầu ra; kết quả ghi ở `report.md` ("identical"). Mạng nào không viết được theo cách này thì giữ dạng cũ (`model.py` + `zoo/`) và `report.md` nêu lý do. Gói cũ chuyển bằng `python -m dlnet standalone <thư mục gói>`; `model.pt` đã train vẫn nạp được vì tên tham số không đổi. Giới hạn: mạng phân đoạn encoder–decoder kéo theo nguồn của cả 11 decoder (file dài khoảng 750 dòng).
 
 Gói chưa có trọng số khi vừa xuất: kết quả tìm kiếm là kết quả của ngân sách ngắn, nên gói được huấn luyện lại bằng `train.py`, lệnh này lưu `model.pt` và `preprocess.json` (thống kê chuẩn hóa TRAIN, cột, lớp; mỗi hàm dựng dữ liệu ghi khối `preprocess`). `inference.prepare_input` áp đúng các thống kê đó lên file mới.
 

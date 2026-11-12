@@ -1,0 +1,14 @@
+$ /usr/local/bin/python -m dlnet design --data /home/user/DLNet/examples/image_classification/mnist/input/data.npz --plugin image_classification --out /home/user/DLNet/examples/image_classification/mnist/output --budget 10m --topk 3 --seed 0 --threads 2 --no-cache
+[device] cpu, precision float32 (--device, --amp)
+[threads] 2 (of 4 CPUs; --threads to change)
+[plugin] image_classification  data=/home/user/DLNet/examples/image_classification/mnist/input/data.npz
+[load] task=classification features=1 classes=10 seed=0
+[profile] {'n_train': 3600, 'n_features': 784, 'n_classes': 10, 'primary_metric': 'accuracy', 'intrinsic_dim': 12.11, 'scaling_exponent_hat': 0.33, 'pca_dims_for_95pct_energy': 146, 'intrinsic_dim_estimators': {'twonn': {'mean': 12.103, 'std': 0.193}, 'mle': {'mean': 10.624, 'std': 0.061}, 'value': 11.363, 'rel_disagreement': 0.13, 'stable': True}, 'capacity_hint': {'min_width': 32, 'scaling_exponent': 0.352, 'used_for_pruning': False}, 'max_params': 1080000, 'kind': 'image', 'shape': [1, 28, 28]}
+[datacard] {'n_train': 3600, 'channels': 1, 'height': 28, 'width': 28, 'n_classes': 10, 'samples_per_class_min': 360, 'samples_per_class_median': 360.0, 'imbalance_ratio': 1.0, 'spectral_slope': 2.713, 'high_freq_energy': 0.0993, 'corr_length': 3.0, 'corr_length_rel': 0.107, 'edge_density': 0.1999, 'position_dependence': 0.2124, 'knn_accuracy': 0.887, 'linear_probe_pixels': 0.806, 'linear_probe_random_conv': 0.776, 'conv_bias_gain': -0.03}
+[reference] classical baselines on the same split(s)
+[reference] hist_gradient_boosting     val=0.9325
+[reference] random_forest              val=0.9167
+[reference] logistic_regression        val=0.8850
+[zoo] 12 architectures from the module zoo (preset, random)
+[cost] 92 candidates; FLOPs/sample min 1,069,184 median 18,290,432 max 201,179,648
+[generate] 92 valid candidates from families ['allconv', 'cnn', 'densenet', 'kat', 'lenet', 'mambavision', 'mobilenetv2', 'resnet', 'vgg', 'vit', 'zoo_basic_block', 'zoo_basic_block_cbam', 'zoo_convnext_block', 'zoo_dw_sep_basic_block_fused_mbconv', 'zoo_ffn_patchify_pos', 'zoo_fnet_block_patchify', 'zoo_gfnet_block_mlp_patchify', 'zoo_gfnet_block_patchify_pos', 'zoo_preact_block', 'zoo_regnet_block', 'zoo_sk_conv_dense_block_fca', 'zoo_unet_res_block']

@@ -1,0 +1,66 @@
+[
+  {
+    "name": "random_forest_spectral_spatial",
+    "seconds": 0.4,
+    "va": {
+      "accuracy": 0.9907692307692307,
+      "balanced_accuracy": 0.9830687830687831,
+      "kappa": 0.9899993845764399,
+      "score": 0.9907692307692307
+    },
+    "te": {
+      "accuracy": 0.9892224788298691,
+      "balanced_accuracy": 0.9839815204138664,
+      "kappa": 0.9883214397510502,
+      "score": 0.9892224788298691
+    }
+  },
+  {
+    "name": "svm_rbf_spectral_spatial",
+    "seconds": 0.1,
+    "va": {
+      "accuracy": 0.9661538461538461,
+      "balanced_accuracy": 0.9627752176139273,
+      "kappa": 0.9633303245384057,
+      "score": 0.9661538461538461
+    },
+    "te": {
+      "accuracy": 0.9526558891454965,
+      "balanced_accuracy": 0.9444597737095075,
+      "kappa": 0.9486786792322851,
+      "score": 0.9526558891454965
+    }
+  },
+  {
+    "name": "random_forest_spectral",
+    "seconds": 0.4,
+    "va": {
+      "accuracy": 0.9015384615384615,
+      "balanced_accuracy": 0.8942225635774024,
+      "kappa": 0.8933355213216719,
+      "score": 0.9015384615384615
+    },
+    "te": {
+      "accuracy": 0.9037721324095458,
+      "balanced_accuracy": 0.8993332613042647,
+      "kappa": 0.8957075005646494,
+      "score": 0.9037721324095458
+    }
+  },
+  {
+    "name": "svm_rbf_spectral",
+    "seconds": 0.1,
+    "va": {
+      "accuracy": 0.8553846153846154,
+      "balanced_accuracy": 0.8556210694920373,
+      "kappa": 0.8432127277383725,
+      "score": 0.8553846153846154
+    },
+    "te": {
+      "accuracy": 0.851039260969977,
+      "balanced_accuracy": 0.8388760326981471,
+      "kappa": 0.8384289931938071,
+      "score": 0.851039260969977
+    }
+  }
+]

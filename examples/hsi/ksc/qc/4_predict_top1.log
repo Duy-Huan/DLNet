@@ -1,0 +1,3 @@
+$ /usr/local/bin/python predict.py --data /home/user/DLNet/examples/hsi/ksc/input/KSC.mat --out /home/user/DLNet/examples/hsi/ksc/qc/predictions.npy --export /home/user/DLNet/examples/hsi/ksc/output/top1_mambahsi/model.pt2
+512 predictions -> /home/user/DLNet/examples/hsi/ksc/qc/predictions.npy
+exported /home/user/DLNet/examples/hsi/ksc/output/top1_mambahsi/model.pt2

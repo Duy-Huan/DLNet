@@ -1,0 +1,68 @@
+{
+  "task": "classification",
+  "primary_metric": "accuracy (OA); also AA, Kappa",
+  "cube_shape": [
+    1476,
+    256,
+    145
+  ],
+  "n_classes": 14,
+  "n_train": 325,
+  "n_val": 325,
+  "n_test": 2598,
+  "n_features": 30,
+  "patch": 9,
+  "split": "pixel",
+  "frac": [
+    0.1,
+    0.1,
+    0.8
+  ],
+  "dropped_by_margin": 0,
+  "pca_energy_kept": 0.9982,
+  "multilinear_rank_99": [
+    302,
+    167,
+    4
+  ],
+  "multilinear_rank_levels": {
+    "0.9": [
+      59,
+      43,
+      1
+    ],
+    "0.95": [
+      115,
+      75,
+      2
+    ],
+    "0.99": [
+      302,
+      167,
+      4
+    ]
+  },
+  "intrinsic_dim": 10.57,
+  "scaling_exponent_hat": 0.378,
+  "intrinsic_dim_estimators": {
+    "twonn": {
+      "mean": 11.044,
+      "std": 0.697
+    },
+    "mle": {
+      "mean": 13.344,
+      "std": 0.219
+    },
+    "value": 12.194,
+    "rel_disagreement": 0.189,
+    "stable": true
+  },
+  "capacity_hint": {
+    "min_width": 32,
+    "scaling_exponent": 0.328,
+    "used_for_pruning": false
+  },
+  "classes_missing_train": [],
+  "classes_missing_test": [],
+  "max_params": 162500
+}

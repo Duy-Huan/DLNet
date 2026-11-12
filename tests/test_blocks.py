@@ -115,7 +115,8 @@ def test_cli_segmentation_end_to_end_and_package_runs(seg_npz, tmp_path):
     assert board["metric"] == "miou" and board["top_k"][0]["val_mean"] > 0.5
     assert "miou" in board["top_k"][0]["test"] and "mIoU" in (out / "leaderboard.md").read_text()
     pkg = next(out.glob("top1_*"))
-    assert (pkg / "zoo" / "core.py").exists()
+    assert not (pkg / "zoo").exists()  # model.py is the network's own source (dlnet/standalone.py)
+    assert "dlnet" not in (pkg / "model.py").read_text().split('"""', 2)[2]
     r = subprocess.run([sys.executable, "-m", "pytest", "-q", "tests"], cwd=pkg, capture_output=True,
                        check=False)  # fmt: skip
     assert r.returncode == 0, r.stdout.decode()[-500:]
