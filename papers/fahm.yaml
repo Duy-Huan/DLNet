@@ -9,6 +9,11 @@ paper:
   reported: []          # fill in from the paper's tables: {dataset, metric, value, protocol}
 
 official:
+  # The authors' model calls a compiled CUDA kernel (selective_scan_cuda) and cannot run on a CPU
+  # runner, so `paper verify` skips this card and it stays at level C here. Separate evidence:
+  # scripts/verify_hsi.py (job verify-hsi) compares DLNet's FAHM with the authors' forward_features
+  # after replacing that kernel by the reference scan: bit-identical on 2 configurations.
+  skip_verify: needs the compiled CUDA kernel selective_scan_cuda
   repo: https://github.com/zhangxc0105/FAHM
   commit: 6a3049e
   entry: model/fahm.py:FAHM

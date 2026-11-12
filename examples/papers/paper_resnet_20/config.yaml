@@ -1,0 +1,330 @@
+{
+  "arch": {
+    "family": "paper_resnet_20",
+    "spec": {
+      "op": "graph",
+      "nodes": [
+        {
+          "id": "stem",
+          "op": "conv_bn_act",
+          "out": 16,
+          "k": 3
+        },
+        {
+          "id": "stage1",
+          "op": "rep",
+          "n": 3,
+          "body": {
+            "op": "graph",
+            "nodes": [
+              {
+                "id": "conv1",
+                "op": "conv_bn_act",
+                "out": 16,
+                "k": 3
+              },
+              {
+                "id": "conv2",
+                "op": "conv_bn_act",
+                "out": 16,
+                "k": 3,
+                "act": "identity"
+              },
+              {
+                "id": "sum",
+                "from": [
+                  "conv2",
+                  "input"
+                ],
+                "op": "add"
+              },
+              {
+                "id": "relu",
+                "op": "act",
+                "act": "relu"
+              }
+            ]
+          }
+        },
+        {
+          "id": "down2",
+          "op": "graph",
+          "nodes": [
+            {
+              "id": "conv1",
+              "op": "conv_bn_act",
+              "out": 32,
+              "k": 3,
+              "s": 2
+            },
+            {
+              "id": "conv2",
+              "op": "conv_bn_act",
+              "out": 32,
+              "k": 3,
+              "act": "identity"
+            },
+            {
+              "id": "short",
+              "from": "input",
+              "op": "conv_bn_act",
+              "out": 32,
+              "k": 1,
+              "s": 2,
+              "act": "identity",
+              "norm": "none"
+            },
+            {
+              "id": "sum",
+              "from": [
+                "conv2",
+                "short"
+              ],
+              "op": "add"
+            },
+            {
+              "id": "relu",
+              "op": "act",
+              "act": "relu"
+            }
+          ]
+        },
+        {
+          "id": "stage2",
+          "op": "rep",
+          "n": 2,
+          "body": {
+            "op": "graph",
+            "nodes": [
+              {
+                "id": "conv1",
+                "op": "conv_bn_act",
+                "out": 32,
+                "k": 3
+              },
+              {
+                "id": "conv2",
+                "op": "conv_bn_act",
+                "out": 32,
+                "k": 3,
+                "act": "identity"
+              },
+              {
+                "id": "sum",
+                "from": [
+                  "conv2",
+                  "input"
+                ],
+                "op": "add"
+              },
+              {
+                "id": "relu",
+                "op": "act",
+                "act": "relu"
+              }
+            ]
+          }
+        },
+        {
+          "id": "down3",
+          "op": "graph",
+          "nodes": [
+            {
+              "id": "conv1",
+              "op": "conv_bn_act",
+              "out": 64,
+              "k": 3,
+              "s": 2
+            },
+            {
+              "id": "conv2",
+              "op": "conv_bn_act",
+              "out": 64,
+              "k": 3,
+              "act": "identity"
+            },
+            {
+              "id": "short",
+              "from": "input",
+              "op": "conv_bn_act",
+              "out": 64,
+              "k": 1,
+              "s": 2,
+              "act": "identity",
+              "norm": "none"
+            },
+            {
+              "id": "sum",
+              "from": [
+                "conv2",
+                "short"
+              ],
+              "op": "add"
+            },
+            {
+              "id": "relu",
+              "op": "act",
+              "act": "relu"
+            }
+          ]
+        },
+        {
+          "id": "stage3",
+          "op": "rep",
+          "n": 2,
+          "body": {
+            "op": "graph",
+            "nodes": [
+              {
+                "id": "conv1",
+                "op": "conv_bn_act",
+                "out": 64,
+                "k": 3
+              },
+              {
+                "id": "conv2",
+                "op": "conv_bn_act",
+                "out": 64,
+                "k": 3,
+                "act": "identity"
+              },
+              {
+                "id": "sum",
+                "from": [
+                  "conv2",
+                  "input"
+                ],
+                "op": "add"
+              },
+              {
+                "id": "relu",
+                "op": "act",
+                "act": "relu"
+              }
+            ]
+          }
+        },
+        {
+          "id": "pool",
+          "op": "gap"
+        }
+      ]
+    },
+    "input": {
+      "kind": "map",
+      "dims": [
+        3,
+        32,
+        32
+      ]
+    },
+    "head": "cls",
+    "out_dim": 10,
+    "dropout": 0.0,
+    "origin": "paper:ResNet-20",
+    "lr": 0.1,
+    "wd": 0.0001,
+    "batch": 128
+  },
+  "in_dim": 3,
+  "out_dim": 10,
+  "paper": {
+    "name": "ResNet-20",
+    "title": "Deep Residual Learning for Image Recognition",
+    "venue": "CVPR 2016",
+    "url": "https://arxiv.org/abs/1512.03385",
+    "reported": [
+      {
+        "params": 270000
+      },
+      {
+        "dataset": "CIFAR-10",
+        "metric": "accuracy",
+        "value": 0.9125,
+        "protocol": "45k/5k split, 64k iterations, test error 8.75%"
+      }
+    ]
+  },
+  "official": null,
+  "training": {
+    "optimizer": "sgd",
+    "lr": 0.1,
+    "weight_decay": 0.0001,
+    "batch": 128,
+    "epochs": 164
+  },
+  "fidelity_level": "C",
+  "fidelity": null,
+  "check": {
+    "name": "ResNet-20",
+    "level": "C",
+    "issues": [],
+    "nodes": [
+      {
+        "id": "stem",
+        "kind": "map",
+        "shape": [
+          16,
+          32,
+          32
+        ]
+      },
+      {
+        "id": "stage1",
+        "kind": "map",
+        "shape": [
+          16,
+          32,
+          32
+        ]
+      },
+      {
+        "id": "down2",
+        "kind": "map",
+        "shape": [
+          32,
+          16,
+          16
+        ]
+      },
+      {
+        "id": "stage2",
+        "kind": "map",
+        "shape": [
+          32,
+          16,
+          16
+        ]
+      },
+      {
+        "id": "down3",
+        "kind": "map",
+        "shape": [
+          64,
+          8,
+          8
+        ]
+      },
+      {
+        "id": "stage3",
+        "kind": "map",
+        "shape": [
+          64,
+          8,
+          8
+        ]
+      },
+      {
+        "id": "pool",
+        "kind": "vec",
+        "shape": [
+          64
+        ]
+      }
+    ],
+    "params": 272378,
+    "reported_params": 270000,
+    "params_diff": 0.0088,
+    "ok": true
+  }
+}

@@ -502,6 +502,8 @@ def _report(card, res, lvl) -> str:
             lines.append(f"- {k.capitalize()}: {p[k]}")
     lines.append(f"- Fidelity level: {LEVEL_TEXT[lvl]}")
     fid = fidelity(card)
+    if (card.get("official") or {}).get("skip_verify"):
+        lines.append(f"- Not compared with the authors' code: {card['official']['skip_verify']}")
     if fid:
         lines.append(f"- Check against {fid['official']['repo']} @ {fid['official']['commit']}: parameters "
                      f"{fid['params_card']:,} vs {fid['params_official']:,}, max |output difference| {fid.get('max_abs_diff')}")  # fmt: skip

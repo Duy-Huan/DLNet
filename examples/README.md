@@ -16,6 +16,9 @@ Chạy lại: `python examples/prepare_data.py --cache <thư mục tải>` rồi
 (3) train đầy đủ gói top-1, (4) predict + export, (5) chấm lại `predictions.npy` trên tập TEST của gói và so với
 số `train.py` in ra, kiểm các tập không trùng nhau.
 
+Mạng dựng lại từ paper (thẻ trong `papers/`, lệnh `dlnet paper build`) nằm ở [`papers/`](papers/): `model.py`, sơ đồ khối,
+`report.md` ghi mức trung thành so với mã gốc của tác giả (StarNet-S1 và SSFTT: mức B, trùng từng bit).
+
 ## Kết quả
 
 Số đo là của ngân sách nhỏ trên CPU (10 phút tìm kiếm, 30 epoch): dùng để kiểm quy trình và hình dung đầu ra,
