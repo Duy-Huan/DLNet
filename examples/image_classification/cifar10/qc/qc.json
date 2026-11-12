@@ -1,0 +1,145 @@
+{
+ "case": "image_classification/cifar10",
+ "steps": {
+  "1_design": {
+   "ok": true,
+   "seconds": 603.3,
+   "packages": [
+    "top1_cnn",
+    "top2_zoo_ffn_patchify_pos",
+    "top3_zoo_fnet_block_patchify"
+   ]
+  },
+  "2_package_tests": {
+   "ok": true
+  },
+  "3_train_top1": {
+   "ok": true,
+   "seconds": 87.7,
+   "epochs": 30,
+   "package": "top1_cnn",
+   "weights_kb": 296
+  },
+  "4_predict_export": {
+   "ok": true,
+   "seconds": 6.2
+  },
+  "5_qc": {
+   "ok": true,
+   "metric": "accuracy",
+   "test_from_predictions": 0.6475,
+   "test_printed_by_train_py": 0.6475,
+   "splits_disjoint": true,
+   "n_test": 1200,
+   "image": [
+    32,
+    32,
+    3
+   ],
+   "classes": 10,
+   "metrics": {
+    "accuracy": 0.6475,
+    "balanced_accuracy": 0.6475000000000001,
+    "kappa": 0.6083333333333333,
+    "per_class_recall": [
+     0.75,
+     0.8417,
+     0.5333,
+     0.3333,
+     0.5,
+     0.6167,
+     0.7,
+     0.6917,
+     0.8083,
+     0.7
+    ]
+   }
+  }
+ },
+ "verdict": {
+  "beats_reference": true,
+  "val_margin": 0.21306,
+  "val_noise": 0.01404,
+  "test_margin": 0.21,
+  "test_noise": 0.01399,
+  "top1_val": 0.61639,
+  "best_reference": "hist_gradient_boosting",
+  "best_reference_val": 0.40333
+ },
+ "reference": [
+  {
+   "name": "hist_gradient_boosting",
+   "val": 0.40333,
+   "test": {
+    "accuracy": 0.4,
+    "balanced_accuracy": 0.4,
+    "kappa": 0.33333,
+    "score": 0.4
+   }
+  },
+  {
+   "name": "random_forest",
+   "val": 0.39917,
+   "test": {
+    "accuracy": 0.41333,
+    "balanced_accuracy": 0.41333,
+    "kappa": 0.34815,
+    "score": 0.41333
+   }
+  },
+  {
+   "name": "logistic_regression",
+   "val": 0.35083,
+   "test": {
+    "accuracy": 0.38,
+    "balanced_accuracy": 0.38,
+    "kappa": 0.31111,
+    "score": 0.38
+   }
+  }
+ ],
+ "top": [
+  {
+   "rank": 1,
+   "name": "top1_cnn",
+   "params": 72954,
+   "val_mean": 0.61639,
+   "val_std": 0.00643,
+   "test": {
+    "accuracy": 0.62333,
+    "balanced_accuracy": 0.62333,
+    "kappa": 0.58148,
+    "score": 0.62333
+   },
+   "group": 0
+  },
+  {
+   "rank": 2,
+   "name": "top2_zoo_ffn_patchify_pos",
+   "params": 26890,
+   "val_mean": 0.48417,
+   "val_std": 0.01132,
+   "test": {
+    "accuracy": 0.47139,
+    "balanced_accuracy": 0.47139,
+    "kappa": 0.41265,
+    "score": 0.47139
+   },
+   "group": 1
+  },
+  {
+   "rank": 3,
+   "name": "top3_zoo_fnet_block_patchify",
+   "params": 20618,
+   "val_mean": 0.38722,
+   "val_std": 0.011,
+   "test": {
+    "accuracy": 0.4125,
+    "balanced_accuracy": 0.4125,
+    "kappa": 0.34722,
+    "score": 0.4125
+   },
+   "group": 2
+  }
+ ]
+}

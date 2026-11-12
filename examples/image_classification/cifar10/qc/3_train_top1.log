@@ -1,0 +1,5 @@
+$ /usr/local/bin/python train.py --data /home/user/DLNet/examples/image_classification/cifar10/input/data.npz --epochs 30 --seed 0
+params=72,954 epochs=30
+val : {'accuracy': 0.6366666666666667, 'balanced_accuracy': 0.6366666666666666, 'kappa': 0.5962962962956339, 'score': 0.6366666666666667}
+test: {'accuracy': 0.6475, 'balanced_accuracy': 0.6475000000000001, 'kappa': 0.6083333333326574, 'score': 0.6475}
+saved /home/user/DLNet/examples/image_classification/cifar10/output/top1_cnn/model.pt and preprocess.json; predict with: python predict.py --data <new file>

@@ -153,6 +153,9 @@ def export(model, sample, path):
     """Save a deployable graph of the model: .pt2 (torch.export, no extra package) or .onnx
     (needs `pip install onnx onnxscript`). `sample` = a model input batch (e.g. 2 rows)."""
     path = Path(path)
+    # A slice of the data set shares its storage, and torch.export.save writes the whole storage of
+    # the example input: a 73k-parameter CIFAR model became a 74 MB .pt2 (agent.md 9.10).
+    sample = sample.detach().clone()
     if path.suffix == ".onnx":
         try:
             torch.onnx.export(model, (sample,), str(path), dynamo=True)

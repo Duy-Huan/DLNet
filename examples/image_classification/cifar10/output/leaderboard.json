@@ -1,0 +1,489 @@
+{
+  "task": "classification",
+  "metric": "accuracy",
+  "verdict": {
+    "beats_reference": true,
+    "val_margin": 0.21306,
+    "val_noise": 0.01404,
+    "test_margin": 0.21,
+    "test_noise": 0.01399,
+    "top1_val": 0.61639,
+    "best_reference": "hist_gradient_boosting",
+    "best_reference_val": 0.40333
+  },
+  "top_k": [
+    {
+      "rank": 1,
+      "name": "top1_cnn",
+      "roles": [
+        "top1",
+        "most-stable"
+      ],
+      "group": 0,
+      "params": 72954,
+      "hyperparameters": {
+        "optimizer": "AdamW",
+        "lr": 0.001,
+        "weight_decay": 0.01,
+        "batch_size": 64,
+        "epochs": 100,
+        "lr_schedule": "cosine",
+        "grad_clip_norm": 5.0,
+        "dropout": 0.2,
+        "width": 16,
+        "depth": 3,
+        "source": {
+          "adopted": "searched",
+          "searched": {
+            "lr": 0.001,
+            "batch": 64,
+            "wd": 0.01
+          },
+          "estimated": null,
+          "val_searched": 0.6163888888888889,
+          "val_estimated": null,
+          "methods": [
+            "LR range test (Smith 1506.01186)",
+            "gradient noise scale B_simple (McCandlish 1812.06162)",
+            "normalized weight decay (Loshchilov & Hutter 1711.05101)"
+          ]
+        }
+      },
+      "val_mean": 0.61639,
+      "val_std": 0.00643,
+      "val_noise": 0.01404,
+      "noise_source": "validation sampling",
+      "epochs": 30,
+      "origin": null,
+      "flops": 19760384,
+      "vram_mb": 92.431,
+      "n_runs": 3,
+      "n_splits": 1,
+      "test_std": 0.01016,
+      "test": {
+        "accuracy": 0.62333,
+        "balanced_accuracy": 0.62333,
+        "kappa": 0.58148,
+        "score": 0.62333
+      }
+    },
+    {
+      "rank": 2,
+      "name": "top2_zoo_ffn_patchify_pos",
+      "roles": [
+        "most-different"
+      ],
+      "group": 1,
+      "params": 26890,
+      "hyperparameters": {
+        "optimizer": "AdamW",
+        "lr": 0.001,
+        "weight_decay": 0.01,
+        "batch_size": 32,
+        "epochs": 100,
+        "lr_schedule": "cosine",
+        "grad_clip_norm": 5.0,
+        "dropout": 0.0,
+        "source": {
+          "adopted": "searched",
+          "searched": {
+            "lr": 0.001,
+            "batch": 32,
+            "wd": 0.01
+          },
+          "estimated": null,
+          "val_searched": 0.48416666666666663,
+          "val_estimated": null,
+          "methods": [
+            "LR range test (Smith 1506.01186)",
+            "gradient noise scale B_simple (McCandlish 1812.06162)",
+            "normalized weight decay (Loshchilov & Hutter 1711.05101)"
+          ]
+        }
+      },
+      "val_mean": 0.48417,
+      "val_std": 0.01132,
+      "val_noise": 0.01443,
+      "noise_source": "validation sampling",
+      "epochs": 30,
+      "origin": "random",
+      "flops": 4065792,
+      "vram_mb": 14.097,
+      "n_runs": 3,
+      "n_splits": 1,
+      "test_std": 0.01059,
+      "test": {
+        "accuracy": 0.47139,
+        "balanced_accuracy": 0.47139,
+        "kappa": 0.41265,
+        "score": 0.47139
+      }
+    },
+    {
+      "rank": 3,
+      "name": "top3_zoo_fnet_block_patchify",
+      "roles": [
+        "best-small"
+      ],
+      "group": 2,
+      "params": 20618,
+      "hyperparameters": {
+        "optimizer": "AdamW",
+        "lr": 0.003,
+        "weight_decay": 0.01,
+        "batch_size": 32,
+        "epochs": 100,
+        "lr_schedule": "cosine",
+        "grad_clip_norm": 5.0,
+        "dropout": 0.0,
+        "source": {
+          "adopted": "searched",
+          "searched": {
+            "lr": 0.003,
+            "batch": 32,
+            "wd": 0.01
+          },
+          "estimated": null,
+          "val_searched": 0.3872222222222222,
+          "val_estimated": null,
+          "methods": [
+            "LR range test (Smith 1506.01186)",
+            "gradient noise scale B_simple (McCandlish 1812.06162)",
+            "normalized weight decay (Loshchilov & Hutter 1711.05101)"
+          ]
+        }
+      },
+      "val_mean": 0.38722,
+      "val_std": 0.011,
+      "val_noise": 0.01406,
+      "noise_source": "validation sampling",
+      "epochs": 30,
+      "origin": "random",
+      "flops": 2491648,
+      "vram_mb": 10.835,
+      "n_runs": 3,
+      "n_splits": 1,
+      "test_std": 0.00802,
+      "test": {
+        "accuracy": 0.4125,
+        "balanced_accuracy": 0.4125,
+        "kappa": 0.34722,
+        "score": 0.4125
+      }
+    }
+  ],
+  "reference": [
+    {
+      "name": "hist_gradient_boosting",
+      "val": 0.40333,
+      "test": {
+        "accuracy": 0.4,
+        "balanced_accuracy": 0.4,
+        "kappa": 0.33333,
+        "score": 0.4
+      }
+    },
+    {
+      "name": "random_forest",
+      "val": 0.39917,
+      "test": {
+        "accuracy": 0.41333,
+        "balanced_accuracy": 0.41333,
+        "kappa": 0.34815,
+        "score": 0.41333
+      }
+    },
+    {
+      "name": "logistic_regression",
+      "val": 0.35083,
+      "test": {
+        "accuracy": 0.38,
+        "balanced_accuracy": 0.38,
+        "kappa": 0.31111,
+        "score": 0.38
+      }
+    }
+  ],
+  "warnings": [
+    "Only 4 of 92 candidates could be trained within the budget; raise --budget, or lower --zoo / --per-family, or use --seeds N."
+  ],
+  "search_coverage": {
+    "candidates": 92,
+    "trained": 4,
+    "top_k_requested": 3,
+    "top_k_exported": 3
+  },
+  "objective": {
+    "objective": "accuracy",
+    "cost": "params",
+    "tolerance": 0.01,
+    "target_cost": null,
+    "cost_weight": -0.07,
+    "pareto_front": [
+      {
+        "family": "zoo_fnet_block_patchify",
+        "val_mean": 0.38722,
+        "params": 20618,
+        "flops": 2491648
+      },
+      {
+        "family": "zoo_ffn_patchify_pos",
+        "val_mean": 0.48417,
+        "params": 26890,
+        "flops": 4065792
+      },
+      {
+        "family": "cnn",
+        "val_mean": 0.61639,
+        "params": 72954,
+        "flops": 19760384
+      }
+    ]
+  },
+  "module_zoo": {
+    "initial_candidates": 12,
+    "evolution": [],
+    "top_origins": [
+      "legacy family",
+      "random",
+      "random"
+    ],
+    "ops_registered": 133
+  },
+  "seed_selection": {
+    "rules_fired": [
+      "-1 global_attention: 3600 training images (360 per class at least): global attention needs much data"
+    ],
+    "rankers": [
+      "zap_surrogate"
+    ],
+    "weights": {
+      "prior": 0.0,
+      "meta": 1.0,
+      "proxies": 0.0
+    },
+    "kept": 92,
+    "pool": 92,
+    "top": [
+      {
+        "family": "zoo_sk_conv_dense_block_fca",
+        "origin": "random",
+        "traits": [
+          "channel_attention",
+          "local_conv",
+          "multi_scale"
+        ],
+        "score": 91.0
+      },
+      {
+        "family": "lenet",
+        "origin": "family",
+        "traits": [
+          "channel_attention",
+          "local_conv"
+        ],
+        "score": 90.0
+      },
+      {
+        "family": "resnet",
+        "origin": "family",
+        "traits": [
+          "channel_attention",
+          "local_conv"
+        ],
+        "score": 88.5
+      },
+      {
+        "family": "resnet",
+        "origin": "family",
+        "traits": [
+          "channel_attention",
+          "local_conv"
+        ],
+        "score": 88.5
+      },
+      {
+        "family": "mobilenetv2",
+        "origin": "family",
+        "traits": [
+          "light",
+          "local_conv"
+        ],
+        "score": 87.0
+      },
+      {
+        "family": "mobilenetv2",
+        "origin": "family",
+        "traits": [
+          "light",
+          "local_conv"
+        ],
+        "score": 85.5
+      },
+      {
+        "family": "mobilenetv2",
+        "origin": "family",
+        "traits": [
+          "light",
+          "local_conv"
+        ],
+        "score": 85.5
+      },
+      {
+        "family": "cnn",
+        "origin": "family",
+        "traits": [
+          "local_conv"
+        ],
+        "score": 83.5
+      },
+      {
+        "family": "cnn",
+        "origin": "family",
+        "traits": [
+          "local_conv"
+        ],
+        "score": 83.5
+      },
+      {
+        "family": "zoo_basic_block_sk_conv",
+        "origin": "preset:sknet",
+        "traits": [
+          "channel_attention",
+          "local_conv",
+          "multi_scale"
+        ],
+        "score": 82.0
+      }
+    ],
+    "used_for_pruning": false,
+    "data_card": {
+      "n_train": 3600,
+      "channels": 3,
+      "height": 32,
+      "width": 32,
+      "n_classes": 10,
+      "samples_per_class_min": 360,
+      "samples_per_class_median": 360.0,
+      "imbalance_ratio": 1.0,
+      "spectral_slope": 2.81,
+      "high_freq_energy": 0.0692,
+      "corr_length": 5.0,
+      "corr_length_rel": 0.156,
+      "edge_density": 0.1399,
+      "channel_correlation": 0.869,
+      "position_dependence": 0.0798,
+      "knn_accuracy": 0.243,
+      "linear_probe_pixels": 0.305,
+      "linear_probe_random_conv": 0.361,
+      "conv_bias_gain": 0.056
+    },
+    "context": "",
+    "goal": "accuracy",
+    "portfolio": null,
+    "scheduler": "sh"
+  },
+  "zero_cost_proxies": {
+    "target": "validation score after 4 epochs (rung 1)",
+    "proxies": {
+      "naswot": {
+        "spearman": null,
+        "n": 2
+      },
+      "synflow": {
+        "spearman": null,
+        "n": 2
+      },
+      "grad_norm": {
+        "spearman": null,
+        "n": 2
+      },
+      "snip": {
+        "spearman": null,
+        "n": 2
+      },
+      "zico": {
+        "spearman": null,
+        "n": 2
+      },
+      "params": {
+        "spearman": -0.4,
+        "n": 4
+      },
+      "seed_prior": {
+        "spearman": 0.316,
+        "n": 4
+      }
+    },
+    "better_than_param_count": [],
+    "used_for_pruning": false,
+    "note": "information only: one dataset and short training are not enough evidence to prune"
+  },
+  "budget": {
+    "budget": "10m",
+    "mode": "time",
+    "threads": 2,
+    "device": "cpu",
+    "amp": "auto",
+    "wall_seconds": 600.7,
+    "epochs_trained": 308.0,
+    "stages": [
+      {
+        "stage": "load",
+        "seconds": 12.91,
+        "epochs": 0.0
+      },
+      {
+        "stage": "reference",
+        "seconds": 17.07,
+        "epochs": 0.0
+      },
+      {
+        "stage": "generate",
+        "seconds": 7.42,
+        "epochs": 0.0
+      },
+      {
+        "stage": "proxies",
+        "seconds": 62.98,
+        "epochs": 0.0
+      },
+      {
+        "stage": "seed_selection",
+        "seconds": 1.23,
+        "epochs": 0.0
+      },
+      {
+        "stage": "search",
+        "seconds": 203.58,
+        "epochs": 124.0
+      },
+      {
+        "stage": "evolution",
+        "seconds": 0.0,
+        "epochs": 0.0
+      },
+      {
+        "stage": "equalize",
+        "seconds": 0.0,
+        "epochs": 0.0
+      },
+      {
+        "stage": "runs",
+        "seconds": 295.47,
+        "epochs": 184.0
+      },
+      {
+        "stage": "hparams",
+        "seconds": 0.0,
+        "epochs": 0.0
+      },
+      {
+        "stage": "export",
+        "seconds": 0.0,
+        "epochs": 0.0
+      }
+    ],
+    "overrun_pct": 0.1
+  }
+}

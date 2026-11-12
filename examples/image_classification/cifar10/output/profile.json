@@ -1,0 +1,35 @@
+{
+  "task": "classification",
+  "n_train": 3600,
+  "n_features": 3072,
+  "n_classes": 10,
+  "primary_metric": "accuracy",
+  "intrinsic_dim": 27.31,
+  "scaling_exponent_hat": 0.146,
+  "pca_dims_for_95pct_energy": 199,
+  "intrinsic_dim_estimators": {
+    "twonn": {
+      "mean": 27.327,
+      "std": 0.4
+    },
+    "mle": {
+      "mean": 19.068,
+      "std": 0.076
+    },
+    "value": 23.197,
+    "rel_disagreement": 0.356,
+    "stable": false
+  },
+  "capacity_hint": {
+    "min_width": 64,
+    "scaling_exponent": 0.172,
+    "used_for_pruning": false
+  },
+  "max_params": 1080000,
+  "kind": "image",
+  "shape": [
+    3,
+    32,
+    32
+  ]
+}
