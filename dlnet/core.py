@@ -306,6 +306,7 @@ class Trainer:
         device=None,
         amp=None,
         recipe=None,
+        optimizer="adamw",
     ):
         torch.manual_seed(seed)
         self.recipe = RECIPES[recipe or RECIPE]
@@ -317,7 +318,15 @@ class Trainer:
         if self.channels_last:
             model.to(memory_format=torch.channels_last)
         self.model, self.data, self.batch = model, data, batch
-        self.opt = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=wd)
+        # AdamW is DLNet's recipe; sgd / adam exist to train a paper baseline as its authors did
+        if optimizer == "sgd":
+            self.opt = torch.optim.SGD(model.parameters(), lr=lr, weight_decay=wd, momentum=0.9)
+        elif optimizer == "adam":
+            self.opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=wd)
+        elif optimizer == "adamw":
+            self.opt = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=wd)
+        else:
+            raise ValueError(f"unknown optimizer {optimizer!r}: adamw, adam or sgd")
         # float16 needs loss scaling against gradient underflow; bfloat16 and float32 do not
         self.scaler = torch.amp.GradScaler(self.device.type, enabled=self.amp is torch.float16)
         self.gen = torch.Generator().manual_seed(seed)
@@ -481,12 +490,25 @@ class Trainer:
         return compute_metrics(d["y_raw"][split], pred, d["task"], d["primary"])
 
 
-def train_full(model, data, lr, wd, batch, epochs, seed=0, device=None, amp=None, recipe=None):
+def train_full(
+    model,
+    data,
+    lr,
+    wd,
+    batch,
+    epochs,
+    seed=0,
+    device=None,
+    amp=None,
+    recipe=None,
+    optimizer="adamw",
+):
     """Full recipe: linear warm-up (5 % of the epochs, at least 1) then cosine decay, keep the
     best-validation checkpoint."""
     tr = Trainer(
-        model, data, lr=lr, wd=wd, batch=batch, seed=seed, device=device, amp=amp, recipe=recipe
-    )
+        model, data, lr=lr, wd=wd, batch=batch, seed=seed, device=device, amp=amp, recipe=recipe,
+        optimizer=optimizer,
+    )  # fmt: skip
     warm = max(1, epochs // 20)
 
     def factor(e):  # e = epochs finished

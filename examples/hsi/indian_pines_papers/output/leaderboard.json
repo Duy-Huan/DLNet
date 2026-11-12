@@ -1,0 +1,538 @@
+{
+  "task": "classification",
+  "metric": "accuracy",
+  "verdict": {
+    "beats_reference": true,
+    "val_margin": 0.01398,
+    "val_noise": 0.00383,
+    "test_margin": 0.01565,
+    "test_noise": 0.00143,
+    "top1_val": 0.98472,
+    "best_reference": "random_forest_spectral_spatial",
+    "best_reference_val": 0.97073
+  },
+  "top_k": [
+    {
+      "rank": 1,
+      "name": "top1_tucker_cnn2d",
+      "roles": [
+        "top1"
+      ],
+      "group": 0,
+      "params": 40080,
+      "hyperparameters": {
+        "optimizer": "AdamW",
+        "lr": 0.001,
+        "weight_decay": 0.0001,
+        "batch_size": 64,
+        "epochs": 100,
+        "lr_schedule": "cosine",
+        "grad_clip_norm": 5.0,
+        "dropout": 0.4,
+        "width": 64,
+        "depth": 2,
+        "rank_ratio": 0.5,
+        "patch": 13,
+        "source": {
+          "adopted": "searched",
+          "searched": {
+            "lr": 0.001,
+            "batch": 64,
+            "wd": 0.0001
+          },
+          "estimated": null,
+          "val_searched": 0.9847154471544716,
+          "val_estimated": null,
+          "methods": [
+            "LR range test (Smith 1506.01186)",
+            "gradient noise scale B_simple (McCandlish 1812.06162)",
+            "normalized weight decay (Loshchilov & Hutter 1711.05101)"
+          ]
+        }
+      },
+      "val_mean": 0.98472,
+      "val_std": 0.0028,
+      "val_noise": 0.00383,
+      "noise_source": "validation sampling",
+      "epochs": 30,
+      "origin": null,
+      "flops": 10358528,
+      "vram_mb": 40.299,
+      "n_runs": 3,
+      "n_splits": 1,
+      "test_std": 0.00352,
+      "test": {
+        "accuracy": 0.98284,
+        "balanced_accuracy": 0.96244,
+        "kappa": 0.98043,
+        "score": 0.98284
+      }
+    },
+    {
+      "rank": 2,
+      "name": "top2_zoo_fused_mbconv_pool_flatten",
+      "roles": [
+        "most-different"
+      ],
+      "group": 0,
+      "params": 103504,
+      "hyperparameters": {
+        "optimizer": "AdamW",
+        "lr": 0.003,
+        "weight_decay": 0.0001,
+        "batch_size": 32,
+        "epochs": 100,
+        "lr_schedule": "cosine",
+        "grad_clip_norm": 5.0,
+        "dropout": 0.0,
+        "source": {
+          "adopted": "searched",
+          "searched": {
+            "lr": 0.003,
+            "batch": 32,
+            "wd": 0.0001
+          },
+          "estimated": null,
+          "val_searched": 0.9834146341463414,
+          "val_estimated": null,
+          "methods": [
+            "LR range test (Smith 1506.01186)",
+            "gradient noise scale B_simple (McCandlish 1812.06162)",
+            "normalized weight decay (Loshchilov & Hutter 1711.05101)"
+          ]
+        }
+      },
+      "val_mean": 0.98341,
+      "val_std": 0.0039,
+      "val_noise": 0.00399,
+      "noise_source": "validation sampling",
+      "epochs": 30,
+      "origin": "swap<-cnn2d",
+      "flops": 31712016,
+      "vram_mb": 32.041,
+      "n_runs": 2,
+      "n_splits": 1,
+      "test_std": 0.00055,
+      "test": {
+        "accuracy": 0.98396,
+        "balanced_accuracy": 0.97094,
+        "kappa": 0.98171,
+        "score": 0.98396
+      }
+    },
+    {
+      "rank": 3,
+      "name": "top3_zoo_conv_bn_act_gap",
+      "roles": [
+        "best-small",
+        "most-stable"
+      ],
+      "group": 0,
+      "params": 27792,
+      "hyperparameters": {
+        "optimizer": "AdamW",
+        "lr": 0.003,
+        "weight_decay": 0.001,
+        "batch_size": 64,
+        "epochs": 100,
+        "lr_schedule": "cosine",
+        "grad_clip_norm": 5.0,
+        "dropout": 0.0,
+        "source": {
+          "adopted": "searched",
+          "searched": {
+            "lr": 0.003,
+            "batch": 64,
+            "wd": 0.001
+          },
+          "estimated": null,
+          "val_searched": 0.9814634146341463,
+          "val_estimated": null,
+          "methods": [
+            "LR range test (Smith 1506.01186)",
+            "gradient noise scale B_simple (McCandlish 1812.06162)",
+            "normalized weight decay (Loshchilov & Hutter 1711.05101)"
+          ]
+        }
+      },
+      "val_mean": 0.98146,
+      "val_std": 0.0,
+      "val_noise": 0.00421,
+      "noise_source": "validation sampling",
+      "epochs": 30,
+      "origin": "wrap_res<-resnet2d",
+      "flops": 9151360,
+      "vram_mb": 22.653,
+      "n_runs": 2,
+      "n_splits": 1,
+      "test_std": 0.00146,
+      "test": {
+        "accuracy": 0.97573,
+        "balanced_accuracy": 0.85696,
+        "kappa": 0.97232,
+        "score": 0.97573
+      }
+    }
+  ],
+  "reference": [
+    {
+      "name": "random_forest_spectral_spatial",
+      "val": 0.97073,
+      "test": {
+        "accuracy": 0.96719,
+        "balanced_accuracy": 0.95454,
+        "kappa": 0.96255,
+        "score": 0.96719
+      }
+    },
+    {
+      "name": "svm_rbf_spectral_spatial",
+      "val": 0.8439,
+      "test": {
+        "accuracy": 0.83996,
+        "balanced_accuracy": 0.72133,
+        "kappa": 0.8168,
+        "score": 0.83996
+      }
+    },
+    {
+      "name": "random_forest_spectral",
+      "val": 0.69854,
+      "test": {
+        "accuracy": 0.70188,
+        "balanced_accuracy": 0.5439,
+        "kappa": 0.65137,
+        "score": 0.70188
+      }
+    },
+    {
+      "name": "svm_rbf_spectral",
+      "val": 0.68488,
+      "test": {
+        "accuracy": 0.68309,
+        "balanced_accuracy": 0.57623,
+        "kappa": 0.63614,
+        "score": 0.68309
+      }
+    }
+  ],
+  "warnings": [
+    "--split pixel with --patch 13: validation/test pixels sit inside the patches of training pixels, so scores are optimistic (spatial leakage). Use --split block for an honest estimate of performance on new areas.",
+    "Only 9 of 180 candidates could be trained within the budget; raise --budget, or lower --zoo / --per-family, or use --seeds N."
+  ],
+  "search_coverage": {
+    "candidates": 180,
+    "trained": 9,
+    "top_k_requested": 3,
+    "top_k_exported": 3
+  },
+  "objective": {
+    "objective": "accuracy",
+    "cost": "params",
+    "tolerance": 0.01,
+    "target_cost": null,
+    "cost_weight": -0.07,
+    "pareto_front": [
+      {
+        "family": "dwsep2d",
+        "val_mean": 0.96976,
+        "params": 14992,
+        "flops": 4695168
+      },
+      {
+        "family": "zoo_conv_bn_act_gap",
+        "val_mean": 0.98146,
+        "params": 27792,
+        "flops": 9151360
+      },
+      {
+        "family": "tucker_cnn2d",
+        "val_mean": 0.98472,
+        "params": 40080,
+        "flops": 10358528
+      }
+    ]
+  },
+  "module_zoo": {
+    "initial_candidates": 12,
+    "evolution": [
+      {
+        "generation": 1,
+        "children": 8,
+        "best_rung1_val": 0.968780487804878
+      }
+    ],
+    "top_origins": [
+      "legacy family",
+      "swap<-cnn2d",
+      "wrap_res<-resnet2d"
+    ],
+    "ops_registered": 137
+  },
+  "seed_selection": {
+    "rules_fired": [
+      "-1 global_attention: 1026 training images (1000000000 per class at least): global attention needs much data"
+    ],
+    "rankers": [
+      "prior"
+    ],
+    "weights": {
+      "prior": 1.0,
+      "meta": 1.0,
+      "proxies": 0.0
+    },
+    "kept": 180,
+    "pool": 180,
+    "top": [
+      {
+        "family": "cnn1d",
+        "origin": "family",
+        "traits": [
+          "local_conv"
+        ],
+        "score": 125.0
+      },
+      {
+        "family": "cnn1d",
+        "origin": "family",
+        "traits": [
+          "local_conv"
+        ],
+        "score": 125.0
+      },
+      {
+        "family": "cnn1d",
+        "origin": "family",
+        "traits": [
+          "local_conv"
+        ],
+        "score": 125.0
+      },
+      {
+        "family": "cnn1d",
+        "origin": "family",
+        "traits": [
+          "local_conv"
+        ],
+        "score": 125.0
+      },
+      {
+        "family": "cnn1d",
+        "origin": "family",
+        "traits": [
+          "local_conv"
+        ],
+        "score": 125.0
+      },
+      {
+        "family": "cnn1d",
+        "origin": "family",
+        "traits": [
+          "local_conv"
+        ],
+        "score": 125.0
+      },
+      {
+        "family": "cnn1d",
+        "origin": "family",
+        "traits": [
+          "local_conv"
+        ],
+        "score": 125.0
+      },
+      {
+        "family": "cnn2d",
+        "origin": "family",
+        "traits": [
+          "local_conv",
+          "position_aware"
+        ],
+        "score": 125.0
+      },
+      {
+        "family": "cnn2d",
+        "origin": "family",
+        "traits": [
+          "local_conv",
+          "position_aware"
+        ],
+        "score": 125.0
+      },
+      {
+        "family": "cnn2d",
+        "origin": "family",
+        "traits": [
+          "local_conv",
+          "position_aware"
+        ],
+        "score": 125.0
+      }
+    ],
+    "used_for_pruning": false,
+    "data_card": {
+      "n_train": 1026
+    },
+    "context": "",
+    "goal": "accuracy",
+    "portfolio": null,
+    "scheduler": "sh"
+  },
+  "zero_cost_proxies": {
+    "target": "validation score after 4 epochs (rung 1)",
+    "proxies": {
+      "naswot": {
+        "spearman": 0.029,
+        "n": 6
+      },
+      "synflow": {
+        "spearman": 0.6,
+        "n": 6
+      },
+      "grad_norm": {
+        "spearman": 0.886,
+        "n": 6
+      },
+      "snip": {
+        "spearman": 0.943,
+        "n": 6
+      },
+      "zico": {
+        "spearman": 0.486,
+        "n": 6
+      },
+      "params": {
+        "spearman": 0.867,
+        "n": 9
+      },
+      "seed_prior": {
+        "spearman": null,
+        "n": 9
+      }
+    },
+    "better_than_param_count": [],
+    "used_for_pruning": false,
+    "note": "information only: one dataset and short training are not enough evidence to prune"
+  },
+  "budget": {
+    "budget": "6m",
+    "mode": "time",
+    "threads": 3,
+    "device": "cpu",
+    "amp": "auto",
+    "wall_seconds": 361.3,
+    "epochs_trained": 406.0,
+    "stages": [
+      {
+        "stage": "load",
+        "seconds": 1.34,
+        "epochs": 0.0
+      },
+      {
+        "stage": "reference",
+        "seconds": 6.88,
+        "epochs": 0.0
+      },
+      {
+        "stage": "generate",
+        "seconds": 31.3,
+        "epochs": 0.0
+      },
+      {
+        "stage": "proxies",
+        "seconds": 36.1,
+        "epochs": 0.0
+      },
+      {
+        "stage": "seed_selection",
+        "seconds": 0.0,
+        "epochs": 0.0
+      },
+      {
+        "stage": "search",
+        "seconds": 121.24,
+        "epochs": 192.0
+      },
+      {
+        "stage": "evolution",
+        "seconds": 115.4,
+        "epochs": 124.0
+      },
+      {
+        "stage": "equalize",
+        "seconds": 0.0,
+        "epochs": 0.0
+      },
+      {
+        "stage": "runs",
+        "seconds": 48.95,
+        "epochs": 90.0
+      },
+      {
+        "stage": "hparams",
+        "seconds": 0.0,
+        "epochs": 0.0
+      },
+      {
+        "stage": "export",
+        "seconds": 0.0,
+        "epochs": 0.0
+      }
+    ],
+    "overrun_pct": 0.4
+  },
+  "notebook": {
+    "source": {
+      "data": "examples/hsi/indian_pines/input/Indian_pines_corrected.mat",
+      "gt": "examples/hsi/indian_pines/input/Indian_pines_gt.mat",
+      "target": null,
+      "cube_key": null,
+      "gt_key": null
+    },
+    "git_url": "",
+    "git_subdir": ""
+  },
+  "papers": [
+    {
+      "name": "paper_ssftt",
+      "paper": "SSFTT",
+      "level": "B",
+      "params": 153224,
+      "reported": [],
+      "card": "papers/ssftt.yaml",
+      "common": {
+        "n_seeds": 3,
+        "val_mean": 0.9730081300813008,
+        "val_std": 0.00512130593431663,
+        "test": {
+          "accuracy": 0.9772302187525413,
+          "balanced_accuracy": 0.9369446508800102,
+          "kappa": 0.9740208205298853,
+          "score": 0.9772302187525413
+        },
+        "test_std": 0.002791087631410999,
+        "epochs": 30,
+        "seconds": 56.4,
+        "lr": 0.001,
+        "wd": 0.0001,
+        "batch": 64
+      },
+      "authors": {
+        "val": 0.984390243902439,
+        "test": {
+          "accuracy": 0.9809709685289095,
+          "balanced_accuracy": 0.9715795261461485,
+          "kappa": 0.9782993884427975,
+          "score": 0.9809709685289095
+        },
+        "epochs": 100,
+        "epochs_in_paper": 100,
+        "recipe": {
+          "optimizer": "adam",
+          "lr": 0.001,
+          "batch": 64,
+          "epochs": 100
+        }
+      }
+    }
+  ]
+}

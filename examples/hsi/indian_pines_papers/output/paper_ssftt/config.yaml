@@ -1,0 +1,144 @@
+{
+  "plugin": "hsi",
+  "task": "classification",
+  "split_seed": 0,
+  "in_dim": 30,
+  "out_dim": 16,
+  "primary_metric": "accuracy",
+  "arch": {
+    "family": "paper_ssftt",
+    "spec": {
+      "op": "graph",
+      "nodes": [
+        {
+          "id": "ssftt",
+          "op": "ssftt",
+          "tokens": 4,
+          "dim": 64,
+          "heads": 8,
+          "depth": 1
+        }
+      ]
+    },
+    "input": {
+      "kind": "map",
+      "dims": [
+        30,
+        13,
+        13
+      ]
+    },
+    "head": "cls",
+    "out_dim": 16,
+    "dropout": 0.0,
+    "origin": "paper:SSFTT",
+    "lr": 0.001,
+    "wd": 0.0001,
+    "batch": 64
+  },
+  "hyperparameters": {
+    "optimizer": "AdamW",
+    "lr": 0.001,
+    "weight_decay": 0.0001,
+    "batch_size": 64,
+    "epochs": 100,
+    "lr_schedule": "cosine",
+    "grad_clip_norm": 5.0,
+    "dropout": 0.4,
+    "width": 64,
+    "depth": 2,
+    "rank_ratio": 0.5,
+    "patch": 13,
+    "source": "paper card"
+  },
+  "data": {
+    "split": "pixel",
+    "frac": [
+      0.1,
+      0.1,
+      0.8
+    ],
+    "patch": 13,
+    "pca": 30,
+    "block": 16
+  },
+  "recipe": {
+    "epochs": 100,
+    "schedule": "linear warm-up (5 %) then cosine",
+    "select": "best-val checkpoint",
+    "name": "modern",
+    "augment": true,
+    "label_smoothing": 0.1
+  },
+  "paper": {
+    "name": "SSFTT",
+    "title": "Spectral-Spatial Feature Tokenization Transformer for Hyperspectral Image Classification",
+    "venue": "IEEE Transactions on Geoscience and Remote Sensing, 2022",
+    "url": "https://doi.org/10.1109/TGRS.2022.3144158",
+    "code": "https://github.com/zgr6010/HSI_SSFTT",
+    "reported": []
+  },
+  "official": {
+    "repo": "https://github.com/zgr6010/HSI_SSFTT",
+    "commit": "994f5d7",
+    "entry": "cls_SSFTT_IP/SSFTTnet.py:SSFTTnet",
+    "init_args": {
+      "in_channels": 1,
+      "num_classes": 16,
+      "num_tokens": 4,
+      "dim": 64,
+      "depth": 1,
+      "heads": 8,
+      "mlp_dim": 8
+    },
+    "input_ops": [
+      [
+        "unsqueeze",
+        1
+      ]
+    ]
+  },
+  "training": {
+    "optimizer": "adam",
+    "lr": 0.001,
+    "batch": 64,
+    "epochs": 100
+  },
+  "fidelity_level": "B",
+  "fidelity": {
+    "paper": "SSFTT",
+    "official": {
+      "repo": "https://github.com/zgr6010/HSI_SSFTT",
+      "commit": "994f5d7",
+      "entry": "cls_SSFTT_IP/SSFTTnet.py:SSFTTnet"
+    },
+    "compared": "the whole network",
+    "ignored_official_params": [],
+    "params_official": 153224,
+    "params_card": 153224,
+    "params_match": true,
+    "unmatched_official": [],
+    "unmatched_card": [],
+    "max_abs_diff": 0.0,
+    "level": "B",
+    "torch": "2.15.0+cpu",
+    "measured_by": "https://github.com/Duy-Huan/DLNet/actions/runs/43257787470"
+  },
+  "check": {
+    "name": "SSFTT",
+    "level": "B",
+    "issues": [],
+    "nodes": [
+      {
+        "id": "ssftt",
+        "kind": "vec",
+        "shape": [
+          64
+        ]
+      }
+    ],
+    "params": 153224,
+    "reported_params": null,
+    "ok": true
+  }
+}

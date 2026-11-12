@@ -17,7 +17,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from dlnet import paper
+from dlnet import paper, paper_import
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
@@ -53,5 +53,18 @@ if __name__ == "__main__":
         for k in [k for k in sys.modules if k.startswith("official_")]:
             del sys.modules[k]
         bad += r["level"] != "B"
+        # the importer on the same code: a card drafted automatically, then verified like any other
+        try:
+            text = paper_import.draft(off, root, card["input"]["kind"], card["input"]["dims"],
+                                      card["paper"]["name"] + " (imported)", card.get("classes"))  # fmt: skip
+            tmp = Path(a.work) / f"{path.stem}_imported.yaml"
+            tmp.write_text(text)
+            ri = paper.verify(paper.load(tmp), root)
+            print(f"{path.stem:<18} IMPORT: {text.count(chr(10) + '  - ')} nodes drafted from the authors' code, "
+                  f"level {ri['level']}, params {ri['params_card']:,}, max|diff| {ri.get('max_abs_diff')}")  # fmt: skip
+        except paper_import.ImportUnsupported as e:
+            print(f"{path.stem:<18} IMPORT: not possible ({e})")
+        for k in [k for k in sys.modules if k.startswith("official_")]:
+            del sys.modules[k]
     print("ALL LEVEL B" if not bad else f"{bad} CARD(S) NOT AT LEVEL B")
     raise SystemExit(1 if bad else 0)

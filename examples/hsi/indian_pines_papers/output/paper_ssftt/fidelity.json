@@ -1,0 +1,19 @@
+{
+ "paper": "SSFTT",
+ "official": {
+  "repo": "https://github.com/zgr6010/HSI_SSFTT",
+  "commit": "994f5d7",
+  "entry": "cls_SSFTT_IP/SSFTTnet.py:SSFTTnet"
+ },
+ "compared": "the whole network",
+ "ignored_official_params": [],
+ "params_official": 153224,
+ "params_card": 153224,
+ "params_match": true,
+ "unmatched_official": [],
+ "unmatched_card": [],
+ "max_abs_diff": 0.0,
+ "level": "B",
+ "torch": "2.15.0+cpu",
+ "measured_by": "https://github.com/Duy-Huan/DLNet/actions/runs/43257787470"
+}

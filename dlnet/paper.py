@@ -631,3 +631,110 @@ def _refresh_notebook(out, log):
         log(
             "[paper] baselines.ipynb not updated (written by an older DLNet): run `dlnet notebook <out> --data ...`"
         )
+
+
+# ----------------------------------------------------------- comparison inside a design run
+
+
+def compare(
+    cards, out, plugin, data, folds, chosen, authors_recipe=False, max_epochs=100, log=print
+) -> list[dict]:
+    """Train the paper cards on the data of a finished `design` run and add them to its output.
+
+    Common protocol: the same splits, number of runs, epochs and training function as the top-1
+    baseline of the run, with the top-1's learning rate, weight decay and batch size, so the only
+    difference is the network. `authors_recipe`: also one run with the card's own `training`
+    (optimizer, lr, weight decay, batch; epochs capped by `max_epochs`), cosine schedule.
+    Cards whose input is not the run's input are skipped with the reason."""
+    from . import core, search, zoo
+
+    out = Path(out)
+    kind, dims, head = plugin.zoo_input(data)
+    top = chosen[0]
+    rows = []
+    paths = sorted(
+        p for c in cards for p in ([Path(c)] if Path(c).is_file() else Path(c).glob("*.y*ml"))
+    )
+    for path in paths:
+        try:
+            card = load(path)
+            if "architecture" not in card:
+                log(f"[papers] {path.name}: level A card (the authors' class), not trained here; "
+                    f"use `dlnet paper build {path} --into {out}`")  # fmt: skip
+                continue
+            if card["input"]["kind"] != kind or tuple(card["input"]["dims"]) != tuple(dims):
+                log(f"[papers] {card['paper']['name']}: skipped, its input {card['input']['kind']} "
+                    f"{list(card['input']['dims'])} is not this data's {kind} {list(dims)}")  # fmt: skip
+                continue
+            arch = {**to_arch(card, data["out_dim"]), "head": head}
+            common = {
+                **arch,
+                "lr": top["cfg"]["lr"],
+                "wd": top["cfg"]["wd"],
+                "batch": top["cfg"]["batch"],
+            }
+            vals, tests, secs, _ = search.eval_runs(
+                common, folds, plugin.build_model, top["epochs"], top["n_seeds"], float("inf")
+            )
+            if not vals:
+                log(f"[papers] {card['paper']['name']}: could not be trained on this data")
+                continue
+            row = {"paper": card["paper"]["name"], "level": level(card), "card": str(path),
+                   "reported": card["paper"].get("reported") or [],
+                   "common": {**search.summarize(vals, tests), "epochs": top["epochs"], "seconds": round(secs, 1),
+                              "lr": common["lr"], "wd": common["wd"], "batch": common["batch"]}}  # fmt: skip
+            if authors_recipe and card.get("training"):
+                tr_cfg = card["training"]
+                ep = min(int(tr_cfg.get("epochs", max_epochs)), max_epochs)
+                model = zoo.build_model(arch)
+                tr, _ = core.train_full(model, data, arch["lr"], arch["wd"], arch["batch"], ep, seed=0,
+                                        optimizer=str(tr_cfg.get("optimizer", "adamw")).lower())  # fmt: skip
+                row["authors"] = {"val": tr.evaluate("va")["score"], "test": tr.evaluate("te"), "epochs": ep,
+                                  "epochs_in_paper": tr_cfg.get("epochs"), "recipe": tr_cfg}  # fmt: skip
+            pkg = build(card, into=out, log=lambda *_: None)
+            row["name"], row["params"] = pkg.name, zoo.count_params(zoo.build_model(arch))
+            rows.append(row)
+            c = row["common"]
+            log(f"[papers] {row['paper']} (level {row['level']}, {row['params']:,} params): common protocol "
+                f"val {c['val_mean']:.4f} +- {c['val_std']:.4f}, test {c['test']['score']:.4f}"
+                + (f"; authors' recipe test {row['authors']['test']['score']:.4f}" if "authors" in row else ""))  # fmt: skip
+        except CardError as e:
+            log(f"[papers] {path.name}: {e}")
+    if rows:
+        board = json.loads((out / "leaderboard.json").read_text())
+        by = {r["name"]: r for r in rows}
+        board["papers"] = [{**p, **by.get(p["name"], {})} for p in board.get("papers", [])]
+        (out / "leaderboard.json").write_text(json.dumps(board, indent=2))
+        with open(out / "leaderboard.md", "a", encoding="utf-8") as f:
+            f.write(table(rows, board, top))
+    return rows
+
+
+def table(rows, board, top) -> str:
+    """The "Paper baselines" section of leaderboard.md: reported / common protocol / authors' recipe."""
+    metric = board["metric"]
+    best = board["top_k"][0]
+    intro = (
+        f"Same data, splits, {top['n_seeds']} run(s) and {top['epochs']} epochs as the top-1 baseline "
+        f"(`{best['name']}`: val {best['val_mean']:.4f} +- {best['val_std']:.4f}, test {best['test']['score']:.4f}, "
+        f"{best['params']:,} params). Fidelity: A = the authors' class, B = verified against the authors' code, "
+        'C = written from the paper, not verified. "Paper reports" is copied from the paper: another '
+        "split, preprocessing and budget, not comparable with the measured columns."
+    )
+    head = f"| Network | Fidelity | Params | Paper reports | Common protocol: val {metric} | test | Authors' recipe: test |"
+    lines = ["", "## Paper baselines", "", intro, "", head, "|---|---|---|---|---|---|---|"]
+    for r in rows:
+        rep = "; ".join(
+            f"{x.get('dataset', '?')}: {x['metric']} {x['value']}"
+            for x in r["reported"]
+            if "metric" in x
+        )
+        c, a = r["common"], r.get("authors")
+        auth = (
+            f"{a['test']['score']:.4f} ({a['epochs']} of {a['epochs_in_paper']} epochs)"
+            if a
+            else "not run"
+        )
+        lines.append(f"| {r['paper']} | {r['level']} | {r['params']:,} | {rep or '-'} | "
+                     f"{c['val_mean']:.4f} +- {c['val_std']:.4f} | {c['test']['score']:.4f} | {auth} |")  # fmt: skip
+    return "\n".join(lines) + "\n"

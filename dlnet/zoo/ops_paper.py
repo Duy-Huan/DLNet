@@ -32,3 +32,21 @@ def _conv(dims, kind, out, k, s, pad, groups, dilation, bias):
 def _linear(dims, kind, out, bias):
     """A plain linear layer on the last axis: no activation."""
     return nn.Linear(dims[-1], out, bias=bool(bias))
+
+
+@op("maxpool", ("ser", "map", "vol"), space={"k": [2, 3], "s": [2, 1], "pad": [0, 1], "ceil": [False, True]},
+    tags={"primitive"}, source="torch.nn.MaxPool1d/2d/3d, for paper cards")  # fmt: skip
+def _maxpool(dims, kind, k, s, pad, ceil):
+    """Max pooling exactly as torch.nn writes it (kernel, stride, padding, ceil_mode)."""
+    from .ops_basic import MAXP
+
+    return MAXP[ND[kind]](k, s, pad, ceil_mode=bool(ceil))
+
+
+@op("avgpool", ("ser", "map", "vol"), space={"k": [2, 3], "s": [2, 1], "pad": [0, 1], "ceil": [False, True]},
+    tags={"primitive"}, source="torch.nn.AvgPool1d/2d/3d, for paper cards")  # fmt: skip
+def _avgpool(dims, kind, k, s, pad, ceil):
+    """Average pooling exactly as torch.nn writes it (kernel, stride, padding, ceil_mode)."""
+    from .ops_basic import AVGP
+
+    return AVGP[ND[kind]](k, s, pad, ceil_mode=bool(ceil))

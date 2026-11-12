@@ -243,6 +243,26 @@ python -m dlnet paper build  papers/ssftt.yaml --into dlnet_out         # cùng 
 python -m dlnet paper verify papers/starnet_s1.yaml --official-root <checkout repo tác giả>
 ```
 
+**Sinh nháp thẻ từ mã gốc** (v1.3): khi paper có mã, không cần chép sơ đồ bằng tay.
+
+```bash
+python -m dlnet paper import --official-root <checkout> --repo <URL> --commit <hash> \
+    --entry imagenet/starnet.py:StarNet --init-args '{"base_dim": 24, "depths": [2, 2, 8, 3]}' \
+    --dims 3,224,224 --classes 1000 --name "StarNet-S1" --out papers/starnet_s1_imported.yaml
+python -m dlnet paper verify papers/starnet_s1_imported.yaml --official-root <checkout>
+```
+
+`import` dò đồ thị của mô hình gốc bằng `torch.fx` và viết mỗi lớp thành một dòng của thẻ (Conv → `conv`, BatchNorm → `norm`, Linear → `linear`, activation → `act`, `x + y` → `add`, `x * y` → `mul`, `torch.cat` → `concat`, pooling toàn cục → `gap`; lớp Linear cuối thành `head`). Gặp phép toán không có tương đương (attention viết bằng einsum, phép tensor tùy biến) thì dừng và nêu tên chỗ đó: khi ấy viết khối đó bằng một module của kho, hoặc dùng thẻ mức A. Nháp chỉ là giả thuyết; `paper verify` mới là bằng chứng.
+
+**So sánh trong cùng một lượt chạy** (v1.3):
+
+```bash
+python -m dlnet design --data cube.mat --gt gt.mat --patch 13 --pca 30 --budget 10m \
+    --papers papers/ssftt.yaml --paper-recipe
+```
+
+Sau khi tìm kiếm xong (ngoài `--budget`), mỗi thẻ có đầu vào khớp dữ liệu được huấn luyện theo **giao thức chung**: cùng các lần chia, số lần chạy, số epoch và hàm huấn luyện như baseline top-1, dùng lr / weight decay / batch của top-1, nên khác biệt duy nhất là kiến trúc. `--paper-recipe` thêm một lần chạy theo **công thức của tác giả** (`training` trong thẻ: `sgd` / `adam` / `adamw`, lr, weight decay, batch; số epoch bị chặn bởi `--paper-epochs`, mặc định 100). `leaderboard.md` có thêm bảng **Paper baselines**: mức trung thành, số tham số, *số paper báo* (chép từ paper, không so trực tiếp được), *giao thức chung* (val ± độ lệch, test), *công thức tác giả*. Gói `paper_<tên>/` nằm cạnh các `top<k>_*` và có mặt trong `baselines.ipynb`. Thẻ có đầu vào khác dữ liệu bị bỏ qua kèm lý do.
+
 **Mức trung thành** (ghi trong `report.md`, notebook và `<thẻ>.fidelity.json`), được đo chứ không giả định:
 
 | Mức | Nghĩa | Bằng chứng |
