@@ -6,6 +6,10 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-11-12
+
+- Sửa: `predict.py --export model.pt2` ghi kèm cả tập dữ liệu vào file (ví dụ CIFAR-10: mô hình 73 nghìn tham số ra file 74 MB), vì đầu vào mẫu là một lát cắt chung vùng nhớ với toàn bộ dữ liệu. Nay đầu vào mẫu được sao riêng (`inference.export`): file còn 0,4 MB, đồ thị và dự đoán không đổi. Có regression test.
+
 ## [1.0.0] - 2026-11-12
 
 - Số đo v1.0 (agent.md §9.9, doc/algorithms.md §7): bảng, ảnh, chuỗi thời gian 3 seed; HSI Indian Pines 2 seed (resnet2d 0,9841; fahm 0,9733; mambahsi_plus 0,9732; cnn2d 0,9720; ssftt 0,9620; mambahsi 0,9419). Chưa họ mới nào thắng họ cũ ở ngân sách nhỏ trên CPU.
@@ -445,7 +449,8 @@ Bản đầu tiên: prototype chạy được từ dữ liệu đến Top-K base
 - Chưa có zero-cost proxy, cost model FLOPs/VRAM, Tensor-LoRA, deep unfolding; chưa có plugin image và timeseries.
 - Kết quả trên Indian Pines và Pavia University là một lần chạy ngắn trên CPU: với chia theo khối, mạng sâu chưa vượt rõ baseline cổ điển.
 
-[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.0.1
 [1.0.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.0.0
 [0.24.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.24.0
 [0.23.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.23.0

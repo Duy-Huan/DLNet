@@ -453,6 +453,7 @@ Kết luận trung thực: Top-K được huấn luyện sâu gấp 2,5 lần n�
 - **Ngân sách giây bị vượt**: `--budget 90s` trên MNIST chạy hơn 12 phút vì ứng viên đầu luôn được train và ứng viên chưa train được định giá theo FLOPs (không tính vòng lặp Python). Nay `Trainer.probe_epoch_seconds` đo một bước thật; cùng lệnh xong trong 85 s.
 - **`model.py` không chứa mạng**: gói xuất ra chỉ có `from zoo import build_model` + bản sao `zoo/`. Nay `model.py` là nguồn PyTorch thuần của chính mạng (`dlnet/standalone.py`), được chạy thử và so với mạng đã tìm kiếm trước khi ghi; 238/238 cặp (op, kiểu) và 79 họ đều giống hệt.
 - **Quy trình**: file dữ liệu > 50 MB và mã chưa format làm đỏ CI nhiều lượt; thêm `scripts/ci_local.py` + hook pre-push (chạy cổng CI trên máy trước khi push), và push chỉ đổi dữ liệu/kết quả ví dụ không kích hoạt CI.
+- **`model.pt2` chứa cả tập dữ liệu** (sau v1.0.0): đầu vào mẫu của `torch.export` là lát cắt chung vùng nhớ với toàn bộ dữ liệu; CIFAR-10: 74 MB cho mô hình 73 nghìn tham số. Sao riêng đầu vào mẫu: 0,4 MB.
 - Kết quả QA từng bộ: `examples/README.md`.
 
 ## 10. Quy ước cho agent (người/AI) phát triển repo

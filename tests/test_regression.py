@@ -632,3 +632,16 @@ def test_recurrent_scans_backward_has_no_per_step_index_nodes():
     for out in (y, o):
         assert "SelectBackward0" not in names(out.sum())
         assert "UnbindBackward0" in names(out.sum())
+
+
+def test_exported_graph_does_not_carry_the_data_set(tmp_path):
+    """QA v1.0 (examples/cifar10): model.pt2 of a 73k-parameter model was 74 MB, because the example
+    input was a slice of the whole data tensor and torch.export.save wrote its entire storage."""
+    torch = pytest.importorskip("torch")
+    from dlnet import inference
+
+    data = torch.randn(4000, 3, 16, 16)  # 12 MB
+    model = torch.nn.Sequential(torch.nn.Flatten(), torch.nn.Linear(768, 2))
+    path = inference.export(model, data[:2], tmp_path / "m.pt2")
+    assert path.stat().st_size < 200_000
+    torch.testing.assert_close(torch.export.load(str(path)).module()(data[:2]), model(data[:2]))

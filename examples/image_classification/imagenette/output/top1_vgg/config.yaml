@@ -1,0 +1,156 @@
+{
+  "plugin": "image_classification",
+  "task": "classification",
+  "split_seed": 0,
+  "in_dim": 3,
+  "out_dim": 10,
+  "primary_metric": "accuracy",
+  "arch": {
+    "family": "vgg",
+    "width": 16,
+    "depth": 1,
+    "dropout": 0.0,
+    "attention": "none",
+    "lr": 0.001,
+    "wd": 0.0001,
+    "batch": 32,
+    "spec": {
+      "op": "seq",
+      "body": [
+        {
+          "op": "seq",
+          "body": [
+            {
+              "op": "conv_bn_act",
+              "out": 16,
+              "k": 3,
+              "s": 1,
+              "act": "relu",
+              "norm": "batch"
+            },
+            {
+              "op": "conv_bn_act",
+              "out": 16,
+              "k": 3,
+              "s": 1,
+              "act": "relu",
+              "norm": "batch"
+            }
+          ]
+        },
+        {
+          "op": "seq",
+          "body": [
+            {
+              "op": "pool",
+              "mode": "max",
+              "k": 2,
+              "s": 2
+            },
+            {
+              "op": "conv_bn_act",
+              "out": 32,
+              "k": 3,
+              "s": 1,
+              "act": "relu",
+              "norm": "batch"
+            }
+          ]
+        },
+        {
+          "op": "seq",
+          "body": [
+            {
+              "op": "pool",
+              "mode": "max",
+              "k": 2,
+              "s": 2
+            },
+            {
+              "op": "conv_bn_act",
+              "out": 64,
+              "k": 3,
+              "s": 1,
+              "act": "relu",
+              "norm": "batch"
+            }
+          ]
+        }
+      ]
+    },
+    "input": {
+      "kind": "map",
+      "dims": [
+        3,
+        64,
+        64
+      ]
+    },
+    "head": "cls",
+    "out_dim": 10,
+    "flops": 41288960,
+    "act_mb": 2.261288,
+    "vram_mb": 145.149344,
+    "seed_prior": 1.0,
+    "seed_rank": 11,
+    "seed_score": 81.0,
+    "seed_traits": [
+      "local_conv"
+    ]
+  },
+  "hyperparameters": {
+    "optimizer": "AdamW",
+    "lr": 0.001,
+    "weight_decay": 0.0001,
+    "batch_size": 32,
+    "epochs": 100,
+    "lr_schedule": "cosine",
+    "grad_clip_norm": 5.0,
+    "dropout": 0.0,
+    "width": 16,
+    "depth": 1,
+    "attention": "none",
+    "source": {
+      "adopted": "searched",
+      "searched": {
+        "lr": 0.001,
+        "batch": 32,
+        "wd": 0.0001
+      },
+      "estimated": null,
+      "val_searched": 0.605,
+      "val_estimated": null,
+      "methods": [
+        "LR range test (Smith 1506.01186)",
+        "gradient noise scale B_simple (McCandlish 1812.06162)",
+        "normalized weight decay (Loshchilov & Hutter 1711.05101)"
+      ]
+    }
+  },
+  "data": {
+    "kind": "image",
+    "shape": [
+      3,
+      64,
+      64
+    ],
+    "x_key": "X",
+    "y_key": "y"
+  },
+  "recipe": {
+    "epochs": 100,
+    "schedule": "linear warm-up (5 %) then cosine",
+    "select": "best-val checkpoint",
+    "name": "modern",
+    "augment": true,
+    "label_smoothing": 0.1
+  },
+  "search_result": {
+    "val_mean": 0.605,
+    "val_std": 0.0,
+    "epochs_used": 30,
+    "seeds": 1,
+    "splits": 1,
+    "test_std": 0.0
+  }
+}

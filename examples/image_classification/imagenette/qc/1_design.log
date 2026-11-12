@@ -18,3 +18,18 @@ $ /usr/local/bin/python -m dlnet design --data /home/user/DLNet/examples/image_c
 [seeds] -0.5 position_aware: same probe: absolute position matters little
 [seeds] 92/92 candidates, rankers ['zap_surrogate']; first: ['random', 'resnet', 'resnet', 'preset:regnet', 'mobilenetv2']
 [search] 92 candidates, rungs=(4, 12, 30)
+[search] rung 1 (4 ep): kept 4; best val=0.4250
+[search] rung 2 (12 ep): kept 2; best val=0.5183
+[search] rung 3 (30 ep): kept 1; best val=0.5417
+[evolve] skipped: the remaining search budget cannot train 8 children to 12 epochs (raise --budget or lower --evolve-pop)
+[equalize] vgg: trained on to 30 epochs, val=0.6050
+[equalize] resnet: trained on to 30 epochs, val=0.4933
+[runs] allconv: 3 runs, val=0.3639 +/- 0.0289
+[hparams] estimating lr / batch size / weight decay for the finalists
+[hparams] allconv: searched val=0.3639 estimated val=0.2975 -> searched
+[warning] Some models were trained only once: their +/- is the sampling error of the validation set, not run-to-run noise. A larger --budget repeats the finalists.
+[warning] Only 4 of 92 candidates could be trained within the budget; raise --budget, or lower --zoo / --per-family, or use --seeds N.
+[proxies] Spearman with rung-1 validation (n=4): {'naswot': None, 'synflow': None, 'grad_norm': None, 'snip': None, 'zico': None, 'params': 0.632, 'seed_prior': -0.775}
+[budget] load 24.0s/0ep, reference 15.9s/0ep, generate 10.8s/0ep, proxies 78.0s/0ep, seed_selection 1.5s/0ep, search 194.0s/54ep, evolution 0.0s/0ep, equalize 196.1s/44ep, runs 25.7s/8ep, hparams 55.4s/14ep, export 0.0s/0ep
+[done] 602s  -> /home/user/DLNet/examples/image_classification/imagenette/output/leaderboard.md
+[verdict] beats_reference=True val_margin=0.18667 test_margin=0.21
