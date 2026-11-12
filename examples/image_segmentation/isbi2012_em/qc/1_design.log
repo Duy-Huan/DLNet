@@ -8,3 +8,22 @@ $ /usr/local/bin/python -m dlnet design --data /home/user/DLNet/examples/image_s
 [reference] classical baselines on the same split(s)
 [reference] pixel_random_forest_5x5    val=0.6555
 [reference] pixel_logistic_regression_5x5 val=0.6203
+[zoo] 12 architectures from the module zoo (preset, random)
+[cost] 100 candidates; FLOPs/sample min 119,537,664 median 564,658,688 max 1,940,948,367,376
+[generate] 100 valid candidates from families ['deconvnet', 'deeplabv3', 'deeplabv3plus', 'fcn', 'fpn', 'linknet', 'pspnet', 'segformer', 'unet', 'unetpp', 'upernet', 'zoo_basic_block_deeplabv3_fused_mbconv', 'zoo_basic_block_mbconv_res2net_block', 'zoo_bottleneck_mobile_mqa_regnet_block', 'zoo_cbam_fcn_mbconv', 'zoo_convmixer_block_deeplabv3_dw_sep', 'zoo_dw_sep_basic_block_msca_block', 'zoo_dw_sep_fpn_mbconv', 'zoo_fused_mbconv_ghost_bottleneck_linknet', 'zoo_mambahsi_plus_block_mbconv_repvgg_block', 'zoo_mbconv_segformer', 'zoo_repvgg_block_mobile_mqa_preact_block', 'zoo_split_attn_basic_block_eca']
+[surrogate] not enough past datasets
+[seeds] -1 global_attention: 18 training images (1000000000 per class at least): global attention needs much data
+[seeds] +1 fine_detail: correlation length 0.02 of the side: small structures
+[seeds] +0.25 multi_scale: small structures
+[seeds] 100/100 candidates, rankers ['prior']; first: ['deeplabv3plus', 'fpn', 'deeplabv3plus', 'fpn', 'deeplabv3plus']
+[search] 100 candidates, rungs=(4, 12, 30)
+[search] rung 1 (4 ep): kept 1; best val=0.3867
+[search] time budget reached; ranking with what is done
+[runs] deeplabv3plus: 3 runs, val=0.2956 +/- 0.1289
+[hparams] estimating lr / batch size / weight decay for the finalists
+[warning] top1 was trained only 4 epochs: its rank is a rough early estimate. Increase --budget, or reduce --zoo / --per-family.
+[warning] Only 1 of 100 candidates could be trained within the budget; raise --budget, or lower --zoo / --per-family, or use --seeds N.
+[warning] Only 1 of the 3 requested models could be exported (too few trained candidates).
+[budget] load 6.5s/0ep, reference 5.2s/0ep, generate 429.9s/0ep, proxies 72.4s/0ep, seed_selection 0.0s/0ep, search 8.5s/4ep, evolution 0.0s/0ep, runs 15.2s/8ep, hparams 0.0s/0ep, export 0.0s/0ep
+[done] 538s  -> /home/user/DLNet/examples/image_segmentation/isbi2012_em/output/leaderboard.md
+[verdict] beats_reference=False val_margin=-0.35995 test_margin=-0.38641

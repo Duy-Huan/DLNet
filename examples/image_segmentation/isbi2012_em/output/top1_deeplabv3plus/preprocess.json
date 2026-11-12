@@ -1,0 +1,25 @@
+{
+ "task": "classification",
+ "kind": "segmentation",
+ "classes": [
+  0,
+  1
+ ],
+ "y_mean": null,
+ "y_std": null,
+ "shape": [
+  1,
+  256,
+  256
+ ],
+ "preprocess": {
+  "type": "channels",
+  "layout": "image",
+  "mean": [
+   125.73760223388672
+  ],
+  "std": [
+   38.560630798339844
+  ]
+ }
+}

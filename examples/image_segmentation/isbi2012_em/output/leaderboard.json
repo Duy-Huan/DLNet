@@ -1,0 +1,343 @@
+{
+  "task": "classification",
+  "metric": "miou",
+  "verdict": {
+    "beats_reference": false,
+    "val_margin": -0.35995,
+    "val_noise": 0.18628,
+    "test_margin": -0.38641,
+    "test_noise": 0.1868,
+    "top1_val": 0.29558,
+    "best_reference": "pixel_random_forest_5x5",
+    "best_reference_val": 0.65553
+  },
+  "top_k": [
+    {
+      "rank": 1,
+      "name": "top1_deeplabv3plus",
+      "roles": [
+        "top1"
+      ],
+      "group": 0,
+      "params": 9950,
+      "hyperparameters": {
+        "optimizer": "AdamW",
+        "lr": 0.001,
+        "weight_decay": 0.0001,
+        "batch_size": 32,
+        "epochs": 100,
+        "lr_schedule": "cosine",
+        "grad_clip_norm": 5.0,
+        "dropout": 0.1,
+        "width": 8,
+        "depth": 2,
+        "encoder": "densenet",
+        "attention": "se",
+        "source": {
+          "adopted": "searched",
+          "searched": {
+            "lr": 0.001,
+            "batch": 32,
+            "wd": 0.0001
+          },
+          "estimated": null,
+          "val_searched": 0.2955801222059462,
+          "val_estimated": null,
+          "methods": [
+            "LR range test (Smith 1506.01186)",
+            "gradient noise scale B_simple (McCandlish 1812.06162)",
+            "normalized weight decay (Loshchilov & Hutter 1711.05101)"
+          ]
+        }
+      },
+      "val_mean": 0.29558,
+      "val_std": 0.12892,
+      "val_noise": 0.18628,
+      "noise_source": "validation sampling",
+      "epochs": 4,
+      "origin": null,
+      "flops": 180422528,
+      "vram_mb": 4160.96,
+      "n_runs": 3,
+      "n_splits": 1,
+      "test_std": 0.13697,
+      "test": {
+        "accuracy": 0.59685,
+        "balanced_accuracy": 0.5,
+        "kappa": 0.0,
+        "miou": 0.29843,
+        "score": 0.29843
+      }
+    }
+  ],
+  "reference": [
+    {
+      "name": "pixel_random_forest_5x5",
+      "val": 0.65553,
+      "test": {
+        "accuracy": 0.87228,
+        "balanced_accuracy": 0.79223,
+        "kappa": 0.60245,
+        "miou": 0.68483,
+        "score": 0.68483
+      }
+    },
+    {
+      "name": "pixel_logistic_regression_5x5",
+      "val": 0.62033,
+      "test": {
+        "accuracy": 0.84475,
+        "balanced_accuracy": 0.72454,
+        "kappa": 0.48926,
+        "miou": 0.61854,
+        "score": 0.61854
+      }
+    }
+  ],
+  "warnings": [
+    "top1 was trained only 4 epochs: its rank is a rough early estimate. Increase --budget, or reduce --zoo / --per-family.",
+    "Only 1 of 100 candidates could be trained within the budget; raise --budget, or lower --zoo / --per-family, or use --seeds N.",
+    "Only 1 of the 3 requested models could be exported (too few trained candidates)."
+  ],
+  "search_coverage": {
+    "candidates": 100,
+    "trained": 1,
+    "top_k_requested": 3,
+    "top_k_exported": 1
+  },
+  "objective": {
+    "objective": "accuracy",
+    "cost": "params",
+    "tolerance": 0.01,
+    "target_cost": null,
+    "cost_weight": -0.07,
+    "pareto_front": [
+      {
+        "family": "deeplabv3plus",
+        "val_mean": 0.29558,
+        "params": 9950,
+        "flops": 180422528
+      }
+    ]
+  },
+  "module_zoo": {
+    "initial_candidates": 12,
+    "evolution": [],
+    "top_origins": [
+      "legacy family"
+    ],
+    "ops_registered": 133
+  },
+  "seed_selection": {
+    "rules_fired": [
+      "-1 global_attention: 18 training images (1000000000 per class at least): global attention needs much data",
+      "+1 fine_detail: correlation length 0.02 of the side: small structures",
+      "+0.25 multi_scale: small structures"
+    ],
+    "rankers": [
+      "prior"
+    ],
+    "weights": {
+      "prior": 1.0,
+      "meta": 1.0,
+      "proxies": 0.0
+    },
+    "kept": 100,
+    "pool": 100,
+    "top": [
+      {
+        "family": "deeplabv3plus",
+        "origin": "family",
+        "traits": [
+          "channel_attention",
+          "context",
+          "fine_detail",
+          "local_conv",
+          "multi_scale"
+        ],
+        "score": 99.0
+      },
+      {
+        "family": "fpn",
+        "origin": "family",
+        "traits": [
+          "channel_attention",
+          "fine_detail",
+          "local_conv",
+          "multi_scale"
+        ],
+        "score": 98.0
+      },
+      {
+        "family": "deeplabv3plus",
+        "origin": "family",
+        "traits": [
+          "context",
+          "fine_detail",
+          "light",
+          "local_conv",
+          "multi_scale"
+        ],
+        "score": 97.0
+      },
+      {
+        "family": "fpn",
+        "origin": "family",
+        "traits": [
+          "fine_detail",
+          "light",
+          "local_conv",
+          "multi_scale"
+        ],
+        "score": 96.0
+      },
+      {
+        "family": "deeplabv3plus",
+        "origin": "family",
+        "traits": [
+          "channel_attention",
+          "context",
+          "fine_detail",
+          "light",
+          "local_conv",
+          "multi_scale"
+        ],
+        "score": 95.0
+      },
+      {
+        "family": "fpn",
+        "origin": "family",
+        "traits": [
+          "fine_detail",
+          "local_conv",
+          "multi_scale"
+        ],
+        "score": 94.0
+      },
+      {
+        "family": "deeplabv3plus",
+        "origin": "family",
+        "traits": [
+          "channel_attention",
+          "context",
+          "fine_detail",
+          "local_conv",
+          "multi_scale"
+        ],
+        "score": 93.0
+      },
+      {
+        "family": "zoo_cbam_fcn_mbconv",
+        "origin": "random",
+        "traits": [
+          "channel_attention",
+          "fine_detail",
+          "light",
+          "local_conv",
+          "multi_scale"
+        ],
+        "score": 92.0
+      },
+      {
+        "family": "fpn",
+        "origin": "family",
+        "traits": [
+          "fine_detail",
+          "local_conv",
+          "multi_scale"
+        ],
+        "score": 91.0
+      },
+      {
+        "family": "deeplabv3plus",
+        "origin": "family",
+        "traits": [
+          "channel_attention",
+          "context",
+          "fine_detail",
+          "local_conv",
+          "multi_scale"
+        ],
+        "score": 90.0
+      }
+    ],
+    "used_for_pruning": false,
+    "data_card": {
+      "n_train": 18,
+      "channels": 1,
+      "height": 256,
+      "width": 256,
+      "spectral_slope": 2.234,
+      "high_freq_energy": 0.0968,
+      "corr_length": 4.0,
+      "corr_length_rel": 0.016,
+      "edge_density": 0.0774
+    },
+    "context": "",
+    "goal": "accuracy",
+    "portfolio": null,
+    "scheduler": "sh"
+  },
+  "budget": {
+    "budget": "10m",
+    "mode": "time",
+    "threads": 3,
+    "device": "cpu",
+    "amp": "auto",
+    "wall_seconds": 537.8,
+    "epochs_trained": 12.0,
+    "stages": [
+      {
+        "stage": "load",
+        "seconds": 6.52,
+        "epochs": 0.0
+      },
+      {
+        "stage": "reference",
+        "seconds": 5.19,
+        "epochs": 0.0
+      },
+      {
+        "stage": "generate",
+        "seconds": 429.85,
+        "epochs": 0.0
+      },
+      {
+        "stage": "proxies",
+        "seconds": 72.41,
+        "epochs": 0.0
+      },
+      {
+        "stage": "seed_selection",
+        "seconds": 0.01,
+        "epochs": 0.0
+      },
+      {
+        "stage": "search",
+        "seconds": 8.54,
+        "epochs": 4.0
+      },
+      {
+        "stage": "evolution",
+        "seconds": 0.0,
+        "epochs": 0.0
+      },
+      {
+        "stage": "runs",
+        "seconds": 15.19,
+        "epochs": 8.0
+      },
+      {
+        "stage": "hparams",
+        "seconds": 0.0,
+        "epochs": 0.0
+      },
+      {
+        "stage": "export",
+        "seconds": 0.0,
+        "epochs": 0.0
+      }
+    ],
+    "overrun_pct": -10.4
+  }
+}

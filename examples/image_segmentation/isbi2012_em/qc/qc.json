@@ -1,0 +1,97 @@
+{
+ "case": "image_segmentation/isbi2012_em",
+ "steps": {
+  "1_design": {
+   "ok": true,
+   "seconds": 540.6,
+   "packages": [
+    "top1_deeplabv3plus"
+   ]
+  },
+  "2_package_tests": {
+   "ok": true
+  },
+  "3_train_top1": {
+   "ok": true,
+   "seconds": 72.9,
+   "epochs": 30,
+   "package": "top1_deeplabv3plus",
+   "weights_kb": 86
+  },
+  "4_predict_export": {
+   "ok": true,
+   "seconds": 5.9
+  },
+  "5_qc": {
+   "ok": true,
+   "metric": "miou",
+   "test_from_predictions": 0.3953,
+   "test_printed_by_train_py": 0.3952751159667969,
+   "splits_disjoint": true,
+   "n_test_images": 6,
+   "image": [
+    256,
+    256
+   ],
+   "metrics": {
+    "miou": 0.3952751159667969,
+    "pixel_accuracy": 0.7905502319335938,
+    "per_class_iou": [
+     0.0,
+     0.7906
+    ]
+   }
+  }
+ },
+ "verdict": {
+  "beats_reference": false,
+  "val_margin": -0.35995,
+  "val_noise": 0.18628,
+  "test_margin": -0.38641,
+  "test_noise": 0.1868,
+  "top1_val": 0.29558,
+  "best_reference": "pixel_random_forest_5x5",
+  "best_reference_val": 0.65553
+ },
+ "reference": [
+  {
+   "name": "pixel_random_forest_5x5",
+   "val": 0.65553,
+   "test": {
+    "accuracy": 0.87228,
+    "balanced_accuracy": 0.79223,
+    "kappa": 0.60245,
+    "miou": 0.68483,
+    "score": 0.68483
+   }
+  },
+  {
+   "name": "pixel_logistic_regression_5x5",
+   "val": 0.62033,
+   "test": {
+    "accuracy": 0.84475,
+    "balanced_accuracy": 0.72454,
+    "kappa": 0.48926,
+    "miou": 0.61854,
+    "score": 0.61854
+   }
+  }
+ ],
+ "top": [
+  {
+   "rank": 1,
+   "name": "top1_deeplabv3plus",
+   "params": 9950,
+   "val_mean": 0.29558,
+   "val_std": 0.12892,
+   "test": {
+    "accuracy": 0.59685,
+    "balanced_accuracy": 0.5,
+    "kappa": 0.0,
+    "miou": 0.29843,
+    "score": 0.29843
+   },
+   "group": 0
+  }
+ ]
+}

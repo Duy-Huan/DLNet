@@ -1,0 +1,3 @@
+$ /usr/local/bin/python predict.py --data /home/user/DLNet/examples/image_segmentation/isbi2012_em/input/data.npz --out /home/user/DLNet/examples/image_segmentation/isbi2012_em/qc/predictions.npy --export /home/user/DLNet/examples/image_segmentation/isbi2012_em/output/top1_deeplabv3plus/model.pt2
+30 predictions -> /home/user/DLNet/examples/image_segmentation/isbi2012_em/qc/predictions.npy
+exported /home/user/DLNet/examples/image_segmentation/isbi2012_em/output/top1_deeplabv3plus/model.pt2
