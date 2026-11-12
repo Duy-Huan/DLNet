@@ -6,6 +6,8 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+- **`model.py` của gói xuất ra là chính mạng được sinh, viết bằng PyTorch thuần** (`dlnet/standalone.py`): nguồn của đúng các lớp mạng dùng + `build_model()` với các lời gọi constructor tường minh; không import DLNet, không còn thư mục `zoo/` trong gói. File được chạy thử và so với mạng đã tìm kiếm trước khi ghi (cùng tham số, cùng seed cho cùng trọng số, cùng đầu ra); đo trên toàn kho: 238/238 cặp (op, kiểu) và 79 họ đều "identical". Không viết được thì giữ dạng cũ và ghi lý do trong `report.md`. Lệnh mới `dlnet standalone <gói>` chuyển gói cũ (giữ `model.pt`). Gated DeltaNet: tham số `D` không huấn luyện được đặt ngay trong lớp khối.
+
 - `scripts/ci_local.py`: chạy các cổng của CI trên máy trước khi push (`--quick`, mặc định, `--full`); `--install` cài hook pre-push (`scripts/hooks/pre-push`) để mọi `git push` tự kiểm trước. Quy tắc ghi ở agent.md §10 và skill `git-dev-main`.
 
 - CI: push chỉ đổi dữ liệu/kết quả ví dụ (`examples/*/*/input|output|qc`) không kích hoạt CI và Promote; push mới lên cùng nhánh thay thế lượt CI cũ đang chạy (trước đây các lượt dồn hàng).

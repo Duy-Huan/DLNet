@@ -5,7 +5,7 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 
-from . import jsonsafe
+from . import jsonsafe, standalone
 
 HERE = Path(__file__).parent
 
@@ -243,14 +243,29 @@ def export(out_dir, plugin, data, prof, chosen, reference, seed, epochs_recipe=1
         cfg = r["cfg"]
         d = out / f"top{i}_{cfg['family']}"
         (d / "tests").mkdir(parents=True)
-        shutil.copy(plugin.model_file, d / "model.py")
         shutil.copy(HERE / "core.py", d / "core.py")
         shutil.copy(HERE / "inference.py", d / "inference.py")
         for name, src in plugin.extra_files.items():
             shutil.copy(src, d / name)
-        if cfg.get("spec"):  # a zoo architecture needs the zoo next to model.py
-            for name, src in plugin.extra_dirs.items():
-                shutil.copytree(src, d / name, ignore=shutil.ignore_patterns("__pycache__"))
+        # model.py: the network itself as plain PyTorch source (dlnet/standalone.py), checked against
+        # the searched model. Only if that is not possible: the spec interpreter + a copy of the zoo.
+        model_note = "`model.py` is plain PyTorch (no DLNet import): the network's own source"
+        try:
+            if not cfg.get("spec"):
+                raise standalone.Unsupported("no zoo spec")
+            how = standalone.write_package(
+                d, {k: v for k, v in cfg.items() if k != "params"}, data["out_dim"],
+                f"Network `{cfg['family']}` (top{i})",
+            )  # fmt: skip
+            model_note += f", {how} to the searched network"
+        except standalone.Unsupported as e:
+            shutil.copy(plugin.model_file, d / "model.py")
+            if cfg.get("spec"):
+                for name, src in plugin.extra_dirs.items():
+                    shutil.copytree(src, d / name, ignore=shutil.ignore_patterns("__pycache__"))
+            model_note = (
+                f"`model.py` builds the network from config.yaml with the bundled `zoo/` ({e})"
+            )
         arch = {k: v for k, v in cfg.items() if k != "params"}
         hp = hyperparameters(r, epochs_recipe)
         config = {
@@ -295,6 +310,7 @@ def export(out_dir, plugin, data, prof, chosen, reference, seed, epochs_recipe=1
             f"batch {hp['batch_size']}, dropout {hp['dropout']}, AdamW, cosine, "
             f"{hp['epochs']} epochs (full recipe), clip {hp['grad_clip_norm']}"
             f"{_hp_note(hp)}\n"
+            f"- Model file: {model_note}\n"
             f"- Search time spent on this candidate: {r['train_seconds']}s\n"
             f"- Indistinguishable-group id: {r['group']} (same id = difference within run-to-run noise)\n\n"
             f"Short search budget only. Re-train with the full recipe (see `python train.py -h`); "

@@ -428,9 +428,7 @@ def test_cli_design_with_zoo_and_evolution_exports_standalone_packages(kind, tmp
     zoo_rows = [r for r in board["top_k"] if r["origin"]]
     for row in zoo_rows:
         pkg = out / row["name"]
-        assert (
-            (pkg / "zoo" / "core.py").exists() and not (pkg / "zoo" / "space.py").exists() or True
-        )
+        assert not (pkg / "zoo").exists() and "class ZooNet" in (pkg / "model.py").read_text()
         cfg = json.loads((pkg / "config.yaml").read_text())
         assert cfg["arch"]["spec"] and cfg["arch"]["input"]
         r = subprocess.run(

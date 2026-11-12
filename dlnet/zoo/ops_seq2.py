@@ -139,6 +139,7 @@ class GDNBlock(nn.Module):
         super().__init__()
         self.attn_norm, self.attn = RMSNorm(d), GatedDeltaNet(d, heads)
         self.mlp_norm, self.mlp = RMSNorm(d), SwiGLU(d, d * ratio)
+        self.attn.D.requires_grad_(False)  # never used in the forward pass (use_residual False)
 
     def forward(self, x):
         x = x + self.attn(self.attn_norm(x))
@@ -150,9 +151,7 @@ class GDNBlock(nn.Module):
 def _gdn(dims, kind, heads, ratio):
     if dims[1] % heads:
         raise ValueError(f"GatedDeltaNet: width {dims[1]} not divisible by {heads} heads")
-    m = GDNBlock(dims[1], heads, ratio)
-    m.attn.D.requires_grad_(False)  # never used in the forward pass (use_residual False)
-    return m
+    return GDNBlock(dims[1], heads, ratio)
 
 
 # --------------------------------------------------------------------------------- mLSTM

@@ -47,6 +47,14 @@ train and rank DCGAN-style generators on an image set (MMD^2 in pixel space)
 list every module of the zoo with kinds, tags and sources
 
 
+## `dlnet standalone`
+
+rewrite model.py of exported packages as plain PyTorch source (no zoo/ folder)
+
+| Tùy chọn | Bắt buộc | Mặc định | Ý nghĩa |
+|---|---|---|---|
+| `packages` | có |  | package folders (each holds config.yaml) |
+
 ## `dlnet mcp`
 
 run DLNet as an MCP server on stdio for AI clients (Claude Code, Codex, Antigravity)
