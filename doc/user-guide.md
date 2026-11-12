@@ -210,6 +210,49 @@ Mỗi thư mục đầu ra có **`baselines.ipynb`** và mỗi gói có **`archi
 
 **Sơ đồ khối** (`dlnet/diagram.py`, không cần thư viện ngoài): vẽ từ spec của mạng, từ trên xuống: khối tô màu theo loại (tích chập, attention, miền tần số, hồi quy / state space, MLP, pooling, chuẩn hóa), tham số chính, kích thước đầu ra thật bên phải; residual là khung nét đứt có đường tắt vào nút ⊕; nhánh song song vẽ cạnh nhau rồi gộp; khối lặp ghi "x n"; encoder–decoder vẽ các tầng encoder, decoder và các đường skip.
 
+### Mạng từ paper: thẻ YAML, dựng lại và kiểm với mã gốc
+
+Để so sánh với một mạng đã công bố, viết nó thành một **thẻ** trong `papers/` (xem `papers/starnet_s1.yaml`, `papers/resnet20_cifar.yaml`):
+
+```yaml
+paper:      {name: StarNet-S1, venue: CVPR 2024, url: ..., reported: [{params: 2900000}, {dataset: ImageNet-1k, metric: accuracy, value: 0.735}]}
+official:   {repo: https://github.com/ma-xu/Rewrite-the-Stars, commit: c999eb5, entry: "imagenet/starnet.py:StarNet", init_args: {base_dim: 24, depths: [2, 2, 8, 3]}}
+input:      {kind: map, dims: [3, 224, 224]}
+classes:    1000
+blocks:                                   # khối riêng của paper; "$dim" lấy từ args khi dùng
+  star:
+    - {id: dw,   module: conv, args: {out: $dim, k: 7, groups: depthwise}}
+    - {id: f1,   from: dw, module: conv, args: {out: "$dim * 4", k: 1}}
+    - {id: f2,   from: dw, module: conv, args: {out: "$dim * 4", k: 1}}
+    - {id: star, from: [f1, f2], module: mul}
+    - {id: sum,  from: [star, input], module: add}
+architecture:                             # mỗi dòng một khối trên sơ đồ
+  - {id: stem,   module: conv, args: {out: 32, k: 3, s: 2, pad: 1}}
+  - {id: stage1, module: star, repeats: 2, args: {dim: 24}}
+  - {id: pool,   module: gap}
+training:   {optimizer: adamw, lr: 3.0e-3, epochs: 300}
+```
+
+- `from`: khối (hoặc danh sách khối) mà khối này đọc; bỏ trống = khối ngay trên; `input` = đầu vào của mạng hoặc của block.
+- `module`: một module của kho (`python -m dlnet zoo`), một block trong `blocks`, hoặc `concat` / `add` / `mul`. Lớp nguyên thủy cho thẻ: `conv` (không norm, không activation, có `bias`, `pad`, `groups`), `linear`, cùng `norm`, `act`, `pool`, `gap`, `dropout`.
+
+```bash
+python -m dlnet paper check  papers/starnet_s1.yaml        # kích thước từng khối, số tham số so với paper
+python -m dlnet paper build  papers/starnet_s1.yaml --out pkgs          # model.py thuần PyTorch + architecture.svg
+python -m dlnet paper build  papers/ssftt.yaml --into dlnet_out         # cùng dữ liệu, train.py, vào notebook của lượt chạy
+python -m dlnet paper verify papers/starnet_s1.yaml --official-root <checkout repo tác giả>
+```
+
+**Mức trung thành** (ghi trong `report.md`, notebook và `<thẻ>.fidelity.json`), được đo chứ không giả định:
+
+| Mức | Nghĩa | Bằng chứng |
+|---|---|---|
+| A | dùng chính lớp của tác giả (thẻ không có `architecture`) | giống hệt theo định nghĩa; gói tự clone repo ở commit đã ghim |
+| B | mạng của thẻ đã kiểm với mã gốc | chép trọng số mô hình gốc sang, cùng đầu vào cho cùng đầu ra (lệch ≤ 1e-5), số tham số bằng nhau |
+| C | viết từ paper, chưa kiểm với mã gốc | chỉ kiểm kích thước và số tham số so với `reported.params` (lệch quá 2 % thì báo) |
+
+`paper verify` chạy ở nơi chạy được mã của tác giả; trong repo này là job `verify-papers` trên GitHub Actions cho mọi thẻ trong `papers/`. `official` có thêm `input_ops` / `output_ops` (ví dụ `[[unsqueeze, 1]]`), `method`, `compare: features` (so phần đặc trưng, bỏ lớp phân loại), `ignore_params` (tham số mã gốc khai báo nhưng không dùng), `stub_modules`, `sys_path`.
+
 ### Dùng mạng trong notebook hoặc dự án riêng
 
 `model.py` của mỗi gói là **chính mạng được sinh ra, viết bằng PyTorch thuần**: không import DLNet, chép riêng file này đi là dùng được.
