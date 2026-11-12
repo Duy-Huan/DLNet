@@ -1,0 +1,144 @@
+{
+  "plugin": "image_classification",
+  "task": "classification",
+  "split_seed": 0,
+  "in_dim": 1,
+  "out_dim": 10,
+  "primary_metric": "accuracy",
+  "arch": {
+    "family": "zoo_unet_res_block",
+    "spec": {
+      "op": "seq",
+      "body": [
+        {
+          "op": "seq",
+          "body": [
+            {
+              "op": "unet_res_block",
+              "out": 16,
+              "k": 3,
+              "s": 1
+            },
+            {
+              "op": "unet_res_block",
+              "out": 16,
+              "k": 3,
+              "s": 1
+            }
+          ]
+        },
+        {
+          "op": "seq",
+          "body": [
+            {
+              "op": "unet_res_block",
+              "out": 32,
+              "k": 3,
+              "s": 2
+            },
+            {
+              "op": "unet_res_block",
+              "out": 32,
+              "k": 3,
+              "s": 1
+            }
+          ]
+        },
+        {
+          "op": "seq",
+          "body": [
+            {
+              "op": "unet_res_block",
+              "out": 64,
+              "k": 3,
+              "s": 2
+            },
+            {
+              "op": "unet_res_block",
+              "out": 64,
+              "k": 3,
+              "s": 1
+            }
+          ]
+        }
+      ]
+    },
+    "input": {
+      "kind": "map",
+      "dims": [
+        1,
+        28,
+        28
+      ]
+    },
+    "out_dim": 10,
+    "head": "cls",
+    "dropout": 0.0,
+    "origin": "preset:nnunet_res",
+    "lr": 0.003,
+    "wd": 0.0001,
+    "batch": 64,
+    "flops": 36780288,
+    "act_mb": 1.229608,
+    "vram_mb": 160.134816,
+    "seed_prior": 0.0,
+    "seed_rank": 20,
+    "seed_score": 73.0,
+    "seed_traits": [
+      "group_norm",
+      "local_conv"
+    ]
+  },
+  "hyperparameters": {
+    "optimizer": "AdamW",
+    "lr": 0.003,
+    "weight_decay": 0.0001,
+    "batch_size": 64,
+    "epochs": 100,
+    "lr_schedule": "cosine",
+    "grad_clip_norm": 5.0,
+    "dropout": 0.0,
+    "source": {
+      "adopted": "searched",
+      "searched": {
+        "lr": 0.003,
+        "batch": 64,
+        "wd": 0.0001
+      },
+      "estimated": null,
+      "val_searched": 0.8529166666666667,
+      "val_estimated": null,
+      "methods": [
+        "LR range test (Smith 1506.01186)",
+        "gradient noise scale B_simple (McCandlish 1812.06162)",
+        "normalized weight decay (Loshchilov & Hutter 1711.05101)"
+      ]
+    }
+  },
+  "data": {
+    "kind": "image",
+    "shape": [
+      1,
+      28,
+      28
+    ],
+    "x_key": "X",
+    "y_key": "y"
+  },
+  "recipe": {
+    "epochs": 100,
+    "schedule": "linear warm-up (5 %) then cosine",
+    "select": "best-val checkpoint",
+    "name": "modern",
+    "augment": true,
+    "label_smoothing": 0.1
+  },
+  "search_result": {
+    "val_mean": 0.8529166666666667,
+    "val_std": 0.0029166666666666785,
+    "epochs_used": 30,
+    "seeds": 2,
+    "splits": 1,
+    "test_std": 0.003750000000000031
+  }
+}

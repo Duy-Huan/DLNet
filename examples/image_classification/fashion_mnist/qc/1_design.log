@@ -21,3 +21,13 @@ $ /usr/local/bin/python -m dlnet design --data /home/user/DLNet/examples/image_c
 [search] rung 2 (12 ep): kept 2; best val=0.8217
 [search] rung 3 (30 ep): kept 1; best val=0.8233
 [evolve] skipped: the remaining search budget cannot train 8 children to 12 epochs (raise --budget or lower --evolve-pop)
+[equalize] zoo_unet_res_block: trained on to 30 epochs, val=0.8529
+[runs] zoo_gfnet_block_patchify_pos: 2 runs, val=0.8287 +/- 0.0054
+[hparams] estimating lr / batch size / weight decay for the finalists
+[warning] Some models were trained only once: their +/- is the sampling error of the validation set, not run-to-run noise. A larger --budget repeats the finalists.
+[warning] The Top-K mixes models trained [4, 30] epochs (the budget ended before they could be trained to the same length); compare scores only within the same epochs.
+[warning] Only 3 of 92 candidates could be trained within the budget; raise --budget, or lower --zoo / --per-family, or use --seeds N.
+[proxies] Spearman with rung-1 validation (n=3): {'naswot': None, 'synflow': -1.0, 'grad_norm': -0.5, 'snip': -0.5, 'zico': -1.0, 'params': -1.0, 'vote': -0.5, 'seed_prior': 0.5}
+[budget] load 3.0s/0ep, reference 9.8s/0ep, generate 6.9s/0ep, proxies 58.0s/0ep, seed_selection 1.3s/0ep, search 211.8s/58ep, evolution 0.0s/0ep, equalize 201.8s/48ep, runs 72.5s/30ep, hparams 0.0s/0ep, export 0.0s/0ep
+[done] 565s  -> /home/user/DLNet/examples/image_classification/fashion_mnist/output/leaderboard.md
+[verdict] beats_reference=True val_margin=0.02375 test_margin=0.03625

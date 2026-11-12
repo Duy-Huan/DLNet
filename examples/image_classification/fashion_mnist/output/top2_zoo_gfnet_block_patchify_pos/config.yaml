@@ -1,0 +1,115 @@
+{
+  "plugin": "image_classification",
+  "task": "classification",
+  "split_seed": 0,
+  "in_dim": 1,
+  "out_dim": 10,
+  "primary_metric": "accuracy",
+  "arch": {
+    "family": "zoo_gfnet_block_patchify_pos",
+    "spec": {
+      "op": "seq",
+      "body": [
+        {
+          "op": "patchify",
+          "dim": 64,
+          "patch": 4
+        },
+        {
+          "op": "pos",
+          "mode": "learned"
+        },
+        {
+          "op": "gfnet_block",
+          "mlp_ratio": 4,
+          "dropout": 0.1
+        },
+        {
+          "op": "wukong",
+          "layers": 3,
+          "lcb": 40,
+          "fmb": 40,
+          "rank_k": 8,
+          "dropout": 0.1
+        }
+      ]
+    },
+    "input": {
+      "kind": "map",
+      "dims": [
+        1,
+        28,
+        28
+      ]
+    },
+    "out_dim": 10,
+    "head": "cls",
+    "dropout": 0.0,
+    "origin": "random",
+    "lr": 0.003,
+    "wd": 0.01,
+    "batch": 64,
+    "flops": 5917440,
+    "act_mb": 0.434248,
+    "vram_mb": 61.49392,
+    "seed_prior": -0.506,
+    "seed_rank": 9,
+    "seed_score": 83.0,
+    "seed_traits": [
+      "global_attention",
+      "position_aware"
+    ]
+  },
+  "hyperparameters": {
+    "optimizer": "AdamW",
+    "lr": 0.003,
+    "weight_decay": 0.01,
+    "batch_size": 64,
+    "epochs": 100,
+    "lr_schedule": "cosine",
+    "grad_clip_norm": 5.0,
+    "dropout": 0.0,
+    "source": {
+      "adopted": "searched",
+      "searched": {
+        "lr": 0.003,
+        "batch": 64,
+        "wd": 0.01
+      },
+      "estimated": null,
+      "val_searched": 0.82875,
+      "val_estimated": null,
+      "methods": [
+        "LR range test (Smith 1506.01186)",
+        "gradient noise scale B_simple (McCandlish 1812.06162)",
+        "normalized weight decay (Loshchilov & Hutter 1711.05101)"
+      ]
+    }
+  },
+  "data": {
+    "kind": "image",
+    "shape": [
+      1,
+      28,
+      28
+    ],
+    "x_key": "X",
+    "y_key": "y"
+  },
+  "recipe": {
+    "epochs": 100,
+    "schedule": "linear warm-up (5 %) then cosine",
+    "select": "best-val checkpoint",
+    "name": "modern",
+    "augment": true,
+    "label_smoothing": 0.1
+  },
+  "search_result": {
+    "val_mean": 0.82875,
+    "val_std": 0.005416666666666625,
+    "epochs_used": 30,
+    "seeds": 2,
+    "splits": 1,
+    "test_std": 0.0016666666666666496
+  }
+}

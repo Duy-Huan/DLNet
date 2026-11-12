@@ -1,0 +1,50 @@
+[
+  {
+    "name": "hist_gradient_boosting",
+    "seconds": 3.4,
+    "va": {
+      "accuracy": 0.8291666666666667,
+      "balanced_accuracy": 0.8291666666666666,
+      "kappa": 0.8101851851842852,
+      "score": 0.8291666666666667
+    },
+    "te": {
+      "accuracy": 0.8316666666666667,
+      "balanced_accuracy": 0.8316666666666667,
+      "kappa": 0.8129629629620597,
+      "score": 0.8316666666666667
+    }
+  },
+  {
+    "name": "logistic_regression",
+    "seconds": 3.3,
+    "va": {
+      "accuracy": 0.8216666666666667,
+      "balanced_accuracy": 0.8216666666666667,
+      "kappa": 0.801851851850961,
+      "score": 0.8216666666666667
+    },
+    "te": {
+      "accuracy": 0.82,
+      "balanced_accuracy": 0.82,
+      "kappa": 0.7999999999991111,
+      "score": 0.82
+    }
+  },
+  {
+    "name": "random_forest",
+    "seconds": 2.3,
+    "va": {
+      "accuracy": 0.8125,
+      "balanced_accuracy": 0.8125,
+      "kappa": 0.7916666666657871,
+      "score": 0.8125
+    },
+    "te": {
+      "accuracy": 0.825,
+      "balanced_accuracy": 0.8249999999999998,
+      "kappa": 0.8055555555546605,
+      "score": 0.825
+    }
+  }
+]

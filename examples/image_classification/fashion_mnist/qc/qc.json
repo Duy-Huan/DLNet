@@ -1,0 +1,144 @@
+{
+ "case": "image_classification/fashion_mnist",
+ "steps": {
+  "1_design": {
+   "ok": true,
+   "seconds": 568.0,
+   "packages": [
+    "top1_zoo_unet_res_block",
+    "top2_zoo_gfnet_block_patchify_pos",
+    "top3_resnet"
+   ]
+  },
+  "2_package_tests": {
+   "ok": true
+  },
+  "3_train_top1": {
+   "ok": true,
+   "seconds": 155.7,
+   "epochs": 30,
+   "package": "top1_zoo_unet_res_block",
+   "weights_kb": 675
+  },
+  "4_predict_export": {
+   "ok": true,
+   "seconds": 7.9
+  },
+  "5_qc": {
+   "ok": true,
+   "metric": "accuracy",
+   "test_from_predictions": 0.875,
+   "test_printed_by_train_py": 0.875,
+   "splits_disjoint": true,
+   "n_test": 1200,
+   "image": [
+    28,
+    28
+   ],
+   "classes": 10,
+   "metrics": {
+    "accuracy": 0.875,
+    "balanced_accuracy": 0.875,
+    "kappa": 0.8611111111111112,
+    "per_class_recall": [
+     0.8667,
+     0.9833,
+     0.875,
+     0.875,
+     0.85,
+     0.975,
+     0.4917,
+     0.9167,
+     0.9583,
+     0.9583
+    ]
+   }
+  }
+ },
+ "verdict": {
+  "beats_reference": true,
+  "val_margin": 0.02375,
+  "val_noise": 0.01022,
+  "test_margin": 0.03625,
+  "test_noise": 0.00977,
+  "top1_val": 0.85292,
+  "best_reference": "hist_gradient_boosting",
+  "best_reference_val": 0.82917
+ },
+ "reference": [
+  {
+   "name": "hist_gradient_boosting",
+   "val": 0.82917,
+   "test": {
+    "accuracy": 0.83167,
+    "balanced_accuracy": 0.83167,
+    "kappa": 0.81296,
+    "score": 0.83167
+   }
+  },
+  {
+   "name": "logistic_regression",
+   "val": 0.82167,
+   "test": {
+    "accuracy": 0.82,
+    "balanced_accuracy": 0.82,
+    "kappa": 0.8,
+    "score": 0.82
+   }
+  },
+  {
+   "name": "random_forest",
+   "val": 0.8125,
+   "test": {
+    "accuracy": 0.825,
+    "balanced_accuracy": 0.825,
+    "kappa": 0.80556,
+    "score": 0.825
+   }
+  }
+ ],
+ "top": [
+  {
+   "rank": 1,
+   "name": "top1_zoo_unet_res_block",
+   "params": 171562,
+   "val_mean": 0.85292,
+   "val_std": 0.00292,
+   "test": {
+    "accuracy": 0.86792,
+    "balanced_accuracy": 0.86792,
+    "kappa": 0.85324,
+    "score": 0.86792
+   },
+   "group": 0
+  },
+  {
+   "rank": 2,
+   "name": "top2_zoo_gfnet_block_patchify_pos",
+   "params": 369386,
+   "val_mean": 0.82875,
+   "val_std": 0.00542,
+   "test": {
+    "accuracy": 0.82417,
+    "balanced_accuracy": 0.82417,
+    "kappa": 0.80463,
+    "score": 0.82417
+   },
+   "group": 1
+  },
+  {
+   "rank": 3,
+   "name": "top3_resnet",
+   "params": 707074,
+   "val_mean": 0.64167,
+   "val_std": 0.0,
+   "test": {
+    "accuracy": 0.64333,
+    "balanced_accuracy": 0.64333,
+    "kappa": 0.6037,
+    "score": 0.64333
+   },
+   "group": 2
+  }
+ ]
+}
