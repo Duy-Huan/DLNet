@@ -1,0 +1,113 @@
+{
+  "plugin": "image_classification",
+  "task": "classification",
+  "split_seed": 0,
+  "in_dim": 3,
+  "out_dim": 10,
+  "primary_metric": "accuracy",
+  "arch": {
+    "family": "zoo_ffn_patchify_pos",
+    "spec": {
+      "op": "seq",
+      "body": [
+        {
+          "op": "patchify",
+          "dim": 64,
+          "patch": 4
+        },
+        {
+          "op": "pos",
+          "mode": "learned"
+        },
+        {
+          "op": "ffn",
+          "ratio": 2,
+          "act": "relu",
+          "dropout": 0.1
+        },
+        {
+          "op": "tt_linear",
+          "out": 128,
+          "rank": 8
+        }
+      ]
+    },
+    "input": {
+      "kind": "map",
+      "dims": [
+        3,
+        32,
+        32
+      ]
+    },
+    "out_dim": 10,
+    "head": "cls",
+    "dropout": 0.0,
+    "origin": "random",
+    "lr": 0.001,
+    "wd": 0.01,
+    "batch": 32,
+    "flops": 4065792,
+    "act_mb": 0.213544,
+    "vram_mb": 14.097056,
+    "seed_prior": -1.0,
+    "seed_rank": 77,
+    "seed_score": 15.0,
+    "seed_traits": [
+      "global_attention",
+      "position_aware"
+    ]
+  },
+  "hyperparameters": {
+    "optimizer": "AdamW",
+    "lr": 0.001,
+    "weight_decay": 0.01,
+    "batch_size": 32,
+    "epochs": 100,
+    "lr_schedule": "cosine",
+    "grad_clip_norm": 5.0,
+    "dropout": 0.0,
+    "source": {
+      "adopted": "searched",
+      "searched": {
+        "lr": 0.001,
+        "batch": 32,
+        "wd": 0.01
+      },
+      "estimated": null,
+      "val_searched": 0.48416666666666663,
+      "val_estimated": null,
+      "methods": [
+        "LR range test (Smith 1506.01186)",
+        "gradient noise scale B_simple (McCandlish 1812.06162)",
+        "normalized weight decay (Loshchilov & Hutter 1711.05101)"
+      ]
+    }
+  },
+  "data": {
+    "kind": "image",
+    "shape": [
+      3,
+      32,
+      32
+    ],
+    "x_key": "X",
+    "y_key": "y"
+  },
+  "recipe": {
+    "epochs": 100,
+    "schedule": "linear warm-up (5 %) then cosine",
+    "select": "best-val checkpoint",
+    "name": "modern",
+    "augment": true,
+    "label_smoothing": 0.1
+  },
+  "search_result": {
+    "val_mean": 0.48416666666666663,
+    "val_std": 0.011324342839244168,
+    "epochs_used": 30,
+    "seeds": 3,
+    "splits": 1,
+    "test_std": 0.010592042202743117
+  }
+}

@@ -433,7 +433,12 @@ Kết luận trung thực: Top-K được huấn luyện sâu gấp 2,5 lần n�
   - RWSE bằng lũy thừa ma trận numpy;
   - GAT cho nút cô lập ra 0 như PyG;
   - mỗi họ mới huấn luyện được, chạy dưới autocast bf16 và `torch.export` được (trừ các họ có vòng lặp Python).
-- **Đo** (`scripts/bench_v1.py`, `scripts/bench_freq_hsi.py`; cùng split, cùng epoch, 3 seed nếu không ghi khác): BENCH_V1_PLACEHOLDER
+- **Đo** (`scripts/bench_v1.py`, `scripts/bench_freq_hsi.py`; cùng split, cùng epoch, 3 seed nếu không ghi khác):
+  - **Bảng** (sklearn, 60 epoch): wine: tabm 0,9915 ± 0,0121, **realmlp 0,9829 ± 0,0242**, mlp 0,9658, resmlp 0,9402; breast_cancer: **realmlp 0,9855 ± 0,0109**, resmlp 0,9797, mlp 0,9768, tabm 0,9768; diabetes (−RMSE): tabm −55,21, mlp −56,02, **realmlp −56,07**, resmlp −60,67. RealMLP nhất 1/3 bộ, không bộ nào hơn rõ quá độ lệch seed.
+  - **Ảnh** (digits 8×8, 30 epoch): cnn 0,9909, resnet 0,9900, **mambavision 0,9420**, **kat 0,8922**, vit 0,8850. Hai họ mới thua CNN trên ảnh nhỏ, ít dữ liệu.
+  - **Chuỗi thời gian** (tổng hợp, 30 epoch): `ts_freq`: itransformer 1,0000, **xlstm 0,9973**, **gated_deltanet 0,9946**, **timemixer 0,9919**, tcn 0,9785, **timexer 0,7984**, patchtst 0,7608, ts_transformer 0,3898; `ts_crosschannel`: **xlstm 0,9945**, tcn 0,9918, **gated_deltanet 0,9727**, ts_transformer 0,9426, **timemixer 0,7923 ± 0,2027** (không ổn định giữa các seed), itransformer 0,3416, **timexer 0,3306**, patchtst 0,2978 (ba họ cuối ở mức đoán ngẫu nhiên: bài cần so trễ giữa các kênh). xLSTM và Gated DeltaNet ngang TCN; TimeXer kém trên cả hai bài phân loại (bản gốc thiết kế cho dự báo có biến ngoại sinh).
+  - **HSI** (Indian Pines, chia pixel 10/10/80, PCA 30, patch 9, **20 epoch, 2 seed**; chia pixel thổi phồng OA): resnet2d OA 0,9841 ± 0,0005 (AA 0,9485; 166k tham số), **fahm 0,9733 ± 0,0007** (AA 0,8257; 213k), **mambahsi_plus 0,9732 ± 0,0025** (AA 0,9202; 278k), cnn2d 0,9720 ± 0,0027 (AA 0,9038; 64k), **ssftt 0,9620 ± 0,0056** (AA 0,8958; 153k), **mambahsi 0,9419 ± 0,0045** (AA 0,7796; 76k). Không họ mới nào hơn resnet2d. Thời gian train trên CPU (máy chạy song song việc khác nên chỉ so bậc độ lớn): resnet2d 15–71 s, ssftt 9–36 s, mambahsi 5–6 phút, fahm 8–25 phút, mambahsi_plus 23–60 phút.
+  - **Kết luận trung thực**: v1.0 làm kho đa dạng hơn, chưa cho thấy họ mới nào thắng họ cũ ở ngân sách nhỏ trên CPU; các họ Mamba/xLSTM/GDN chạy vòng lặp Python nên chậm hơn CNN hàng chục tới hàng trăm lần (đã sửa backward O(L²), §9.10).
 - **Chưa làm và lý do**:
   - OverLoCK cần kernel NATTEN, và kiến trúc ba mạng con truyền ngữ cảnh không lắp vào ngữ pháp tuần tự.
   - xLSTM-Mixer cần sLSTM.
@@ -442,6 +447,13 @@ Kết luận trung thực: Top-K được huấn luyện sâu gấp 2,5 lần n�
 - **Hạn chế đã biết**:
   - Các họ Mamba/mLSTM/Gated DeltaNet chạy bằng quét tuần tự Python, chậm trên CPU với chuỗi dài. Ví dụ `mambahsi_plus` trên Indian Pines chậm hơn ResNet nhiều lần.
   - FLOPs của các vòng quét không được `cost.py` đếm đầy đủ.
+
+### 9.10 Lỗi tìm ra khi chạy QA `examples/` trước v1.0 và cách sửa
+- **Backward O(L²) của các vòng quét** (`selective_scan`, `recurrent_gated_delta_rule`): chỉ số `dA[:, :, i]` làm autograd cấp một tensor 0 bằng cả khối cho mỗi bước. Đổi sang `unbind`: bước train batch 64, 1 luồng: FAHM 13,8 → 2,1 s; MambaHSI 5,3 → 1,3 s; MambaHSI+ 23,1 → 5,8 s; số học không đổi.
+- **Ngân sách giây bị vượt**: `--budget 90s` trên MNIST chạy hơn 12 phút vì ứng viên đầu luôn được train và ứng viên chưa train được định giá theo FLOPs (không tính vòng lặp Python). Nay `Trainer.probe_epoch_seconds` đo một bước thật; cùng lệnh xong trong 85 s.
+- **`model.py` không chứa mạng**: gói xuất ra chỉ có `from zoo import build_model` + bản sao `zoo/`. Nay `model.py` là nguồn PyTorch thuần của chính mạng (`dlnet/standalone.py`), được chạy thử và so với mạng đã tìm kiếm trước khi ghi; 238/238 cặp (op, kiểu) và 79 họ đều giống hệt.
+- **Quy trình**: file dữ liệu > 50 MB và mã chưa format làm đỏ CI nhiều lượt; thêm `scripts/ci_local.py` + hook pre-push (chạy cổng CI trên máy trước khi push), và push chỉ đổi dữ liệu/kết quả ví dụ không kích hoạt CI.
+- Kết quả QA từng bộ: `examples/README.md`.
 
 ## 10. Quy ước cho agent (người/AI) phát triển repo
 

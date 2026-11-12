@@ -1,0 +1,32 @@
+$ /usr/local/bin/python -m dlnet design --data /home/user/DLNet/examples/image_classification/cifar10/input/data.npz --plugin image_classification --out /home/user/DLNet/examples/image_classification/cifar10/output --budget 10m --topk 3 --seed 0 --threads 2 --no-cache
+[device] cpu, precision float32 (--device, --amp)
+[threads] 2 (of 4 CPUs; --threads to change)
+[plugin] image_classification  data=/home/user/DLNet/examples/image_classification/cifar10/input/data.npz
+[load] task=classification features=3 classes=10 seed=0
+[profile] {'n_train': 3600, 'n_features': 3072, 'n_classes': 10, 'primary_metric': 'accuracy', 'intrinsic_dim': 27.31, 'scaling_exponent_hat': 0.146, 'pca_dims_for_95pct_energy': 199, 'intrinsic_dim_estimators': {'twonn': {'mean': 27.327, 'std': 0.4}, 'mle': {'mean': 19.068, 'std': 0.076}, 'value': 23.197, 'rel_disagreement': 0.356, 'stable': False}, 'capacity_hint': {'min_width': 64, 'scaling_exponent': 0.172, 'used_for_pruning': False}, 'max_params': 1080000, 'kind': 'image', 'shape': [3, 32, 32]}
+[datacard] {'n_train': 3600, 'channels': 3, 'height': 32, 'width': 32, 'n_classes': 10, 'samples_per_class_min': 360, 'samples_per_class_median': 360.0, 'imbalance_ratio': 1.0, 'spectral_slope': 2.81, 'high_freq_energy': 0.0692, 'corr_length': 5.0, 'corr_length_rel': 0.156, 'edge_density': 0.1399, 'channel_correlation': 0.869, 'position_dependence': 0.0798, 'knn_accuracy': 0.243, 'linear_probe_pixels': 0.305, 'linear_probe_random_conv': 0.361, 'conv_bias_gain': 0.056}
+[reference] classical baselines on the same split(s)
+[reference] hist_gradient_boosting     val=0.4033
+[reference] random_forest              val=0.3992
+[reference] logistic_regression        val=0.3508
+[zoo] 12 architectures from the module zoo (preset, random)
+[cost] 92 candidates; FLOPs/sample min 1,215,616 median 24,484,352 max 263,937,536
+[generate] 92 valid candidates from families ['allconv', 'cnn', 'densenet', 'kat', 'lenet', 'mambavision', 'mobilenetv2', 'resnet', 'vgg', 'vit', 'zoo_basic_block', 'zoo_basic_block_eca', 'zoo_basic_block_sk_conv', 'zoo_convnext_block', 'zoo_dw_sep_basic_block_fused_mbconv', 'zoo_ffn_patchify_pos', 'zoo_fnet_block_patchify', 'zoo_gfnet_block_mlp_patchify', 'zoo_gfnet_block_patchify_pos', 'zoo_preact_block', 'zoo_regnet_block', 'zoo_sk_conv_dense_block_fca']
+[surrogate] ZAP ranking learned from 14 past datasets
+[seeds] -1 global_attention: 3600 training images (360 per class at least): global attention needs much data
+[seeds] 92/92 candidates, rankers ['zap_surrogate']; first: ['random', 'lenet', 'resnet', 'resnet', 'mobilenetv2']
+[search] 92 candidates, rungs=(4, 12, 30)
+[search] rung 1 (4 ep): kept 4; best val=0.4067
+[search] rung 2 (12 ep): kept 3; best val=0.5500
+[search] rung 3 (30 ep): kept 3; best val=0.6225
+[evolve] skipped: the remaining search budget cannot train 8 children to 12 epochs (raise --budget or lower --evolve-pop)
+[runs] cnn: 3 runs, val=0.6164 +/- 0.0064
+[runs] zoo_ffn_patchify_pos: 3 runs, val=0.4842 +/- 0.0113
+[runs] zoo_fnet_block_patchify: 3 runs, val=0.3872 +/- 0.0110
+[runs] lenet: 2 runs, val=0.2433 +/- 0.0258
+[hparams] estimating lr / batch size / weight decay for the finalists
+[warning] Only 4 of 92 candidates could be trained within the budget; raise --budget, or lower --zoo / --per-family, or use --seeds N.
+[proxies] Spearman with rung-1 validation (n=4): {'naswot': None, 'synflow': None, 'grad_norm': None, 'snip': None, 'zico': None, 'params': -0.4, 'seed_prior': 0.316}
+[budget] load 12.9s/0ep, reference 17.1s/0ep, generate 7.4s/0ep, proxies 63.0s/0ep, seed_selection 1.2s/0ep, search 203.6s/124ep, evolution 0.0s/0ep, equalize 0.0s/0ep, runs 295.5s/184ep, hparams 0.0s/0ep, export 0.0s/0ep
+[done] 601s  -> /home/user/DLNet/examples/image_classification/cifar10/output/leaderboard.md
+[verdict] beats_reference=True val_margin=0.21306 test_margin=0.21

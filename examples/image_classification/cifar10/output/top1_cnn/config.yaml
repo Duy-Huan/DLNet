@@ -1,0 +1,155 @@
+{
+  "plugin": "image_classification",
+  "task": "classification",
+  "split_seed": 0,
+  "in_dim": 3,
+  "out_dim": 10,
+  "primary_metric": "accuracy",
+  "arch": {
+    "family": "cnn",
+    "width": 16,
+    "depth": 3,
+    "dropout": 0.2,
+    "lr": 0.001,
+    "wd": 0.01,
+    "batch": 64,
+    "spec": {
+      "op": "seq",
+      "body": [
+        {
+          "op": "conv_bn_act",
+          "out": 16,
+          "k": 3,
+          "s": 1,
+          "act": "relu",
+          "norm": "batch"
+        },
+        {
+          "op": "conv_bn_act",
+          "out": 16,
+          "k": 3,
+          "s": 1,
+          "act": "relu",
+          "norm": "batch"
+        },
+        {
+          "op": "pool",
+          "mode": "max",
+          "k": 2,
+          "s": 2
+        },
+        {
+          "op": "conv_bn_act",
+          "out": 32,
+          "k": 3,
+          "s": 1,
+          "act": "relu",
+          "norm": "batch"
+        },
+        {
+          "op": "conv_bn_act",
+          "out": 32,
+          "k": 3,
+          "s": 1,
+          "act": "relu",
+          "norm": "batch"
+        },
+        {
+          "op": "pool",
+          "mode": "max",
+          "k": 2,
+          "s": 2
+        },
+        {
+          "op": "conv_bn_act",
+          "out": 64,
+          "k": 3,
+          "s": 1,
+          "act": "relu",
+          "norm": "batch"
+        },
+        {
+          "op": "conv_bn_act",
+          "out": 64,
+          "k": 3,
+          "s": 1,
+          "act": "relu",
+          "norm": "batch"
+        }
+      ]
+    },
+    "input": {
+      "kind": "map",
+      "dims": [
+        3,
+        32,
+        32
+      ]
+    },
+    "head": "cls",
+    "out_dim": 10,
+    "flops": 19760384,
+    "act_mb": 0.713,
+    "vram_mb": 92.431264,
+    "seed_prior": 0.0,
+    "seed_rank": 8,
+    "seed_score": 83.5,
+    "seed_traits": [
+      "local_conv"
+    ]
+  },
+  "hyperparameters": {
+    "optimizer": "AdamW",
+    "lr": 0.001,
+    "weight_decay": 0.01,
+    "batch_size": 64,
+    "epochs": 100,
+    "lr_schedule": "cosine",
+    "grad_clip_norm": 5.0,
+    "dropout": 0.2,
+    "width": 16,
+    "depth": 3,
+    "source": {
+      "adopted": "searched",
+      "searched": {
+        "lr": 0.001,
+        "batch": 64,
+        "wd": 0.01
+      },
+      "estimated": null,
+      "val_searched": 0.6163888888888889,
+      "val_estimated": null,
+      "methods": [
+        "LR range test (Smith 1506.01186)",
+        "gradient noise scale B_simple (McCandlish 1812.06162)",
+        "normalized weight decay (Loshchilov & Hutter 1711.05101)"
+      ]
+    }
+  },
+  "data": {
+    "kind": "image",
+    "shape": [
+      3,
+      32,
+      32
+    ],
+    "x_key": "X",
+    "y_key": "y"
+  },
+  "recipe": {
+    "epochs": 100,
+    "schedule": "linear warm-up (5 %) then cosine",
+    "select": "best-val checkpoint",
+    "name": "modern",
+    "augment": true,
+    "label_smoothing": 0.1
+  },
+  "search_result": {
+    "val_mean": 0.6163888888888889,
+    "val_std": 0.006431020501550121,
+    "epochs_used": 30,
+    "seeds": 3,
+    "splits": 1,
+    "test_std": 0.010160745087873263
+  }
+}
