@@ -6,6 +6,8 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-11-12
+
 - `dlnet paper import`: sinh nháp thẻ từ mã gốc của tác giả bằng `torch.fx` (mỗi lớp một dòng; `add`, `mul`, `concat`, pooling toàn cục, lớp Linear cuối thành head); gặp phép toán không viết được thì dừng và nêu tên. Lớp nguyên thủy mới cho thẻ: `maxpool`, `avgpool` (137 module).
 - `dlnet design --papers <thẻ hoặc thư mục>`: sau tìm kiếm, huấn luyện các mạng từ paper trên cùng dữ liệu theo giao thức của top-1 (cùng lần chia, số lần chạy, epoch, lr / wd / batch); `--paper-recipe` thêm một lần theo công thức của tác giả (`--paper-epochs` chặn số epoch). `leaderboard.md` có bảng "Paper baselines" ba cột (paper báo / giao thức chung / công thức tác giả), `leaderboard.json` có `papers`, gói `paper_<tên>/` vào notebook.
 - `core.Trainer` / `train_full` nhận `optimizer` (`adamw` mặc định, `adam`, `sgd` momentum 0,9) để chạy công thức của paper.
@@ -472,7 +474,8 @@ Bản đầu tiên: prototype chạy được từ dữ liệu đến Top-K base
 - Chưa có zero-cost proxy, cost model FLOPs/VRAM, Tensor-LoRA, deep unfolding; chưa có plugin image và timeseries.
 - Kết quả trên Indian Pines và Pavia University là một lần chạy ngắn trên CPU: với chia theo khối, mạng sâu chưa vượt rõ baseline cổ điển.
 
-[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.3.0
 [1.2.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.2.0
 [1.1.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.1.0
 [1.0.2]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.0.2
