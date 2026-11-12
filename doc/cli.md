@@ -62,6 +62,19 @@ write baselines.ipynb (Jupyter / Colab: train, compare, reuse) and block diagram
 | `--git-url` |  | `` | repository to clone on Colab (optional) |
 | `--git-subdir` |  | `` | the output folder inside that repository |
 
+## `dlnet paper`
+
+a published network from a card (YAML): check it, build its package, verify it against the authors' code
+
+| Tùy chọn | Bắt buộc | Mặc định | Ý nghĩa |
+|---|---|---|---|
+| `action` | có |  |  (một trong: check, build, verify) |
+| `cards` | có |  | card files (.yaml / .json) |
+| `--out` |  |  | [build] folder for the package(s) |
+| `--into` |  |  | [build] a DLNet output folder: same data, train.py, joins its notebook |
+| `--classes` |  |  | [check/build] number of outputs if the card has no `classes` |
+| `--official-root` |  |  | [verify] checkout of the authors' repository at the card's commit |
+
 ## `dlnet standalone`
 
 rewrite model.py of exported packages as plain PyTorch source (no zoo/ folder)

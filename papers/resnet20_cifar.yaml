@@ -1,0 +1,61 @@
+# ResNet-20 for CIFAR-10, written from the paper only (He et al. 2016, Section 4.2 and Table 6).
+# Fidelity level C: no comparison with the authors' code. One deliberate difference, stated here:
+# the paper's "option A" shortcut (identity with zero padding, no parameters) is replaced by a
+# 1x1 convolution with stride 2 where the size changes (its "option B"): +2,656 parameters (269,722 with option A).
+paper:
+  name: ResNet-20
+  title: Deep Residual Learning for Image Recognition
+  venue: CVPR 2016
+  url: https://arxiv.org/abs/1512.03385
+  reported:
+    - {params: 270000}                     # Table 6: 0.27M
+    - {dataset: CIFAR-10, metric: accuracy, value: 0.9125, protocol: "45k/5k split, 64k iterations, test error 8.75%"}
+
+input: {kind: map, dims: [3, 32, 32]}
+head: cls
+classes: 10
+
+blocks:
+  basic16: &basic                          # two 3x3 convolutions, identity shortcut, ReLU after the sum
+    - {id: conv1, module: conv_bn_act, args: {out: 16, k: 3}}
+    - {id: conv2, module: conv_bn_act, args: {out: 16, k: 3, act: identity}}
+    - {id: sum, from: [conv2, input], module: add}
+    - {id: relu, module: act, args: {act: relu}}
+  down32:                                  # first block of stage 2: stride 2, projection shortcut
+    - {id: conv1, module: conv_bn_act, args: {out: 32, k: 3, s: 2}}
+    - {id: conv2, module: conv_bn_act, args: {out: 32, k: 3, act: identity}}
+    - {id: short, from: input, module: conv_bn_act, args: {out: 32, k: 1, s: 2, act: identity, norm: none}}
+    - {id: sum, from: [conv2, short], module: add}
+    - {id: relu, module: act, args: {act: relu}}
+  basic32:
+    - {id: conv1, module: conv_bn_act, args: {out: 32, k: 3}}
+    - {id: conv2, module: conv_bn_act, args: {out: 32, k: 3, act: identity}}
+    - {id: sum, from: [conv2, input], module: add}
+    - {id: relu, module: act, args: {act: relu}}
+  down64:
+    - {id: conv1, module: conv_bn_act, args: {out: 64, k: 3, s: 2}}
+    - {id: conv2, module: conv_bn_act, args: {out: 64, k: 3, act: identity}}
+    - {id: short, from: input, module: conv_bn_act, args: {out: 64, k: 1, s: 2, act: identity, norm: none}}
+    - {id: sum, from: [conv2, short], module: add}
+    - {id: relu, module: act, args: {act: relu}}
+  basic64:
+    - {id: conv1, module: conv_bn_act, args: {out: 64, k: 3}}
+    - {id: conv2, module: conv_bn_act, args: {out: 64, k: 3, act: identity}}
+    - {id: sum, from: [conv2, input], module: add}
+    - {id: relu, module: act, args: {act: relu}}
+
+architecture:                              # 6n + 2 layers with n = 3
+  - {id: stem,    module: conv_bn_act, args: {out: 16, k: 3}}
+  - {id: stage1,  module: basic16, repeats: 3}
+  - {id: down2,   module: down32}
+  - {id: stage2,  module: basic32, repeats: 2}
+  - {id: down3,   module: down64}
+  - {id: stage3,  module: basic64, repeats: 2}
+  - {id: pool,    module: gap}
+
+training:                                  # Section 4.2
+  optimizer: sgd
+  lr: 0.1
+  weight_decay: 1.0e-4
+  batch: 128
+  epochs: 164

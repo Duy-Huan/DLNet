@@ -37,7 +37,7 @@ from torch import nn
 KINDS = ("vec", "seq", "map", "ser", "vol", "graph", "ids")
 ND = {"ser": 1, "map": 2, "vol": 3}  # spatial dimensionality of the convolutional kinds
 OPS: dict[str, OpDef] = {}
-COMBINATORS = ("seq", "res", "par", "rep", "moe", "encdec")
+COMBINATORS = ("seq", "res", "par", "rep", "moe", "encdec", "graph")
 
 
 @dataclass
@@ -244,6 +244,91 @@ class MoE(nn.Module):
     _seq = False
 
 
+class Graph(nn.Module):
+    """A directed acyclic graph of blocks, as drawn in a paper: every node reads the output of one
+    earlier node, or merges several (`concat` on the channel axis, `add`). Written by
+    `{"op": "graph", "nodes": [{"id", "from", "op", ...}, ...], "out": id}` (dlnet/paper.py).
+
+    `wiring[i] = (how, sources)`: how is "op" (apply mods[i] to the one source), "concat",
+    "add" or "mul"; a source is the index of an earlier node, -1 for the input of the graph."""
+
+    def __init__(self, mods, wiring, axis=1, out=-1):
+        super().__init__()
+        self.mods = nn.ModuleList([nn.Identity() if m is None else m for m in mods])
+        self.wiring, self.axis, self.out = [(h, tuple(s)) for h, s in wiring], axis, out
+
+    def forward(self, x):
+        ys = []
+        for m, (how, src) in zip(self.mods, self.wiring, strict=True):
+            xs = [x if i < 0 else ys[i] for i in src]
+            if how == "concat":
+                ys.append(torch.cat(xs, self.axis))
+            elif how == "add":
+                ys.append(sum(xs[1:], xs[0]))
+            elif how == "mul":
+                y = xs[0]
+                for t in xs[1:]:
+                    y = y * t
+                ys.append(y)
+            else:
+                ys.append(m(xs[0]))
+        return ys[self.out]
+
+
+def _graph(node, kind, dims):
+    known = {"input": (-1, kind, tuple(dims))}
+    mods, wiring, axis = [], [], 1
+    prev = "input"
+    for i, n in enumerate(node["nodes"]):
+        nid = str(n.get("id", f"n{i}"))
+        if nid in known:
+            raise ValueError(f"graph: node id {nid!r} is used twice")
+        src = n.get("from", prev)
+        src = [src] if isinstance(src, str | int) else list(src)
+        missing = [str(s) for s in src if str(s) not in known]
+        if missing:
+            raise ValueError(f"graph node {nid!r}: 'from' names {missing}, not defined before it")
+        ins = [known[str(s)] for s in src]
+        body = {k: v for k, v in n.items() if k not in ("id", "from")}
+        how = body.get("op")
+        if how in ("concat", "add", "mul"):
+            if len(ins) < 2 or len({k for _, k, _ in ins}) != 1:
+                raise ValueError(f"graph node {nid!r}: {how} needs >= 2 inputs of the same kind")
+            k2, ds = ins[0][1], [d for _, _, d in ins]
+            ax = 2 if k2 == "seq" else 1
+            if how in ("add", "mul"):
+                if len(set(ds)) != 1:
+                    raise ValueError(f"graph node {nid!r}: {how} needs identical shapes, got {ds}")
+                d2 = ds[0]
+            else:
+                if len({d[: ax - 1] + d[ax:] for d in ds}) != 1:
+                    raise ValueError(f"graph node {nid!r}: cannot concatenate shapes {ds}")
+                d2 = list(ds[0])
+                d2[ax - 1] = sum(d[ax - 1] for d in ds)
+                d2, axis = tuple(d2), ax
+            mods.append(None)
+        else:
+            if len(ins) != 1:
+                raise ValueError(
+                    f"graph node {nid!r}: {how} takes one input; merge with concat / add first"
+                )
+            try:
+                m, k2, d2 = _build(body, ins[0][1], ins[0][2])
+            except ValueError as e:
+                raise ValueError(f"graph node {nid!r}: {e}") from e
+            mods.append(m)
+            how = "op"
+        wiring.append((how, [i_ for i_, _, _ in ins]))
+        known[nid] = (i, k2, tuple(d2))
+        prev = nid
+    if not mods:
+        raise ValueError("graph needs at least one node")
+    out = str(node.get("out", prev))
+    if out not in known or out == "input":
+        raise ValueError(f"graph: output node {out!r} is not defined")
+    return Graph(mods, wiring, axis, known[out][0]), known[out][1], known[out][2]
+
+
 def _build(node, kind, dims):
     """-> (module, out_kind, out_dims). Raises ValueError for any invalid composition."""
     if isinstance(node, list):
@@ -318,6 +403,8 @@ def _build(node, kind, dims):
         m = MoE([p[0] for p in parts], gate_in, mode, int(node.get("k", 2)))
         m._seq = kind == "seq"
         return m, parts[0][1], parts[0][2]
+    if name == "graph":
+        return _graph(node, kind, dims)
     if name == "encdec":
         from .dense import EncDec
 
@@ -454,6 +541,11 @@ def leaf_ops(spec) -> list[str]:
         return (leaf_ops(e["body"]) if isinstance(e, dict) else leaf_ops(e)) + ["moe"]
     if name == "encdec":
         return leaf_ops(spec["stages"]) + [spec.get("dec", "unet")]
+    if name == "graph":
+        nodes = [{k: v for k, v in n.items() if k not in ("id", "from")} for n in spec["nodes"]]
+        return [
+            x for n in nodes if n.get("op") not in ("concat", "add", "mul") for x in leaf_ops(n)
+        ]
     return [name]
 
 

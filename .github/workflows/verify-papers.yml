@@ -1,0 +1,42 @@
+name: Verify paper cards against the authors' code
+
+# Fidelity level B of the cards in papers/: the card's network, with the weights of the authors'
+# model copied in, must give the authors' outputs (scripts/verify_papers.py, dlnet/paper.py).
+# The authors' repositories are cloned at the commits pinned in the cards, only on this runner.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [dev]
+    paths:
+      - papers/**
+      - dlnet/paper.py
+      - dlnet/zoo/core.py
+      - dlnet/zoo/ops_paper.py
+      - scripts/verify_papers.py
+      - .github/workflows/verify-papers.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify-papers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install DLNet (CPU torch) and what the authors' model files import
+        run: |
+          pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+          pip install -e . numpy scipy pyyaml pillow "timm==1.0.31" "einops==0.8.1"
+      - name: Compare every card with the authors' model
+        run: python scripts/verify_papers.py --cards papers --work /tmp/papers
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fidelity
+          path: papers/*.fidelity.json
+          if-no-files-found: ignore

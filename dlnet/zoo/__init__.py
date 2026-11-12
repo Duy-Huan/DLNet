@@ -30,6 +30,7 @@ from . import (  # noqa: F401  (registers the ops)
     ops_img,
     ops_modern,
     ops_next,
+    ops_paper,
     ops_seq,
     ops_seq2,
     ops_vec,

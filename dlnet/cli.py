@@ -558,6 +558,41 @@ def advisor_presets():
     return PRESETS
 
 
+def _paper(args) -> int:
+    from . import paper
+
+    bad = 0
+    for path in args.cards:
+        try:
+            card = paper.load(path)
+            if args.action == "check":
+                r = paper.check(card, args.classes)
+                print(f"[paper] {r['name']}: level {r['level']}, parameters {r.get('params')}"
+                      + (f" (paper {r['reported_params']:,}, {r['params_diff']:+.1%})" if r.get("reported_params") else ""))  # fmt: skip
+                for n in r["nodes"]:
+                    print(f"    {n['id']:<16} -> {n['kind']} {n['shape']}")
+                for issue in r["issues"]:
+                    print(f"  problem: {issue}")
+                bad += not r["ok"]
+            elif args.action == "build":
+                if not (args.out or args.into):
+                    raise SystemExit("paper build needs --out DIR or --into <DLNet output folder>")
+                paper.build(card, args.out, args.into, args.classes)
+            else:
+                if not args.official_root:
+                    raise SystemExit(
+                        "paper verify needs --official-root (a checkout of the authors' repository)"
+                    )
+                r = paper.verify(card, args.official_root)
+                print(f"[paper] {r['paper']}: level {r['level']}, parameters {r['params_card']:,} vs "
+                      f"{r['params_official']:,}, max |diff| {r.get('max_abs_diff')}  {r.get('note', '')}")  # fmt: skip
+                bad += r["level"] != "B"
+        except paper.CardError as e:
+            print(f"[paper] {path}: {e}")
+            bad += 1
+    return 1 if bad else 0
+
+
 def main(argv=None) -> int:
     from . import gan_run, plugins, unfold_run
 
@@ -578,6 +613,22 @@ def main(argv=None) -> int:
         nb.add_argument(opt)
     nb.add_argument("--git-url", default="", help="repository to clone on Colab (optional)")
     nb.add_argument("--git-subdir", default="", help="the output folder inside that repository")
+    pp = sub.add_parser(
+        "paper",
+        help="a published network from a card (YAML): check it, build its package, verify it against the authors' code",
+    )
+    pp.add_argument("action", choices=["check", "build", "verify"])
+    pp.add_argument("cards", nargs="+", help="card files (.yaml / .json)")
+    pp.add_argument("--out", help="[build] folder for the package(s)")
+    pp.add_argument(
+        "--into", help="[build] a DLNet output folder: same data, train.py, joins its notebook"
+    )
+    pp.add_argument(
+        "--classes", type=int, help="[check/build] number of outputs if the card has no `classes`"
+    )
+    pp.add_argument(
+        "--official-root", help="[verify] checkout of the authors' repository at the card's commit"
+    )
     sa = sub.add_parser(
         "standalone",
         help="rewrite model.py of exported packages as plain PyTorch source (no zoo/ folder)",
@@ -739,6 +790,8 @@ def main(argv=None) -> int:
     for p in plugins._registry().values():
         p.add_arguments(d)
     args = ap.parse_args(argv)
+    if args.cmd == "paper":
+        return _paper(args)
     if args.cmd == "notebook":
         from . import notebook
 

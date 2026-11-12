@@ -6,6 +6,10 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+- **Thẻ mạng từ paper** (`dlnet/paper.py`, thư mục `papers/`): một mạng đã công bố viết thành YAML dễ đọc (`paper`: nguồn và số paper báo; `official`: repo, commit, lớp của tác giả; `architecture`: mỗi khối một dòng `{id, from, module, repeats, args}`; `blocks`: khối riêng của paper, có tham số `$dim`; `training`). Lệnh `dlnet paper check | build | verify`. `build` xuất gói như mọi baseline (`model.py` PyTorch thuần, `architecture.svg`); `--into <thư mục đầu ra>` cho gói dùng chung dữ liệu, `train.py` và notebook của lượt chạy đó.
+- **Mức trung thành được đo**: A = dùng chính lớp của tác giả; B = chép trọng số mô hình gốc sang mạng của thẻ rồi so đầu ra (`paper verify`, job CI `verify-papers`, kết quả ghi `<thẻ>.fidelity.json`); C = viết từ paper, chỉ kiểm kích thước và số tham số so với paper.
+- Kho: tổ hợp `graph` (đồ thị có hướng: `from`, `concat`, `add`, `mul`) và hai lớp nguyên thủy cho thẻ `conv`, `linear` (135 module); sơ đồ khối vẽ được đồ thị có đường tắt.
+
 ## [1.1.0] - 2026-11-12
 
 - **Notebook huấn luyện `baselines.ipynb`** trong mỗi thư mục đầu ra (`dlnet/notebook.py`), chạy trên Jupyter hoặc Google Colab: setup (clone repo hoặc tải zip trên Colab, cài phần thiếu, chọn GPU), dữ liệu (cùng cách chia và tiền xử lý), mỗi baseline một mục (sơ đồ khối, đồ thị từng lớp bằng torchview, huấn luyện đầy đủ, đường cong, chỉ số test, lưu `model.pt`), so sánh, rồi nạp lại từng baseline và vẽ kết quả. Lệnh `dlnet notebook <out> --data ...` cho thư mục cũ (cập nhật cả mô-đun phụ trợ `core.py`, `inference.py`, ... của gói).
