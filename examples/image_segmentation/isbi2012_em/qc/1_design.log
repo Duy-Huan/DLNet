@@ -1,0 +1,10 @@
+$ /usr/local/bin/python -m dlnet design --data /home/user/DLNet/examples/image_segmentation/isbi2012_em/input/data.npz --plugin image_segmentation --out /home/user/DLNet/examples/image_segmentation/isbi2012_em/output --budget 10m --topk 3 --seed 0 --threads 3 --no-cache
+[device] cpu, precision float32 (--device, --amp)
+[threads] 3 (of 4 CPUs; --threads to change)
+[plugin] image_segmentation  data=/home/user/DLNet/examples/image_segmentation/isbi2012_em/input/data.npz
+[load] task=classification features=1 classes=2 seed=0
+[profile] {'n_train': 18, 'n_features': 65536, 'n_classes': 2, 'primary_metric': 'miou', 'intrinsic_dim': 20.06, 'scaling_exponent_hat': 0.199, 'pca_dims_for_95pct_energy': 16, 'intrinsic_dim_estimators': {'twonn': {'mean': 19.696, 'std': 4.528}, 'mle': {'mean': 8.687, 'std': 0.46}, 'value': 14.191, 'rel_disagreement': 0.776, 'stable': False}, 'capacity_hint': {'min_width': 32, 'scaling_exponent': 0.282, 'used_for_pruning': False}, 'max_params': 50000, 'kind': 'segmentation', 'shape': [1, 256, 256], 'n_pixels_train': 1179648}
+[datacard] {'n_train': 18, 'channels': 1, 'height': 256, 'width': 256, 'spectral_slope': 2.234, 'high_freq_energy': 0.0968, 'corr_length': 4.0, 'corr_length_rel': 0.016, 'edge_density': 0.0774}
+[reference] classical baselines on the same split(s)
+[reference] pixel_random_forest_5x5    val=0.6555
+[reference] pixel_logistic_regression_5x5 val=0.6203
