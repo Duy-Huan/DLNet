@@ -1,0 +1,180 @@
+{
+  "plugin": "image_segmentation",
+  "task": "classification",
+  "split_seed": 0,
+  "in_dim": 3,
+  "out_dim": 11,
+  "primary_metric": "miou",
+  "arch": {
+    "family": "fcn",
+    "width": 8,
+    "depth": 2,
+    "dropout": 0.1,
+    "encoder": "mobilenetv2",
+    "attention": "none",
+    "lr": 0.003,
+    "wd": 0.01,
+    "batch": 64,
+    "spec": {
+      "op": "encdec",
+      "stages": [
+        {
+          "op": "seq",
+          "body": [
+            {
+              "op": "conv_bn_act",
+              "out": 8,
+              "k": 3,
+              "s": 1,
+              "act": "relu",
+              "norm": "batch"
+            },
+            {
+              "op": "mbconv",
+              "out": 8,
+              "expand": 4,
+              "k": 3,
+              "s": 1,
+              "se": 0,
+              "act": "relu6"
+            },
+            {
+              "op": "mbconv",
+              "out": 8,
+              "expand": 4,
+              "k": 3,
+              "s": 1,
+              "se": 0,
+              "act": "relu6"
+            }
+          ]
+        },
+        {
+          "op": "seq",
+          "body": [
+            {
+              "op": "mbconv",
+              "out": 16,
+              "expand": 4,
+              "k": 3,
+              "s": 2,
+              "se": 0,
+              "act": "relu6"
+            },
+            {
+              "op": "mbconv",
+              "out": 16,
+              "expand": 4,
+              "k": 3,
+              "s": 1,
+              "se": 0,
+              "act": "relu6"
+            }
+          ]
+        },
+        {
+          "op": "seq",
+          "body": [
+            {
+              "op": "mbconv",
+              "out": 32,
+              "expand": 4,
+              "k": 3,
+              "s": 2,
+              "se": 0,
+              "act": "relu6"
+            },
+            {
+              "op": "mbconv",
+              "out": 32,
+              "expand": 4,
+              "k": 3,
+              "s": 1,
+              "se": 0,
+              "act": "relu6"
+            }
+          ]
+        }
+      ],
+      "dec": "fcn",
+      "width": 8
+    },
+    "input": {
+      "kind": "map",
+      "dims": [
+        3,
+        90,
+        120
+      ]
+    },
+    "head": "dense",
+    "out_dim": 11,
+    "flops": 89617920,
+    "act_mb": 35.38176,
+    "vram_mb": 4529.196592,
+    "seed_prior": 0.0,
+    "seed_rank": 1,
+    "seed_score": 71.5,
+    "seed_traits": [
+      "fine_detail",
+      "light",
+      "local_conv"
+    ]
+  },
+  "hyperparameters": {
+    "optimizer": "AdamW",
+    "lr": 0.003,
+    "weight_decay": 0.01,
+    "batch_size": 64,
+    "epochs": 100,
+    "lr_schedule": "cosine",
+    "grad_clip_norm": 5.0,
+    "dropout": 0.1,
+    "width": 8,
+    "depth": 2,
+    "encoder": "mobilenetv2",
+    "attention": "none",
+    "source": {
+      "adopted": "searched",
+      "searched": {
+        "lr": 0.003,
+        "batch": 64,
+        "wd": 0.01
+      },
+      "estimated": null,
+      "val_searched": 0.09822988480498192,
+      "val_estimated": null,
+      "methods": [
+        "LR range test (Smith 1506.01186)",
+        "gradient noise scale B_simple (McCandlish 1812.06162)",
+        "normalized weight decay (Loshchilov & Hutter 1711.05101)"
+      ]
+    }
+  },
+  "data": {
+    "kind": "segmentation",
+    "shape": [
+      3,
+      90,
+      120
+    ],
+    "x_key": "X",
+    "y_key": "y"
+  },
+  "recipe": {
+    "epochs": 100,
+    "schedule": "linear warm-up (5 %) then cosine",
+    "select": "best-val checkpoint",
+    "name": "modern",
+    "augment": true,
+    "label_smoothing": 0.1
+  },
+  "search_result": {
+    "val_mean": 0.09822988480498192,
+    "val_std": 0.005720377763021682,
+    "epochs_used": 4,
+    "seeds": 3,
+    "splits": 1,
+    "test_std": 0.006523409115442123
+  }
+}
