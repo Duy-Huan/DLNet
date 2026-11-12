@@ -1,0 +1,13 @@
+{
+ "case": "image_segmentation/isbi2012_em",
+ "steps": {
+  "1_design": {
+   "ok": false,
+   "seconds": 368.3,
+   "packages": []
+  }
+ },
+ "verdict": {},
+ "reference": [],
+ "top": []
+}

@@ -1,0 +1,85 @@
+$ /usr/local/bin/python -m dlnet design --data /home/user/DLNet/examples/image_segmentation/isbi2012_em/input/data.npz --plugin image_segmentation --out /home/user/DLNet/examples/image_segmentation/isbi2012_em/output --budget 10m --topk 3 --seed 0 --threads 2 --no-cache
+[device] cpu, precision float32 (--device, --amp)
+[threads] 2 (of 4 CPUs; --threads to change)
+[plugin] image_segmentation  data=/home/user/DLNet/examples/image_segmentation/isbi2012_em/input/data.npz
+[load] task=classification features=1 classes=2 seed=0
+[profile] {'n_train': 18, 'n_features': 65536, 'n_classes': 2, 'primary_metric': 'miou', 'intrinsic_dim': 20.06, 'scaling_exponent_hat': 0.199, 'pca_dims_for_95pct_energy': 16, 'intrinsic_dim_estimators': {'twonn': {'mean': 19.696, 'std': 4.528}, 'mle': {'mean': 8.687, 'std': 0.46}, 'value': 14.191, 'rel_disagreement': 0.776, 'stable': False}, 'capacity_hint': {'min_width': 32, 'scaling_exponent': 0.282, 'used_for_pruning': False}, 'max_params': 50000, 'kind': 'segmentation', 'shape': [1, 256, 256], 'n_pixels_train': 1179648}
+[datacard] {'n_train': 18, 'channels': 1, 'height': 256, 'width': 256, 'spectral_slope': 2.234, 'high_freq_energy': 0.0968, 'corr_length': 4.0, 'corr_length_rel': 0.016, 'edge_density': 0.0774}
+[reference] classical baselines on the same split(s)
+[reference] pixel_random_forest_5x5    val=0.6555
+[reference] pixel_logistic_regression_5x5 val=0.6203
+[zoo] 12 architectures from the module zoo (preset, random)
+[cost] 100 candidates; FLOPs/sample min 119,537,664 median 564,658,688 max 1,940,948,367,376
+[generate] 100 valid candidates from families ['deconvnet', 'deeplabv3', 'deeplabv3plus', 'fcn', 'fpn', 'linknet', 'pspnet', 'segformer', 'unet', 'unetpp', 'upernet', 'zoo_basic_block_deeplabv3_fused_mbconv', 'zoo_basic_block_mbconv_res2net_block', 'zoo_bottleneck_mobile_mqa_regnet_block', 'zoo_cbam_fcn_mbconv', 'zoo_convmixer_block_deeplabv3_dw_sep', 'zoo_dw_sep_basic_block_msca_block', 'zoo_dw_sep_fpn_mbconv', 'zoo_fused_mbconv_ghost_bottleneck_linknet', 'zoo_mambahsi_plus_block_mbconv_repvgg_block', 'zoo_mbconv_segformer', 'zoo_repvgg_block_mobile_mqa_preact_block', 'zoo_split_attn_basic_block_eca']
+[surrogate] not enough past datasets
+[seeds] -1 global_attention: 18 training images (1000000000 per class at least): global attention needs much data
+[seeds] +1 fine_detail: correlation length 0.02 of the side: small structures
+[seeds] +0.25 multi_scale: small structures
+[seeds] 100/100 candidates, rankers ['prior']; first: ['deeplabv3plus', 'fpn', 'deeplabv3plus', 'fpn', 'deeplabv3plus']
+Traceback (most recent call last):
+  File "/home/user/DLNet/dlnet/zoo/core.py", line 94, in _trace
+    y = m(probe(kind, dims, 2, dev))
+  File "/usr/local/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1787, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1798, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/user/DLNet/dlnet/zoo/ops_next.py", line 591, in forward
+    return x + self.layer_scale(self.attn(self.norm(x)))
+                                ~~~~~~~~~^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1787, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1798, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/user/DLNet/dlnet/zoo/ops_next.py", line 576, in forward
+    a = (q @ k.transpose(-1, -2) * self.scale).softmax(dim=-1)
+         ~~^~~~~~~~~~~~~~~~~~~~~
+RuntimeError: [enforce fail at alloc_cpu.cpp:127] err == 0. DefaultCPUAllocator: can't allocate memory: you tried to allocate 60523872256 bytes. Error code 12 (Cannot allocate memory)
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "<frozen runpy>", line 203, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/home/user/DLNet/dlnet/__main__.py", line 3, in <module>
+    raise SystemExit(main())
+                     ~~~~^^
+  File "/home/user/DLNet/dlnet/cli.py", line 743, in main
+    return selfcheck() if args.cmd == "selfcheck" else design(args)
+                                                       ~~~~~~^^^^^^
+  File "/home/user/DLNet/dlnet/cli.py", line 136, in design
+    return _design(args, n)
+  File "/home/user/DLNet/dlnet/cli.py", line 348, in _design
+    results = runner(
+        data, cands, gen0_deadline, args.topk, plugin.build_model, folds=folds,
+        cache=cache, trace=trace, rank=rank,
+    )  # fmt: skip
+  File "/home/user/DLNet/dlnet/search.py", line 247, in run_search
+    alive = [{"cfg": c, "tr": _new_trainer(c, data, 0, build_fn)} for c in cands]
+                              ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/user/DLNet/dlnet/search.py", line 19, in _new_trainer
+    m = build_fn(cfg, data["in_dim"], data["out_dim"])
+  File "/home/user/DLNet/dlnet/plugins/arrays.py", line 300, in build_model
+    return cands
+           ^^^^^
+  File "/home/user/DLNet/dlnet/zoo/core.py", line 428, in build_model
+    body, kind, dims = _build(cfg["spec"], inp["kind"], tuple(inp["dims"]))
+                       ~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/user/DLNet/dlnet/zoo/core.py", line 328, in _build
+    m, k, d = _build(s, k, d)
+              ~~~~~~^^^^^^^^^
+  File "/home/user/DLNet/dlnet/zoo/core.py", line 255, in _build
+    m, kind, dims = _build(n, kind, dims)
+                    ~~~~~~^^^^^^^^^^^^^^^
+  File "/home/user/DLNet/dlnet/zoo/core.py", line 255, in _build
+    m, kind, dims = _build(n, kind, dims)
+                    ~~~~~~^^^^^^^^^^^^^^^
+  File "/home/user/DLNet/dlnet/zoo/core.py", line 338, in _build
+    return _leaf(node, kind, dims)
+  File "/home/user/DLNet/dlnet/zoo/core.py", line 123, in _leaf
+    return m, out_kind, _trace(m, dims, kind)
+                        ~~~~~~^^^^^^^^^^^^^^^
+  File "/home/user/DLNet/dlnet/zoo/core.py", line 96, in _trace
+    raise ValueError(f"cannot apply to shape {tuple(dims)}: {e}") from e
+ValueError: cannot apply to shape (8, 248, 248): [enforce fail at alloc_cpu.cpp:127] err == 0. DefaultCPUAllocator: can't allocate memory: you tried to allocate 60523872256 bytes. Error code 12 (Cannot allocate memory)
