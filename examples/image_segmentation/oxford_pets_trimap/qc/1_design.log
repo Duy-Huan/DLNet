@@ -1,0 +1,8 @@
+$ /usr/local/bin/python -m dlnet design --data /home/user/DLNet/examples/image_segmentation/oxford_pets_trimap/input/data.npz --plugin image_segmentation --out /home/user/DLNet/examples/image_segmentation/oxford_pets_trimap/output --budget 10m --topk 3 --seed 0 --threads 3 --no-cache
+[device] cpu, precision float32 (--device, --amp)
+[threads] 3 (of 4 CPUs; --threads to change)
+[plugin] image_segmentation  data=/home/user/DLNet/examples/image_segmentation/oxford_pets_trimap/input/data.npz
+[load] task=classification features=3 classes=3 seed=0
+[profile] {'n_train': 888, 'n_features': 27648, 'n_classes': 3, 'primary_metric': 'miou', 'intrinsic_dim': 25.42, 'scaling_exponent_hat': 0.157, 'pca_dims_for_95pct_energy': 275, 'intrinsic_dim_estimators': {'twonn': {'mean': 25.258, 'std': 0.941}, 'mle': {'mean': 18.4, 'std': 0.141}, 'value': 21.829, 'rel_disagreement': 0.314, 'stable': False}, 'capacity_hint': {'min_width': 64, 'scaling_exponent': 0.183, 'used_for_pruning': False}, 'max_params': 266400, 'kind': 'segmentation', 'shape': [3, 96, 96], 'n_pixels_train': 8183808}
+[datacard] {'n_train': 888, 'channels': 3, 'height': 96, 'width': 96, 'spectral_slope': 2.897, 'high_freq_energy': 0.0239, 'corr_length': 13.0, 'corr_length_rel': 0.135, 'edge_density': 0.1374, 'channel_correlation': 0.905}
+[reference] classical baselines on the same split(s)

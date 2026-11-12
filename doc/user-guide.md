@@ -34,7 +34,7 @@ DLNet tự nhận loại dữ liệu, in từng bước (`[plugin]`, `[profile]`
 | Bài toán | File | Nội dung |
 |---|---|---|
 | Bảng | `.csv` | một cột mục tiêu (`--target`); cột chữ được mã hóa tự động |
-| Ảnh phân loại / hồi quy | `.npz` | `X` (N, H, W) hoặc (N, H, W, C); `y` (N,) |
+| Ảnh phân loại / hồi quy | `.npz` | `X` (N, H, W) hoặc (N, H, W, C); `y` (N,). Nhãn chữ, hoặc số nguyên là mã lớp liên tiếp (0..K−1 hay 1..K) → phân loại, số thực → hồi quy; DLNet in cảnh báo khi không chắc, ép bằng `--task classification` / `--task regression` |
 | Phân đoạn ảnh | `.npz` | `X` như trên; `y` (N, H, W) số nguyên, `-100` hoặc giá trị âm = bỏ qua |
 | Autoencoder / VAE | `.npz` | chỉ `X` (không có `y`) |
 | Chuỗi thời gian | `.npz` | `X` (N, T) hoặc (N, T, C); `y` (N,) |
@@ -168,7 +168,7 @@ python -m dlnet design --data new.npz --meta-store meta_image.jsonl
 
 **Ngân sách được chia thế nào (từ v0.21).** Mỗi rung của successive halving (4, 12, 30 epoch) được một phần bằng nhau, nên với ngân sách vừa phải ít ứng viên được thử hơn nhưng finalist được huấn luyện sâu hơn. Tiến hóa tự bỏ qua khi không đủ ngân sách (`[evolve] skipped`). Phần còn lại dùng để chạy lại các finalist tốt nhất (đo được nhiễu thật), sau đó mới ước lượng hyperparameter (`--hparams auto`: chỉ cho finalist có ≥ 2 lần chạy; `on`: luôn; `off`: tắt).
 
-DLNet chỉ bắt đầu một lần huấn luyện khi dự báo nó kết thúc trước hạn, nên ngân sách giây được giữ sát; ngân sách epoch không bao giờ bị vượt. Dự báo dùng thời gian mỗi epoch đã đo; với ứng viên chưa train, từ v1.0 DLNet đo thật một bước forward+backward rồi nhân với số bước mỗi epoch. Trước đây dự báo theo FLOPs, mà FLOPs không tính vòng lặp Python của MambaVision, KAT, xLSTM (chậm 10–100 lần so với FLOPs), nên `--budget 90s` từng chạy hơn 12 phút. Mục **Budget** cuối `leaderboard.md` cho biết từng giai đoạn tốn bao nhiêu giây và epoch.
+Ứng viên được dựng lần lượt khi tới lượt (từ v1.0.2), nên bộ nhớ chỉ giữ các mô hình đang được huấn luyện; ứng viên không dựng được (ví dụ attention trên ảnh quá lớn, hết bộ nhớ) bị loại và ghi vào mục cảnh báo của leaderboard thay vì làm hỏng lượt chạy. DLNet chỉ bắt đầu một lần huấn luyện khi dự báo nó kết thúc trước hạn, nên ngân sách giây được giữ sát; ngân sách epoch không bao giờ bị vượt. Dự báo dùng thời gian mỗi epoch đã đo; với ứng viên chưa train, từ v1.0 DLNet đo thật một bước forward+backward rồi nhân với số bước mỗi epoch. Trước đây dự báo theo FLOPs, mà FLOPs không tính vòng lặp Python của MambaVision, KAT, xLSTM (chậm 10–100 lần so với FLOPs), nên `--budget 90s` từng chạy hơn 12 phút. Mục **Budget** cuối `leaderboard.md` cho biết từng giai đoạn tốn bao nhiêu giây và epoch.
 
 ## 8. Đọc kết quả
 

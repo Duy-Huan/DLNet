@@ -243,3 +243,39 @@ def test_probe_leaves_the_model_and_the_rng_untouched():
     assert all(torch.equal(before[k], v) for k, v in m.state_dict().items())
     assert torch.equal(rng, torch.get_rng_state())
     assert all(p.grad is None for p in m.parameters())
+
+
+def test_a_candidate_that_cannot_be_built_is_dropped_and_models_are_built_one_at_a_time():
+    """QA v1.0 (examples/isbi2012_em, oxford_pets_trimap): all candidates were built before the
+    search; one model asking for 60 GB ended the run, and 100 built models exhausted the memory."""
+    clock.start("work")
+    built, live = [], []
+
+    def build(cfg, i, o):
+        if cfg.get("huge"):
+            raise RuntimeError(
+                "DefaultCPUAllocator: can't allocate memory: you tried to allocate 60523872256 bytes"
+            )
+        import gc
+        import weakref
+
+        gc.collect()
+        m = torch.nn.Linear(i, o)
+        built.append(sum(r() is not None for r in live))  # models of this search still in memory
+        live.append(weakref.ref(m))
+        return m
+
+    cands = _cands(6)
+    cands[1]["huge"] = True
+    trace = {}
+    # 8 epochs of budget, rung of 4: two candidates train; the others are priced and freed
+    res = search.run_search(
+        _data(), cands, 8, 1, build, rungs=(4,), seeds=1, log=lambda *_: None, trace=trace
+    )
+    assert res and "f1" not in {r["cfg"]["family"] for r in res}
+    assert any("could not" in f["error"] or "allocate" in f["error"] for f in trace["failed"])
+    assert max(built) <= 2  # never all at once: the two trained ones, not the three priced ones
+    for runner in (search.run_search, search.run_hyperband):
+        clock.start("work")
+        out = runner(_data(), [dict(c) for c in cands], 400, 1, build, seeds=1, log=lambda *_: None)
+        assert out and all(not r["cfg"].get("huge") for r in out)

@@ -49,6 +49,7 @@ python -m dlnet design --data series.npz --budget 10m --topk 3
 python -m dlnet unfold --data problem.npz --layers 4,8,16 --epochs 100
 ```
 Moi baseline co kem hyperparameter (lr, weight decay, batch, epochs, schedule) o `hyperparameters` trong `config.yaml`/`leaderboard.json`, uoc luong bang LR range test + gradient noise scale va chi nhan khi tot hon ban da tim kiem.
+Nhan so nguyen la ma lop lien tiep (0..K-1) trong file anh/chuoi duoc hieu la phan loai du K > 20; khi khong chac DLNet in canh bao, ep bang `--task`. Ung vien duoc dung lan luot, ung vien khong dung duoc (het bo nho) bi loai chu khong lam hong luot chay.
 `--cv-splits K`: xep hang finalist tren K lan chia du lieu khac nhau (HSI chia khoi mac dinh 3), de +/- std gom ca nhieu do cach chia.
 `leaderboard.md` co them bang tuong quan cua zero-cost proxy (chi de tham khao, khong loai ung vien). Chay lai dung lenh cu se dung lai cac lan huan luyen da xong (`--no-cache` de tat).
 

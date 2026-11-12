@@ -254,9 +254,12 @@ class ArrayPlugin(DomainPlugin):
     def prepare(self, args):
         x_key, y_key = getattr(args, "x_key", None), getattr(args, "y_key", None)
         X, y = array_data.load(args.data, x_key, y_key)
-        task = getattr(args, "task", "auto")
-        task = core.detect_task(y) if task == "auto" else task
+        asked = getattr(args, "task", "auto")
+        task = core.detect_task(y, labels=True) if asked == "auto" else asked
         d = array_data.build(X, y, self.kind, task, seed=args.seed)
+        note = core.task_note(y, task) if asked == "auto" else None
+        if note:
+            d.setdefault("warnings", []).append(note)
         d["keys"] = {"x_key": x_key or "X", "y_key": y_key or "y"}
         return d
 
@@ -357,7 +360,7 @@ class GraphClassificationPlugin(ArrayPlugin):
         )
         task = getattr(args, "task", "auto")
         d = array_data.build_graph(
-            X, y, core.detect_task(y) if task == "auto" else task, seed=args.seed
+            X, y, core.detect_task(y, labels=True) if task == "auto" else task, seed=args.seed
         )
         d["keys"] = {
             "x_key": getattr(args, "x_key", None) or "X",
@@ -401,7 +404,7 @@ class RecommendationPlugin(ArrayPlugin):
         X, y = array_data.load(args.data, xk, getattr(args, "y_key", None))
         task = getattr(args, "task", "auto")
         d = array_data.build_ids(
-            X, y, core.detect_task(y) if task == "auto" else task, seed=args.seed
+            X, y, core.detect_task(y, labels=True) if task == "auto" else task, seed=args.seed
         )
         d["keys"] = {"x_key": xk, "y_key": getattr(args, "y_key", None) or "y"}
         return d

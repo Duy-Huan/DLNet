@@ -1,0 +1,157 @@
+{
+ "case": "image_classification/oxford_pets_breeds",
+ "steps": {
+  "1_design": {
+   "ok": true,
+   "seconds": 591.3,
+   "packages": [
+    "top1_zoo_gfnet_block_patchify_pos",
+    "top2_resnet"
+   ]
+  },
+  "2_package_tests": {
+   "ok": true
+  },
+  "3_train_top1": {
+   "ok": true,
+   "seconds": 153.7,
+   "epochs": 30,
+   "package": "top1_zoo_gfnet_block_patchify_pos",
+   "weights_kb": 1897
+  },
+  "4_predict_export": {
+   "ok": true,
+   "seconds": 7.7
+  },
+  "5_qc": {
+   "ok": true,
+   "metric": "accuracy",
+   "test_from_predictions": 0.1662,
+   "test_printed_by_train_py": 0.1662162162162162,
+   "splits_disjoint": true,
+   "n_test": 740,
+   "image": [
+    64,
+    64,
+    3
+   ],
+   "classes": 37,
+   "metrics": {
+    "accuracy": 0.1662162162162162,
+    "balanced_accuracy": 0.1662162162162162,
+    "kappa": 0.14305555555555555,
+    "per_class_recall": [
+     0.15,
+     0.1,
+     0.0,
+     0.3,
+     0.05,
+     0.1,
+     0.15,
+     0.3,
+     0.1,
+     0.05,
+     0.1,
+     0.15,
+     0.2,
+     0.1,
+     0.0,
+     0.35,
+     0.05,
+     0.0,
+     0.4,
+     0.25,
+     0.05,
+     0.05,
+     0.55,
+     0.35,
+     0.0,
+     0.15,
+     0.05,
+     0.2,
+     0.2,
+     0.2,
+     0.0,
+     0.15,
+     0.15,
+     0.35,
+     0.3,
+     0.3,
+     0.2
+    ]
+   }
+  }
+ },
+ "verdict": {
+  "beats_reference": false,
+  "val_margin": -0.01667,
+  "val_noise": 0.01139,
+  "test_margin": 0.00225,
+  "test_noise": 0.01107,
+  "top1_val": 0.10766,
+  "best_reference": "random_forest",
+  "best_reference_val": 0.12432
+ },
+ "reference": [
+  {
+   "name": "random_forest",
+   "val": 0.12432,
+   "test": {
+    "accuracy": 0.09189,
+    "balanced_accuracy": 0.09189,
+    "kappa": 0.06667,
+    "score": 0.09189
+   }
+  },
+  {
+   "name": "hist_gradient_boosting",
+   "val": 0.11081,
+   "test": {
+    "accuracy": 0.09865,
+    "balanced_accuracy": 0.09865,
+    "kappa": 0.07361,
+    "score": 0.09865
+   }
+  },
+  {
+   "name": "logistic_regression",
+   "val": 0.10135,
+   "test": {
+    "accuracy": 0.08514,
+    "balanced_accuracy": 0.08514,
+    "kappa": 0.05972,
+    "score": 0.08514
+   }
+  }
+ ],
+ "top": [
+  {
+   "rank": 1,
+   "name": "top1_zoo_gfnet_block_patchify_pos",
+   "params": 482549,
+   "val_mean": 0.10766,
+   "val_std": 0.00255,
+   "test": {
+    "accuracy": 0.1009,
+    "balanced_accuracy": 0.1009,
+    "kappa": 0.07593,
+    "score": 0.1009
+   },
+   "group": 0
+  },
+  {
+   "rank": 2,
+   "name": "top2_resnet",
+   "params": 45261,
+   "val_mean": 0.05676,
+   "val_std": 0.01103,
+   "test": {
+    "accuracy": 0.06216,
+    "balanced_accuracy": 0.06216,
+    "kappa": 0.03611,
+    "score": 0.06216
+   },
+   "group": 1
+  }
+ ]
+}

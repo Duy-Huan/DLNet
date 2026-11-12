@@ -1,0 +1,132 @@
+{
+  "plugin": "image_classification",
+  "task": "classification",
+  "split_seed": 0,
+  "in_dim": 3,
+  "out_dim": 37,
+  "primary_metric": "accuracy",
+  "arch": {
+    "family": "zoo_gfnet_block_patchify_pos",
+    "spec": {
+      "op": "seq",
+      "body": [
+        {
+          "op": "patchify",
+          "dim": 64,
+          "patch": 4
+        },
+        {
+          "op": "pos",
+          "mode": "learned"
+        },
+        {
+          "op": "gfnet_block",
+          "mlp_ratio": 4,
+          "dropout": 0.1
+        },
+        {
+          "op": "wukong",
+          "layers": 3,
+          "lcb": 40,
+          "fmb": 40,
+          "rank_k": 8,
+          "dropout": 0.1
+        }
+      ]
+    },
+    "input": {
+      "kind": "map",
+      "dims": [
+        3,
+        64,
+        64
+      ]
+    },
+    "out_dim": 37,
+    "head": "cls",
+    "dropout": 0.0,
+    "origin": "random",
+    "lr": 0.003,
+    "wd": 0.01,
+    "batch": 64,
+    "flops": 24668800,
+    "act_mb": 1.50082,
+    "vram_mb": 199.825744,
+    "seed_prior": -1.169,
+    "seed_rank": 1,
+    "seed_score": 91.0,
+    "seed_traits": [
+      "global_attention",
+      "position_aware"
+    ]
+  },
+  "hyperparameters": {
+    "optimizer": "AdamW",
+    "lr": 0.003,
+    "weight_decay": 0.01,
+    "batch_size": 64,
+    "epochs": 100,
+    "lr_schedule": "cosine",
+    "grad_clip_norm": 5.0,
+    "dropout": 0.0,
+    "source": {
+      "adopted": "searched",
+      "searched": {
+        "lr": 0.003,
+        "batch": 64,
+        "wd": 0.01
+      },
+      "estimated": {
+        "lr": 0.004051304969235363,
+        "batch": 512,
+        "wd": 0.028284271247461905,
+        "lr_range": {
+          "lr_base": 0.010128262423088409,
+          "lr_max": 0.040513049692353635
+        },
+        "lr_range_diverged": false,
+        "gradient_noise_scale": {
+          "b_small": 16,
+          "b_big": 256,
+          "grad_sq": 0.05427879663184285,
+          "trace_sigma": 43.691719031333925,
+          "b_simple": 804.950030997961
+        },
+        "wd_normalized": 0.5889609494694874
+      },
+      "val_searched": 0.10765765765765767,
+      "val_estimated": 0.11396396396396397,
+      "methods": [
+        "LR range test (Smith 1506.01186)",
+        "gradient noise scale B_simple (McCandlish 1812.06162)",
+        "normalized weight decay (Loshchilov & Hutter 1711.05101)"
+      ]
+    }
+  },
+  "data": {
+    "kind": "image",
+    "shape": [
+      3,
+      64,
+      64
+    ],
+    "x_key": "X",
+    "y_key": "y"
+  },
+  "recipe": {
+    "epochs": 100,
+    "schedule": "linear warm-up (5 %) then cosine",
+    "select": "best-val checkpoint",
+    "name": "modern",
+    "augment": true,
+    "label_smoothing": 0.1
+  },
+  "search_result": {
+    "val_mean": 0.10765765765765767,
+    "val_std": 0.0025481325448163876,
+    "epochs_used": 4,
+    "seeds": 3,
+    "splits": 1,
+    "test_std": 0.006650821198303334
+  }
+}

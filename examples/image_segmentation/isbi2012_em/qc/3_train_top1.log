@@ -1,0 +1,5 @@
+$ /usr/local/bin/python train.py --data /home/user/DLNet/examples/image_segmentation/isbi2012_em/input/data.npz --epochs 30 --seed 0
+params=9,950 epochs=30
+val : {'accuracy': 0.7734807332356771, 'balanced_accuracy': 0.5, 'kappa': 0.0, 'miou': 0.38674036661783856, 'score': 0.38674036661783856}
+test: {'accuracy': 0.7905502319335938, 'balanced_accuracy': 0.5, 'kappa': 0.0, 'miou': 0.3952751159667969, 'score': 0.3952751159667969}
+saved /home/user/DLNet/examples/image_segmentation/isbi2012_em/output/top1_deeplabv3plus/model.pt and preprocess.json; predict with: python predict.py --data <new file>
