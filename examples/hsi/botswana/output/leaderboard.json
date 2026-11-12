@@ -1,0 +1,524 @@
+{
+  "task": "classification",
+  "metric": "accuracy",
+  "verdict": {
+    "beats_reference": true,
+    "val_margin": 0.00821,
+    "val_noise": 0.00552,
+    "test_margin": 0.00539,
+    "test_noise": 0.00195,
+    "top1_val": 0.99897,
+    "best_reference": "random_forest_spectral_spatial",
+    "best_reference_val": 0.99077
+  },
+  "top_k": [
+    {
+      "rank": 1,
+      "name": "top1_spec_fft2d",
+      "roles": [
+        "top1",
+        "most-stable"
+      ],
+      "group": 0,
+      "params": 28302,
+      "hyperparameters": {
+        "optimizer": "AdamW",
+        "lr": 0.001,
+        "weight_decay": 0.0001,
+        "batch_size": 32,
+        "epochs": 100,
+        "lr_schedule": "cosine",
+        "grad_clip_norm": 5.0,
+        "dropout": 0.4,
+        "width": 32,
+        "depth": 1,
+        "patch": 9,
+        "source": {
+          "adopted": "searched",
+          "searched": {
+            "lr": 0.001,
+            "batch": 32,
+            "wd": 0.0001
+          },
+          "estimated": {
+            "lr": 0.009712740198471124,
+            "batch": 64,
+            "wd": 0.0001414213562373095,
+            "lr_range": {
+              "lr_base": 0.02428185049617781,
+              "lr_max": 0.09712740198471125
+            },
+            "lr_range_diverged": false,
+            "gradient_noise_scale": {
+              "b_small": 16,
+              "b_big": 256,
+              "grad_sq": 0.02345792540969948,
+              "trace_sigma": 24.94234821399053,
+              "b_simple": 1063.2802252699323
+            },
+            "wd_normalized": 0.0031868871959954905
+          },
+          "val_searched": 0.998974358974359,
+          "val_estimated": 0.9764102564102565,
+          "methods": [
+            "LR range test (Smith 1506.01186)",
+            "gradient noise scale B_simple (McCandlish 1812.06162)",
+            "normalized weight decay (Loshchilov & Hutter 1711.05101)"
+          ]
+        }
+      },
+      "val_mean": 0.99897,
+      "val_std": 0.00145,
+      "val_noise": 0.00552,
+      "noise_source": "validation sampling",
+      "epochs": 30,
+      "origin": null,
+      "flops": 4479872,
+      "vram_mb": 6.453,
+      "n_runs": 3,
+      "n_splits": 1,
+      "test_std": 0.00083,
+      "test": {
+        "accuracy": 0.99461,
+        "balanced_accuracy": 0.99365,
+        "kappa": 0.99416,
+        "score": 0.99461
+      }
+    },
+    {
+      "rank": 2,
+      "name": "top2_zoo_ffn_gated_attn_block_gfnet_block",
+      "roles": [
+        "most-different"
+      ],
+      "group": 0,
+      "params": 119950,
+      "hyperparameters": {
+        "optimizer": "AdamW",
+        "lr": 0.003,
+        "weight_decay": 0.01,
+        "batch_size": 32,
+        "epochs": 100,
+        "lr_schedule": "cosine",
+        "grad_clip_norm": 5.0,
+        "dropout": 0.0,
+        "source": {
+          "adopted": "searched",
+          "searched": {
+            "lr": 0.003,
+            "batch": 32,
+            "wd": 0.01
+          },
+          "estimated": {
+            "lr": 0.001954966143091253,
+            "batch": 16,
+            "wd": 0.007071067811865476,
+            "lr_range": {
+              "lr_base": 0.004887415357728133,
+              "lr_max": 0.01954966143091253
+            },
+            "lr_range_diverged": true,
+            "gradient_noise_scale": {
+              "b_small": 16,
+              "b_big": 256,
+              "grad_sq": 0.2291323984740302,
+              "trace_sigma": 2.2007364094257356,
+              "b_simple": 9.604649643970651
+            },
+            "wd_normalized": 0.3186887195995491
+          },
+          "val_searched": 0.998974358974359,
+          "val_estimated": 1.0,
+          "methods": [
+            "LR range test (Smith 1506.01186)",
+            "gradient noise scale B_simple (McCandlish 1812.06162)",
+            "normalized weight decay (Loshchilov & Hutter 1711.05101)"
+          ]
+        }
+      },
+      "val_mean": 0.99897,
+      "val_std": 0.00145,
+      "val_noise": 0.00552,
+      "noise_source": "validation sampling",
+      "epochs": 30,
+      "origin": "random",
+      "flops": 19908352,
+      "vram_mb": 65.64,
+      "n_runs": 3,
+      "n_splits": 1,
+      "test_std": 0.00018,
+      "test": {
+        "accuracy": 0.9941,
+        "balanced_accuracy": 0.99428,
+        "kappa": 0.99361,
+        "score": 0.9941
+      }
+    },
+    {
+      "rank": 3,
+      "name": "top3_zoo_fca_nin_block",
+      "roles": [],
+      "group": 0,
+      "params": 48622,
+      "hyperparameters": {
+        "optimizer": "AdamW",
+        "lr": 0.003,
+        "weight_decay": 0.0001,
+        "batch_size": 32,
+        "epochs": 100,
+        "lr_schedule": "cosine",
+        "grad_clip_norm": 5.0,
+        "dropout": 0.0,
+        "source": {
+          "adopted": "searched",
+          "searched": {
+            "lr": 0.003,
+            "batch": 32,
+            "wd": 0.0001
+          },
+          "estimated": {
+            "lr": 0.011236548001387455,
+            "batch": 64,
+            "wd": 0.0001414213562373095,
+            "lr_range": {
+              "lr_base": 0.02809137000346864,
+              "lr_max": 0.11236548001387456
+            },
+            "lr_range_diverged": false,
+            "gradient_noise_scale": {
+              "b_small": 16,
+              "b_big": 256,
+              "grad_sq": 0.008349001522098358,
+              "trace_sigma": 10.600080043574174,
+              "b_simple": 1269.622483061909
+            },
+            "wd_normalized": 0.0031868871959954905
+          },
+          "val_searched": 0.9969230769230769,
+          "val_estimated": 0.9887179487179486,
+          "methods": [
+            "LR range test (Smith 1506.01186)",
+            "gradient noise scale B_simple (McCandlish 1812.06162)",
+            "normalized weight decay (Loshchilov & Hutter 1711.05101)"
+          ]
+        }
+      },
+      "val_mean": 0.99692,
+      "val_std": 0.00251,
+      "val_noise": 0.00552,
+      "noise_source": "validation sampling",
+      "epochs": 30,
+      "origin": "swap<-fcanet2d",
+      "flops": 7704832,
+      "vram_mb": 13.448,
+      "n_runs": 3,
+      "n_splits": 1,
+      "test_std": 0.00192,
+      "test": {
+        "accuracy": 0.99371,
+        "balanced_accuracy": 0.9938,
+        "kappa": 0.99319,
+        "score": 0.99371
+      }
+    }
+  ],
+  "reference": [
+    {
+      "name": "random_forest_spectral_spatial",
+      "val": 0.99077,
+      "test": {
+        "accuracy": 0.98922,
+        "balanced_accuracy": 0.98398,
+        "kappa": 0.98832,
+        "score": 0.98922
+      }
+    },
+    {
+      "name": "svm_rbf_spectral_spatial",
+      "val": 0.96615,
+      "test": {
+        "accuracy": 0.95266,
+        "balanced_accuracy": 0.94446,
+        "kappa": 0.94868,
+        "score": 0.95266
+      }
+    },
+    {
+      "name": "random_forest_spectral",
+      "val": 0.90154,
+      "test": {
+        "accuracy": 0.90377,
+        "balanced_accuracy": 0.89933,
+        "kappa": 0.89571,
+        "score": 0.90377
+      }
+    },
+    {
+      "name": "svm_rbf_spectral",
+      "val": 0.85538,
+      "test": {
+        "accuracy": 0.85104,
+        "balanced_accuracy": 0.83888,
+        "kappa": 0.83843,
+        "score": 0.85104
+      }
+    }
+  ],
+  "warnings": [
+    "--split pixel with --patch 9: validation/test pixels sit inside the patches of training pixels, so scores are optimistic (spatial leakage). Use --split block for an honest estimate of performance on new areas.",
+    "Only 37 of 177 candidates could be trained within the budget; raise --budget, or lower --zoo / --per-family, or use --seeds N."
+  ],
+  "search_coverage": {
+    "candidates": 177,
+    "trained": 37,
+    "top_k_requested": 3,
+    "top_k_exported": 3
+  },
+  "objective": {
+    "objective": "accuracy",
+    "cost": "params",
+    "tolerance": 0.01,
+    "target_cost": null,
+    "cost_weight": -0.07,
+    "pareto_front": [
+      {
+        "family": "gfnet2d",
+        "val_mean": 0.99487,
+        "params": 20526,
+        "flops": 2727680
+      },
+      {
+        "family": "spec_fft2d",
+        "val_mean": 0.99897,
+        "params": 28302,
+        "flops": 4479872
+      }
+    ]
+  },
+  "module_zoo": {
+    "initial_candidates": 12,
+    "evolution": [
+      {
+        "generation": 1,
+        "children": 8,
+        "best_rung1_val": 0.9969230769230769
+      }
+    ],
+    "top_origins": [
+      "legacy family",
+      "random",
+      "swap<-fcanet2d"
+    ],
+    "ops_registered": 133
+  },
+  "seed_selection": {
+    "rules_fired": [
+      "-1 global_attention: 325 training images (1000000000 per class at least): global attention needs much data"
+    ],
+    "rankers": [
+      "prior"
+    ],
+    "weights": {
+      "prior": 1.0,
+      "meta": 1.0,
+      "proxies": 0.0
+    },
+    "kept": 177,
+    "pool": 177,
+    "top": [
+      {
+        "family": "cnn1d",
+        "origin": "family",
+        "traits": [
+          "local_conv"
+        ],
+        "score": 155.0
+      },
+      {
+        "family": "cnn1d",
+        "origin": "family",
+        "traits": [
+          "local_conv"
+        ],
+        "score": 155.0
+      },
+      {
+        "family": "cnn1d",
+        "origin": "family",
+        "traits": [
+          "local_conv"
+        ],
+        "score": 155.0
+      },
+      {
+        "family": "cnn2d",
+        "origin": "family",
+        "traits": [
+          "local_conv",
+          "position_aware"
+        ],
+        "score": 155.0
+      },
+      {
+        "family": "cnn2d",
+        "origin": "family",
+        "traits": [
+          "local_conv",
+          "position_aware"
+        ],
+        "score": 155.0
+      },
+      {
+        "family": "cnn2d",
+        "origin": "family",
+        "traits": [
+          "local_conv",
+          "position_aware"
+        ],
+        "score": 155.0
+      },
+      {
+        "family": "cnn3d",
+        "origin": "family",
+        "traits": [
+          "local_conv",
+          "position_aware"
+        ],
+        "score": 155.0
+      },
+      {
+        "family": "cnn3d",
+        "origin": "family",
+        "traits": [
+          "local_conv",
+          "position_aware"
+        ],
+        "score": 155.0
+      },
+      {
+        "family": "cnn3d",
+        "origin": "family",
+        "traits": [
+          "local_conv",
+          "position_aware"
+        ],
+        "score": 155.0
+      },
+      {
+        "family": "cnn3d",
+        "origin": "family",
+        "traits": [
+          "local_conv",
+          "position_aware"
+        ],
+        "score": 155.0
+      }
+    ],
+    "used_for_pruning": false,
+    "data_card": {
+      "n_train": 325
+    },
+    "context": "",
+    "goal": "accuracy",
+    "portfolio": null,
+    "scheduler": "sh"
+  },
+  "zero_cost_proxies": {
+    "target": "validation score after 4 epochs (rung 1)",
+    "proxies": {
+      "naswot": {
+        "spearman": 0.021,
+        "n": 19
+      },
+      "synflow": {
+        "spearman": 0.223,
+        "n": 20
+      },
+      "grad_norm": {
+        "spearman": 0.516,
+        "n": 22
+      },
+      "snip": {
+        "spearman": 0.401,
+        "n": 22
+      },
+      "zico": {
+        "spearman": 0.135,
+        "n": 22
+      },
+      "params": {
+        "spearman": 0.552,
+        "n": 37
+      },
+      "seed_prior": {
+        "spearman": -0.219,
+        "n": 37
+      }
+    },
+    "better_than_param_count": [],
+    "used_for_pruning": false,
+    "note": "information only: one dataset and short training are not enough evidence to prune"
+  },
+  "budget": {
+    "budget": "10m",
+    "mode": "time",
+    "threads": 2,
+    "device": "cpu",
+    "amp": "auto",
+    "wall_seconds": 540.5,
+    "epochs_trained": 2529.9,
+    "stages": [
+      {
+        "stage": "load",
+        "seconds": 9.33,
+        "epochs": 0.0
+      },
+      {
+        "stage": "reference",
+        "seconds": 1.45,
+        "epochs": 0.0
+      },
+      {
+        "stage": "generate",
+        "seconds": 16.92,
+        "epochs": 0.0
+      },
+      {
+        "stage": "proxies",
+        "seconds": 61.6,
+        "epochs": 0.0
+      },
+      {
+        "stage": "seed_selection",
+        "seconds": 0.0,
+        "epochs": 0.0
+      },
+      {
+        "stage": "search",
+        "seconds": 210.23,
+        "epochs": 628.0
+      },
+      {
+        "stage": "evolution",
+        "seconds": 72.71,
+        "epochs": 548.0
+      },
+      {
+        "stage": "runs",
+        "seconds": 0.0,
+        "epochs": 0.0
+      },
+      {
+        "stage": "hparams",
+        "seconds": 168.23,
+        "epochs": 1353.9138461538469
+      },
+      {
+        "stage": "export",
+        "seconds": 0.0,
+        "epochs": 0.0
+      }
+    ],
+    "overrun_pct": -9.9
+  }
+}

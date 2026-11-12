@@ -10,3 +10,36 @@ $ /usr/local/bin/python -m dlnet design --data /home/user/DLNet/examples/hsi/bot
 [reference] svm_rbf_spectral_spatial   val=0.9662
 [reference] random_forest_spectral     val=0.9015
 [reference] svm_rbf_spectral           val=0.8554
+[zoo] 12 architectures from the module zoo (preset, random)
+[cost] 177 candidates; FLOPs/sample min 82,496 median 7,456,576 max 36,159,072
+[generate] 177 valid candidates from families ['afno2d', 'cnn1d', 'cnn2d', 'cnn3d', 'composed', 'convnext2d', 'dwsep2d', 'fahm', 'fcanet2d', 'ffc2d', 'fno2d', 'fourier_ss', 'gfnet2d', 'mambahsi', 'mambahsi_plus', 'resnet2d', 'spec_fft2d', 'spec_transformer', 'ssftt', 'ssrn', 'tucker_cnn2d', 'zoo_basic_block', 'zoo_basic_block_eca', 'zoo_bottleneck_dw_sep_mambahsi_plus_block', 'zoo_convnext_block', 'zoo_coord_attn_fused_mbconv_split_attn', 'zoo_ffn_gated_attn_block_gfnet_block', 'zoo_mamba_block_patchify_wukong', 'zoo_mbconv_res2net_block', 'zoo_mlstm_block_patchify', 'zoo_preact_block', 'zoo_regnet_block', 'zoo_unet_res_block']
+[seeds] -1 global_attention: 325 training images (1000000000 per class at least): global attention needs much data
+[seeds] 177/177 candidates, rankers ['prior']; first: ['cnn1d', 'cnn1d', 'cnn1d', 'cnn2d', 'cnn2d']
+[search] 177 candidates, rungs=(4, 12, 30)
+[search] rung 1 (4 ep): kept 13; best val=0.9908
+[search] rung 2 (12 ep): kept 6; best val=1.0000
+[search] rung 3 (30 ep): kept 6; best val=1.0000
+[cost] 8 candidates; FLOPs/sample min 1,231,360 median 5,879,552 max 7,850,236
+[evolve] generation 1: 8 children of ['gfnet2d', 'fcanet2d', 'zoo_ffn_gated_attn_block_gfnet_block']
+[search] 8 candidates, rungs=(4, 12, 30)
+[search] rung 1 (4 ep): kept 6; best val=0.9969
+[search] rung 2 (12 ep): kept 6; best val=0.9969
+[search] rung 3 (30 ep): kept 6; best val=0.9969
+[hparams] estimating lr / batch size / weight decay for the finalists
+[hparams] spec_fft2d: searched val=0.9990 estimated val=0.9764 -> searched
+[hparams] zoo_ffn_gated_attn_block_gfnet_block: searched val=0.9990 estimated val=1.0000 -> searched
+[hparams] gfnet2d: searched val=0.9949 estimated val=0.9867 -> searched
+[hparams] resnet2d: searched val=0.9938 estimated val=0.9836 -> searched
+[hparams] ssftt: searched val=0.9918 estimated val=0.9867 -> searched
+[hparams] zoo_fca_nin_block: searched val=0.9969 estimated val=0.9887 -> searched
+[hparams] zoo_gfnet_block_preact_block: searched val=0.9949 estimated val=0.9877 -> searched
+[hparams] zoo_gfnet_block: searched val=0.9938 estimated val=0.9846 -> searched
+[hparams] zoo_conv_bn_act_gap: searched val=0.9928 estimated val=0.9887 -> searched
+[hparams] zoo_fca: searched val=0.9918 estimated val=0.9826 -> searched
+[hparams] zoo_grid_graph_avg_ssftt: searched val=0.9908 estimated val=0.9805 -> searched
+[warning] --split pixel with --patch 9: validation/test pixels sit inside the patches of training pixels, so scores are optimistic (spatial leakage). Use --split block for an honest estimate of performance on new areas.
+[warning] Only 37 of 177 candidates could be trained within the budget; raise --budget, or lower --zoo / --per-family, or use --seeds N.
+[proxies] Spearman with rung-1 validation (n=37): {'naswot': 0.021, 'synflow': 0.223, 'grad_norm': 0.516, 'snip': 0.401, 'zico': 0.135, 'params': 0.552, 'seed_prior': -0.219}
+[budget] load 9.3s/0ep, reference 1.4s/0ep, generate 16.9s/0ep, proxies 61.6s/0ep, seed_selection 0.0s/0ep, search 210.2s/628ep, evolution 72.7s/548ep, runs 0.0s/0ep, hparams 168.2s/1354ep, export 0.0s/0ep
+[done] 541s  -> /home/user/DLNet/examples/hsi/botswana/output/leaderboard.md
+[verdict] beats_reference=True val_margin=0.00821 test_margin=0.00539

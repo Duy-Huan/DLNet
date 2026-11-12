@@ -1,0 +1,138 @@
+{
+  "plugin": "hsi",
+  "task": "classification",
+  "split_seed": 0,
+  "in_dim": 30,
+  "out_dim": 14,
+  "primary_metric": "accuracy",
+  "arch": {
+    "family": "zoo_ffn_gated_attn_block_gfnet_block",
+    "spec": {
+      "op": "seq",
+      "body": [
+        {
+          "op": "patchify",
+          "dim": 64,
+          "patch": 1
+        },
+        {
+          "op": "pos",
+          "mode": "sine"
+        },
+        {
+          "op": "gated_attn_block",
+          "heads": 2,
+          "ratio": 2,
+          "gate": "elementwise",
+          "causal": 1
+        },
+        {
+          "op": "ffn",
+          "ratio": 4,
+          "act": "gelu",
+          "dropout": 0.0
+        },
+        {
+          "op": "gfnet_block",
+          "mlp_ratio": 4,
+          "dropout": 0.1
+        }
+      ]
+    },
+    "input": {
+      "kind": "map",
+      "dims": [
+        30,
+        9,
+        9
+      ]
+    },
+    "out_dim": 14,
+    "head": "cls",
+    "dropout": 0.0,
+    "origin": "random",
+    "lr": 0.003,
+    "wd": 0.01,
+    "batch": 32,
+    "flops": 19908352,
+    "act_mb": 0.99564,
+    "vram_mb": 65.64016,
+    "seed_prior": -1.284,
+    "seed_rank": 175,
+    "seed_score": 2.0,
+    "seed_traits": [
+      "global_attention",
+      "position_aware"
+    ]
+  },
+  "hyperparameters": {
+    "optimizer": "AdamW",
+    "lr": 0.003,
+    "weight_decay": 0.01,
+    "batch_size": 32,
+    "epochs": 100,
+    "lr_schedule": "cosine",
+    "grad_clip_norm": 5.0,
+    "dropout": 0.0,
+    "source": {
+      "adopted": "searched",
+      "searched": {
+        "lr": 0.003,
+        "batch": 32,
+        "wd": 0.01
+      },
+      "estimated": {
+        "lr": 0.001954966143091253,
+        "batch": 16,
+        "wd": 0.007071067811865476,
+        "lr_range": {
+          "lr_base": 0.004887415357728133,
+          "lr_max": 0.01954966143091253
+        },
+        "lr_range_diverged": true,
+        "gradient_noise_scale": {
+          "b_small": 16,
+          "b_big": 256,
+          "grad_sq": 0.2291323984740302,
+          "trace_sigma": 2.2007364094257356,
+          "b_simple": 9.604649643970651
+        },
+        "wd_normalized": 0.3186887195995491
+      },
+      "val_searched": 0.998974358974359,
+      "val_estimated": 1.0,
+      "methods": [
+        "LR range test (Smith 1506.01186)",
+        "gradient noise scale B_simple (McCandlish 1812.06162)",
+        "normalized weight decay (Loshchilov & Hutter 1711.05101)"
+      ]
+    }
+  },
+  "data": {
+    "split": "pixel",
+    "frac": [
+      0.1,
+      0.1,
+      0.8
+    ],
+    "patch": 9,
+    "pca": 30,
+    "block": 16
+  },
+  "recipe": {
+    "epochs": 100,
+    "schedule": "linear warm-up (5 %) then cosine",
+    "select": "best-val checkpoint",
+    "name": "modern",
+    "augment": true,
+    "label_smoothing": 0.1
+  },
+  "search_result": {
+    "val_mean": 0.998974358974359,
+    "val_std": 0.0014504754485877953,
+    "epochs_used": 30,
+    "seeds": 3,
+    "splits": 1,
+    "test_std": 0.00018144900723287235
+  }
+}

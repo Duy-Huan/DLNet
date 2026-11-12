@@ -1,0 +1,6 @@
+$ /usr/local/bin/python train.py --data /home/user/DLNet/examples/hsi/botswana/input/Botswana.mat --gt /home/user/DLNet/examples/hsi/botswana/input/Botswana_gt.mat --epochs 30 --seed 0
+data: {'n_labeled': 3248, 'n_dropped_by_margin': 0, 'pca_energy_kept': 0.9981615676186104, 'bands': 145, 'pca_components': 30, 'n_train': 325, 'n_val': 325, 'n_test': 2598, 'classes_missing_train': [], 'classes_missing_test': [], 'frac': [0.1, 0.1, 0.8], 'block': 16}
+params=28,302 epochs=30
+val : {'accuracy': 1.0, 'balanced_accuracy': 1.0, 'kappa': 0.9999999999989169, 'score': 1.0}
+test: {'accuracy': 0.9919168591224018, 'balanced_accuracy': 0.9905395307438342, 'kappa': 0.9912420907438876, 'score': 0.9919168591224018}
+saved /home/user/DLNet/examples/hsi/botswana/output/top1_spec_fft2d/model.pt and preprocess.json; predict with: python predict.py --data <new file>

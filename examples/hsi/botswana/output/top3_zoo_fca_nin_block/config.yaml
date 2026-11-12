@@ -1,0 +1,190 @@
+{
+  "plugin": "hsi",
+  "task": "classification",
+  "split_seed": 0,
+  "in_dim": 30,
+  "out_dim": 14,
+  "primary_metric": "accuracy",
+  "arch": {
+    "family": "zoo_fca_nin_block",
+    "spec": {
+      "op": "seq",
+      "body": [
+        {
+          "op": "conv_bn_act",
+          "out": 32,
+          "k": 3,
+          "s": 1,
+          "act": "relu",
+          "norm": "batch"
+        },
+        {
+          "op": "seq",
+          "body": [
+            {
+              "op": "res",
+              "body": {
+                "op": "seq",
+                "body": [
+                  {
+                    "op": "nin_block",
+                    "out": 32,
+                    "k": 3,
+                    "dropout": 0.3
+                  },
+                  {
+                    "op": "conv_bn_act",
+                    "out": 32,
+                    "k": 3,
+                    "s": 1,
+                    "act": "identity",
+                    "norm": "batch"
+                  },
+                  {
+                    "op": "fca",
+                    "reduction": 16,
+                    "method": "top16"
+                  }
+                ]
+              }
+            },
+            {
+              "op": "act",
+              "act": "relu"
+            }
+          ]
+        },
+        {
+          "op": "seq",
+          "body": [
+            {
+              "op": "res",
+              "body": {
+                "op": "seq",
+                "body": [
+                  {
+                    "op": "conv_bn_act",
+                    "out": 32,
+                    "k": 3,
+                    "s": 1,
+                    "act": "relu",
+                    "norm": "batch"
+                  },
+                  {
+                    "op": "conv_bn_act",
+                    "out": 32,
+                    "k": 3,
+                    "s": 1,
+                    "act": "identity",
+                    "norm": "batch"
+                  },
+                  {
+                    "op": "fca",
+                    "reduction": 16,
+                    "method": "top16"
+                  }
+                ]
+              }
+            },
+            {
+              "op": "act",
+              "act": "relu"
+            }
+          ]
+        },
+        {
+          "op": "gap",
+          "mode": "avg"
+        }
+      ]
+    },
+    "input": {
+      "kind": "map",
+      "dims": [
+        30,
+        9,
+        9
+      ]
+    },
+    "out_dim": 14,
+    "head": "cls",
+    "dropout": 0.0,
+    "origin": "swap<-fcanet2d",
+    "lr": 0.003,
+    "wd": 0.0001,
+    "batch": 32,
+    "flops": 7704832,
+    "act_mb": 0.197976,
+    "vram_mb": 13.448416
+  },
+  "hyperparameters": {
+    "optimizer": "AdamW",
+    "lr": 0.003,
+    "weight_decay": 0.0001,
+    "batch_size": 32,
+    "epochs": 100,
+    "lr_schedule": "cosine",
+    "grad_clip_norm": 5.0,
+    "dropout": 0.0,
+    "source": {
+      "adopted": "searched",
+      "searched": {
+        "lr": 0.003,
+        "batch": 32,
+        "wd": 0.0001
+      },
+      "estimated": {
+        "lr": 0.011236548001387455,
+        "batch": 64,
+        "wd": 0.0001414213562373095,
+        "lr_range": {
+          "lr_base": 0.02809137000346864,
+          "lr_max": 0.11236548001387456
+        },
+        "lr_range_diverged": false,
+        "gradient_noise_scale": {
+          "b_small": 16,
+          "b_big": 256,
+          "grad_sq": 0.008349001522098358,
+          "trace_sigma": 10.600080043574174,
+          "b_simple": 1269.622483061909
+        },
+        "wd_normalized": 0.0031868871959954905
+      },
+      "val_searched": 0.9969230769230769,
+      "val_estimated": 0.9887179487179486,
+      "methods": [
+        "LR range test (Smith 1506.01186)",
+        "gradient noise scale B_simple (McCandlish 1812.06162)",
+        "normalized weight decay (Loshchilov & Hutter 1711.05101)"
+      ]
+    }
+  },
+  "data": {
+    "split": "pixel",
+    "frac": [
+      0.1,
+      0.1,
+      0.8
+    ],
+    "patch": 9,
+    "pca": 30,
+    "block": 16
+  },
+  "recipe": {
+    "epochs": 100,
+    "schedule": "linear warm-up (5 %) then cosine",
+    "select": "best-val checkpoint",
+    "name": "modern",
+    "augment": true,
+    "label_smoothing": 0.1
+  },
+  "search_result": {
+    "val_mean": 0.9969230769230769,
+    "val_std": 0.00251229717208532,
+    "epochs_used": 30,
+    "seeds": 3,
+    "splits": 1,
+    "test_std": 0.0019202757951111002
+  }
+}
