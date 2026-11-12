@@ -120,7 +120,14 @@ class _Tracer(torch.fx.Tracer):
 
 def nodes_of(model: nn.Module, classes: int | None = None):
     """(card nodes, whether the model's last Linear became the head)."""
-    graph = _Tracer().trace(model)
+    try:
+        graph = _Tracer().trace(model)
+    except ImportUnsupported:
+        raise
+    except Exception as e:  # einops, data-dependent control flow, ...: torch.fx cannot follow it
+        raise ImportUnsupported(
+            f"torch.fx cannot trace this model ({type(e).__name__}: {str(e)[:120]}): write the card by hand"
+        ) from e
     mods = dict(model.named_modules())
     alias, nodes, pooled = {}, [], set()
 

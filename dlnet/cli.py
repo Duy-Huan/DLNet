@@ -654,7 +654,7 @@ def main(argv=None) -> int:
         help="a published network from a card (YAML): check it, build its package, verify it against the authors' code",
     )
     pp.add_argument("action", choices=["check", "build", "verify", "import"])
-    pp.add_argument("cards", nargs="*", help="card files (.yaml / .json)")
+    pp.add_argument("cards", nargs="*", default=[], help="card files (.yaml / .json)")
     pp.add_argument("--repo", help="[import] the authors' repository (URL)")
     pp.add_argument("--commit", help="[import] the commit of the checkout")
     pp.add_argument("--entry", help="[import] path/to/file.py:ClassName of the model")

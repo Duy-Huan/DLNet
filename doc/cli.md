@@ -69,7 +69,7 @@ a published network from a card (YAML): check it, build its package, verify it a
 | Tùy chọn | Bắt buộc | Mặc định | Ý nghĩa |
 |---|---|---|---|
 | `action` | có |  |  (một trong: check, build, verify, import) |
-| `cards` |  |  | card files (.yaml / .json) |
+| `cards` |  | `[]` | card files (.yaml / .json) |
 | `--repo` |  |  | [import] the authors' repository (URL) |
 | `--commit` |  |  | [import] the commit of the checkout |
 | `--entry` |  |  | [import] path/to/file.py:ClassName of the model |

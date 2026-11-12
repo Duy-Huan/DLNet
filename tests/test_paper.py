@@ -258,6 +258,20 @@ def test_import_refuses_what_it_cannot_write(tmp_path):
     assert cli.main(argv) == 1 and not (tmp_path / "x.yaml").exists()
 
 
+def test_import_reports_a_model_torch_fx_cannot_trace(tmp_path):
+    """Data-dependent control flow (or einops on a proxy) is an 'import not possible', not a crash."""
+    repo = tmp_path / "authors"
+    repo.mkdir()
+    (repo / "net.py").write_text(
+        AUTHORS_RESNET.replace(
+            "return torch.relu(x +", "return (x if x.sum() > 0 else -x) + torch.relu(x +"
+        )
+    )
+    argv = ["paper", "import", "--official-root", str(repo), "--repo", "u", "--commit", "c", "--entry", "net.py:Net",
+            "--dims", "3,16,16", "--classes", "5", "--name", "X", "--out", str(tmp_path / "x.yaml")]  # fmt: skip
+    assert cli.main(argv) == 1 and not (tmp_path / "x.yaml").exists()
+
+
 SMALL = """
 paper:
   name: Small Paper Net
