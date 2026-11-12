@@ -19,6 +19,11 @@ số `train.py` in ra, kiểm các tập không trùng nhau.
 Mạng dựng lại từ paper (thẻ trong `papers/`, lệnh `dlnet paper build`) nằm ở [`papers/`](papers/): `model.py`, sơ đồ khối,
 `report.md` ghi mức trung thành so với mã gốc của tác giả (StarNet-S1 và SSFTT: mức B, trùng từng bit).
 
+So sánh với mạng từ paper trong cùng một lượt chạy (`dlnet design ... --papers papers/ssftt.yaml --paper-recipe`):
+[`hsi/indian_pines_papers/output/leaderboard.md`](hsi/indian_pines_papers/output/leaderboard.md), mục *Paper baselines*
+(Indian Pines, patch 13, PCA 30: SSFTT mức B đạt OA test 0,9772 theo giao thức chung và 0,9810 theo công thức tác giả;
+top-1 của DLNet 0,9828 với 40 nghìn tham số so với 153 nghìn; chia pixel nên các số đều cao hơn thực tế).
+
 ## Kết quả
 
 Số đo là của ngân sách nhỏ trên CPU (10 phút tìm kiếm, 30 epoch): dùng để kiểm quy trình và hình dung đầu ra,

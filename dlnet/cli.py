@@ -514,6 +514,13 @@ def _design(args, n_threads) -> int:
         notebook.write(args.out, src)
     except Exception as e:  # noqa: BLE001
         print(f"[notebook] not written: {type(e).__name__}: {e}")
+    if getattr(args, "papers", None):
+        from . import paper
+
+        clock.stage("papers")
+        paper.compare(
+            args.papers, args.out, plugin, data, folds, chosen, args.paper_recipe, args.paper_epochs
+        )
     spent = f"{clock.now() - t0:.0f} epochs, " if clock_mode == "work" else ""
     print(f"[done] {spent}{time.time() - t_wall:.0f}s  -> {args.out}/leaderboard.md")
     print(
@@ -559,8 +566,37 @@ def advisor_presets():
 
 
 def _paper(args) -> int:
+    import json
+    from pathlib import Path
+
     from . import paper
 
+    if args.action == "import":
+        from . import paper_import
+
+        need = [k for k in ("official_root", "repo", "commit", "entry", "dims", "name", "out", "classes")
+                if not getattr(args, k)]  # fmt: skip
+        if need:
+            raise SystemExit(
+                "paper import needs " + ", ".join("--" + k.replace("_", "-") for k in need)
+            )
+        off = {"repo": args.repo, "commit": args.commit, "entry": args.entry}
+        if json.loads(args.init_args):
+            off["init_args"] = json.loads(args.init_args)
+        dims = [int(x) for x in args.dims.split(",")]
+        try:
+            text = paper_import.draft(
+                off, args.official_root, args.kind, dims, args.name, args.classes
+            )
+        except paper_import.ImportUnsupported as e:
+            print(f"[paper] cannot draft a card: {e}\n        use the authors' class as it is: a card with "
+                  "`official` and no `architecture` (fidelity level A), or write the network by hand")  # fmt: skip
+            return 1
+        Path(args.out).write_text(text, encoding="utf-8")
+        r = paper.check(paper.load(args.out))
+        print(f"[paper] {args.out}: {len(r['nodes'])} nodes, {r.get('params')} parameters; "
+              f"now run: dlnet paper verify {args.out} --official-root {args.official_root}")  # fmt: skip
+        return 0 if r["ok"] else 1
     bad = 0
     for path in args.cards:
         try:
@@ -617,8 +653,15 @@ def main(argv=None) -> int:
         "paper",
         help="a published network from a card (YAML): check it, build its package, verify it against the authors' code",
     )
-    pp.add_argument("action", choices=["check", "build", "verify"])
-    pp.add_argument("cards", nargs="+", help="card files (.yaml / .json)")
+    pp.add_argument("action", choices=["check", "build", "verify", "import"])
+    pp.add_argument("cards", nargs="*", help="card files (.yaml / .json)")
+    pp.add_argument("--repo", help="[import] the authors' repository (URL)")
+    pp.add_argument("--commit", help="[import] the commit of the checkout")
+    pp.add_argument("--entry", help="[import] path/to/file.py:ClassName of the model")
+    pp.add_argument("--init-args", default="{}", help="[import] JSON of the constructor arguments")
+    pp.add_argument("--kind", default="map", help="[import] input kind (map, ser, vec, ...)")
+    pp.add_argument("--dims", help="[import] input shape without the batch, e.g. 3,224,224")
+    pp.add_argument("--name", help="[import] name of the network (paper.name)")
     pp.add_argument("--out", help="[build] folder for the package(s)")
     pp.add_argument(
         "--into", help="[build] a DLNet output folder: same data, train.py, joins its notebook"
@@ -655,6 +698,14 @@ def main(argv=None) -> int:
         help="budget of the whole run: wall clock (90s, 10m, 2h) or training epochs (400ep, reproducible)",
     )  # fmt: skip
     d.add_argument("--topk", type=int, default=3, help="number of exported baselines")
+    d.add_argument(
+        "--papers", nargs="+",
+        help="paper cards (files or folders) to train on this data with the same protocol as the top-1 "
+             "(after the search, outside --budget); adds a 'Paper baselines' table and their packages",
+    )  # fmt: skip
+    d.add_argument("--paper-recipe", action="store_true",
+                   help="also train every paper card once with its authors' recipe (card `training`)")  # fmt: skip
+    d.add_argument("--paper-epochs", type=int, default=100, help="epoch cap of --paper-recipe")
     d.add_argument(
         "--device", default="auto",
         help="auto (CUDA GPU, else Apple MPS, else CPU) | cpu | cuda | cuda:1 | mps",

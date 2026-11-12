@@ -6,6 +6,10 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+- `dlnet paper import`: sinh nháp thẻ từ mã gốc của tác giả bằng `torch.fx` (mỗi lớp một dòng; `add`, `mul`, `concat`, pooling toàn cục, lớp Linear cuối thành head); gặp phép toán không viết được thì dừng và nêu tên. Lớp nguyên thủy mới cho thẻ: `maxpool`, `avgpool` (137 module).
+- `dlnet design --papers <thẻ hoặc thư mục>`: sau tìm kiếm, huấn luyện các mạng từ paper trên cùng dữ liệu theo giao thức của top-1 (cùng lần chia, số lần chạy, epoch, lr / wd / batch); `--paper-recipe` thêm một lần theo công thức của tác giả (`--paper-epochs` chặn số epoch). `leaderboard.md` có bảng "Paper baselines" ba cột (paper báo / giao thức chung / công thức tác giả), `leaderboard.json` có `papers`, gói `paper_<tên>/` vào notebook.
+- `core.Trainer` / `train_full` nhận `optimizer` (`adamw` mặc định, `adam`, `sgd` momentum 0,9) để chạy công thức của paper.
+
 ## [1.2.0] - 2026-11-12
 
 - Kiểm chứng thẻ với mã gốc (GitHub Actions `verify-papers`): StarNet-S1 và SSFTT đạt mức B, đầu ra trùng từng bit, số tham số bằng nhau; kết quả ở `papers/*.fidelity.json`. Gói mẫu của 4 thẻ ở `examples/papers/`. Thẻ có `official.skip_verify` (FAHM: mã gốc cần kernel CUDA) được bỏ qua và giữ mức C.
