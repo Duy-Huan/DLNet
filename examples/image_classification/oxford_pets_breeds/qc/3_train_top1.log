@@ -1,0 +1,5 @@
+$ /usr/local/bin/python train.py --data /home/user/DLNet/examples/image_classification/oxford_pets_breeds/input/data.npz --epochs 30 --seed 0
+params=482,549 epochs=30
+val : {'accuracy': 0.18783783783783783, 'balanced_accuracy': 0.18783783783783783, 'kappa': 0.1652777777776079, 'score': 0.18783783783783783}
+test: {'accuracy': 0.1662162162162162, 'balanced_accuracy': 0.1662162162162162, 'kappa': 0.14305555555540853, 'score': 0.1662162162162162}
+saved /home/user/DLNet/examples/image_classification/oxford_pets_breeds/output/top1_zoo_gfnet_block_patchify_pos/model.pt and preprocess.json; predict with: python predict.py --data <new file>

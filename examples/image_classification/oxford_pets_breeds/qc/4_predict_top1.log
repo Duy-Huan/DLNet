@@ -1,0 +1,3 @@
+$ /usr/local/bin/python predict.py --data /home/user/DLNet/examples/image_classification/oxford_pets_breeds/input/data.npz --out /home/user/DLNet/examples/image_classification/oxford_pets_breeds/qc/predictions.npy --export /home/user/DLNet/examples/image_classification/oxford_pets_breeds/output/top1_zoo_gfnet_block_patchify_pos/model.pt2
+3700 predictions -> /home/user/DLNet/examples/image_classification/oxford_pets_breeds/qc/predictions.npy
+exported /home/user/DLNet/examples/image_classification/oxford_pets_breeds/output/top1_zoo_gfnet_block_patchify_pos/model.pt2

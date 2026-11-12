@@ -1,0 +1,403 @@
+{
+  "task": "classification",
+  "metric": "accuracy",
+  "verdict": {
+    "beats_reference": false,
+    "val_margin": -0.01667,
+    "val_noise": 0.01139,
+    "test_margin": 0.00225,
+    "test_noise": 0.01107,
+    "top1_val": 0.10766,
+    "best_reference": "random_forest",
+    "best_reference_val": 0.12432
+  },
+  "top_k": [
+    {
+      "rank": 1,
+      "name": "top1_zoo_gfnet_block_patchify_pos",
+      "roles": [
+        "top1",
+        "most-stable"
+      ],
+      "group": 0,
+      "params": 482549,
+      "hyperparameters": {
+        "optimizer": "AdamW",
+        "lr": 0.003,
+        "weight_decay": 0.01,
+        "batch_size": 64,
+        "epochs": 100,
+        "lr_schedule": "cosine",
+        "grad_clip_norm": 5.0,
+        "dropout": 0.0,
+        "source": {
+          "adopted": "searched",
+          "searched": {
+            "lr": 0.003,
+            "batch": 64,
+            "wd": 0.01
+          },
+          "estimated": {
+            "lr": 0.004051304969235363,
+            "batch": 512,
+            "wd": 0.028284271247461905,
+            "lr_range": {
+              "lr_base": 0.010128262423088409,
+              "lr_max": 0.040513049692353635
+            },
+            "lr_range_diverged": false,
+            "gradient_noise_scale": {
+              "b_small": 16,
+              "b_big": 256,
+              "grad_sq": 0.05427879663184285,
+              "trace_sigma": 43.691719031333925,
+              "b_simple": 804.950030997961
+            },
+            "wd_normalized": 0.5889609494694874
+          },
+          "val_searched": 0.10765765765765767,
+          "val_estimated": 0.11396396396396397,
+          "methods": [
+            "LR range test (Smith 1506.01186)",
+            "gradient noise scale B_simple (McCandlish 1812.06162)",
+            "normalized weight decay (Loshchilov & Hutter 1711.05101)"
+          ]
+        }
+      },
+      "val_mean": 0.10766,
+      "val_std": 0.00255,
+      "val_noise": 0.01139,
+      "noise_source": "validation sampling",
+      "epochs": 4,
+      "origin": "random",
+      "flops": 24668800,
+      "vram_mb": 199.826,
+      "n_runs": 3,
+      "n_splits": 1,
+      "test_std": 0.00665,
+      "test": {
+        "accuracy": 0.1009,
+        "balanced_accuracy": 0.1009,
+        "kappa": 0.07593,
+        "score": 0.1009
+      }
+    },
+    {
+      "rank": 2,
+      "name": "top2_resnet",
+      "roles": [
+        "best-small",
+        "most-different"
+      ],
+      "group": 1,
+      "params": 45261,
+      "hyperparameters": {
+        "optimizer": "AdamW",
+        "lr": 0.001,
+        "weight_decay": 0.01,
+        "batch_size": 32,
+        "epochs": 100,
+        "lr_schedule": "cosine",
+        "grad_clip_norm": 5.0,
+        "dropout": 0.2,
+        "width": 8,
+        "depth": 2,
+        "attention": "none",
+        "source": {
+          "adopted": "searched",
+          "searched": {
+            "lr": 0.001,
+            "batch": 32,
+            "wd": 0.01
+          },
+          "estimated": null,
+          "val_searched": 0.05675675675675676,
+          "val_estimated": null,
+          "methods": [
+            "LR range test (Smith 1506.01186)",
+            "gradient noise scale B_simple (McCandlish 1812.06162)",
+            "normalized weight decay (Loshchilov & Hutter 1711.05101)"
+          ]
+        }
+      },
+      "val_mean": 0.05676,
+      "val_std": 0.01103,
+      "val_noise": 0.01103,
+      "noise_source": "runs",
+      "epochs": 4,
+      "origin": null,
+      "flops": 54200640,
+      "vram_mb": 214.651,
+      "n_runs": 3,
+      "n_splits": 1,
+      "test_std": 0.00441,
+      "test": {
+        "accuracy": 0.06216,
+        "balanced_accuracy": 0.06216,
+        "kappa": 0.03611,
+        "score": 0.06216
+      }
+    }
+  ],
+  "reference": [
+    {
+      "name": "random_forest",
+      "val": 0.12432,
+      "test": {
+        "accuracy": 0.09189,
+        "balanced_accuracy": 0.09189,
+        "kappa": 0.06667,
+        "score": 0.09189
+      }
+    },
+    {
+      "name": "hist_gradient_boosting",
+      "val": 0.11081,
+      "test": {
+        "accuracy": 0.09865,
+        "balanced_accuracy": 0.09865,
+        "kappa": 0.07361,
+        "score": 0.09865
+      }
+    },
+    {
+      "name": "logistic_regression",
+      "val": 0.10135,
+      "test": {
+        "accuracy": 0.08514,
+        "balanced_accuracy": 0.08514,
+        "kappa": 0.05972,
+        "score": 0.08514
+      }
+    }
+  ],
+  "warnings": [
+    "the target holds 37 distinct whole numbers and was read as classification; if it is a regression target, run again with --task regression",
+    "top1 was trained only 4 epochs: its rank is a rough early estimate. Increase --budget, or reduce --zoo / --per-family.",
+    "Only 2 of 92 candidates could be trained within the budget; raise --budget, or lower --zoo / --per-family, or use --seeds N.",
+    "Only 2 of the 3 requested models could be exported (too few trained candidates)."
+  ],
+  "search_coverage": {
+    "candidates": 92,
+    "trained": 2,
+    "top_k_requested": 3,
+    "top_k_exported": 2
+  },
+  "objective": {
+    "objective": "accuracy",
+    "cost": "params",
+    "tolerance": 0.01,
+    "target_cost": null,
+    "cost_weight": -0.07,
+    "pareto_front": [
+      {
+        "family": "resnet",
+        "val_mean": 0.05676,
+        "params": 45261,
+        "flops": 54200640
+      },
+      {
+        "family": "zoo_gfnet_block_patchify_pos",
+        "val_mean": 0.10766,
+        "params": 482549,
+        "flops": 24668800
+      }
+    ]
+  },
+  "module_zoo": {
+    "initial_candidates": 12,
+    "evolution": [],
+    "top_origins": [
+      "random",
+      "legacy family"
+    ],
+    "ops_registered": 133
+  },
+  "seed_selection": {
+    "rules_fired": [
+      "-1 global_attention: 2220 training images (60 per class at least): global attention needs much data"
+    ],
+    "rankers": [
+      "zap_surrogate"
+    ],
+    "weights": {
+      "prior": 0.0,
+      "meta": 1.0,
+      "proxies": 0.0
+    },
+    "kept": 92,
+    "pool": 92,
+    "top": [
+      {
+        "family": "zoo_gfnet_block_patchify_pos",
+        "origin": "random",
+        "traits": [
+          "global_attention",
+          "position_aware"
+        ],
+        "score": 91.0
+      },
+      {
+        "family": "zoo_basic_block_convnext_block_regnet_block",
+        "origin": "random",
+        "traits": [
+          "local_conv",
+          "multi_scale"
+        ],
+        "score": 90.0
+      },
+      {
+        "family": "resnet",
+        "origin": "family",
+        "traits": [
+          "local_conv"
+        ],
+        "score": 88.5
+      },
+      {
+        "family": "resnet",
+        "origin": "family",
+        "traits": [
+          "local_conv"
+        ],
+        "score": 88.5
+      },
+      {
+        "family": "vgg",
+        "origin": "family",
+        "traits": [
+          "local_conv"
+        ],
+        "score": 87.0
+      },
+      {
+        "family": "resnet",
+        "origin": "family",
+        "traits": [
+          "local_conv"
+        ],
+        "score": 85.5
+      },
+      {
+        "family": "resnet",
+        "origin": "family",
+        "traits": [
+          "local_conv"
+        ],
+        "score": 85.5
+      },
+      {
+        "family": "zoo_regnet_block",
+        "origin": "preset:regnet",
+        "traits": [
+          "local_conv"
+        ],
+        "score": 84.0
+      },
+      {
+        "family": "allconv",
+        "origin": "family",
+        "traits": [
+          "local_conv"
+        ],
+        "score": 83.0
+      },
+      {
+        "family": "allconv",
+        "origin": "family",
+        "traits": [
+          "local_conv"
+        ],
+        "score": 82.0
+      }
+    ],
+    "used_for_pruning": false,
+    "data_card": {
+      "n_train": 2220,
+      "channels": 3,
+      "height": 64,
+      "width": 64,
+      "n_classes": 37,
+      "samples_per_class_min": 60,
+      "samples_per_class_median": 60.0,
+      "imbalance_ratio": 1.0,
+      "spectral_slope": 2.88,
+      "high_freq_energy": 0.0334,
+      "corr_length": 9.0,
+      "corr_length_rel": 0.141,
+      "edge_density": 0.1403,
+      "channel_correlation": 0.892,
+      "position_dependence": 0.0646,
+      "knn_accuracy": 0.063,
+      "linear_probe_pixels": 0.054,
+      "linear_probe_random_conv": 0.084,
+      "conv_bias_gain": 0.03
+    },
+    "context": "",
+    "goal": "accuracy",
+    "portfolio": null,
+    "scheduler": "sh"
+  },
+  "budget": {
+    "budget": "10m",
+    "mode": "time",
+    "threads": 3,
+    "device": "cpu",
+    "amp": "auto",
+    "wall_seconds": 587.7,
+    "epochs_trained": 42.0,
+    "stages": [
+      {
+        "stage": "load",
+        "seconds": 30.19,
+        "epochs": 0.0
+      },
+      {
+        "stage": "reference",
+        "seconds": 29.75,
+        "epochs": 0.0
+      },
+      {
+        "stage": "generate",
+        "seconds": 15.82,
+        "epochs": 0.0
+      },
+      {
+        "stage": "proxies",
+        "seconds": 72.85,
+        "epochs": 0.0
+      },
+      {
+        "stage": "seed_selection",
+        "seconds": 2.12,
+        "epochs": 0.0
+      },
+      {
+        "stage": "search",
+        "seconds": 152.16,
+        "epochs": 16.0
+      },
+      {
+        "stage": "evolution",
+        "seconds": 0.0,
+        "epochs": 0.0
+      },
+      {
+        "stage": "runs",
+        "seconds": 114.56,
+        "epochs": 8.0
+      },
+      {
+        "stage": "hparams",
+        "seconds": 170.18,
+        "epochs": 17.996396396396392
+      },
+      {
+        "stage": "export",
+        "seconds": 0.0,
+        "epochs": 0.0
+      }
+    ],
+    "overrun_pct": -2.0
+  }
+}
