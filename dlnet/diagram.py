@@ -345,9 +345,73 @@ def layout(node, kind, dims) -> tuple[Box, str, tuple]:
         return frame(side(shown, merge, shape_text(k2, d2)), "mixture of experts"), k2, d2
     if name == "encdec":
         return _encdec(node, kind, dims)
+    if name == "graph":
+        return _graph(node, kind, dims)
     k2, d2 = _out(node, kind, dims)
     title, detail = label(node)
     return block(title, detail, category(name), shape_text(k2, d2)), k2, d2
+
+
+def _graph(node, kind, dims):
+    """Nodes top to bottom in the order of the card; an edge from the node just above is the
+    straight arrow, every other edge (skip, branch) runs down a lane on the left."""
+    nodes = node["nodes"]
+    ids = [str(n.get("id", f"n{i}")) for i, n in enumerate(nodes)]
+    shape = {"input": (kind, tuple(dims))}
+    boxes, srcs, prev = [], [], "input"
+    for i, n in enumerate(nodes):
+        src = n.get("from", prev)
+        src = [str(src)] if isinstance(src, str | int) else [str(x) for x in src]
+        k2, d2 = _out({"op": "graph", "nodes": nodes[: i + 1]}, kind, dims)
+        body = {k: v for k, v in n.items() if k not in ("id", "from")}
+        if body.get("op") in ("concat", "add", "mul"):
+            sign = {"concat": "concat", "add": "+  add", "mul": "x  multiply"}[body["op"]]
+            b = block(sign, "", "norm", shape_text(k2, d2))
+        else:
+            b = layout(body, *shape[src[0]])[0]
+            if body.get("op") == "graph":  # a block of the card: framed, named by the node
+                b = frame(b, ids[i])
+            b.out = "" if body.get("op") in ("graph", "rep") else shape_text(k2, d2)
+        boxes.append(b)
+        srcs.append(src)
+        shape[ids[i]] = (k2, d2)
+        prev = ids[i]
+    extra = [(s, i) for i, ss in enumerate(srcs) for s in ss if s != (ids[i - 1] if i else "input")]
+    lane = 14 * len(extra) + (12 if extra else 0)
+    col = stack(boxes)
+    tops, y = {}, 0.0
+    for i, b in enumerate(boxes):
+        tops[ids[i]] = (y, b)
+        y += b.h + GAP
+
+    def draw(x, y0):
+        s = col.draw(x + lane, y0)
+        cx = x + lane + col.core / 2
+        for i, ss in enumerate(
+            srcs
+        ):  # the straight arrow above a node that does not use it: cover it
+            above = ids[i - 1] if i else "input"
+            if i and above not in ss:
+                ty = y0 + tops[ids[i]][0]
+                s.append(
+                    f"<rect x='{cx - 9:.1f}' y='{ty - GAP + 1:.1f}' width='18' height='{GAP - 2}' fill='#ffffff'/>"
+                )
+        for j, (src, i) in enumerate(extra):
+            ty, tb = tops[ids[i]]
+            lx = x + lane - 12 - 14 * j
+            if src == "input":
+                sy, sx = y0 - GAP / 2, cx
+            else:
+                st, sb = tops[src]
+                sy, sx = y0 + st + sb.h / 2, cx - sb.core / 2
+            ey, ex = y0 + ty + tb.h / 2, cx - tb.core / 2
+            s.append(f"<path d='M {sx:.1f} {sy:.1f} L {lx:.1f} {sy:.1f} L {lx:.1f} {ey:.1f} L {ex - 2:.1f} {ey:.1f}' "
+                     f"fill='none' stroke='#374151' stroke-width='1.3' marker-end='url(#arr)'/>")  # fmt: skip
+        return s
+
+    out_id = str(node.get("out", ids[-1]))
+    k2, d2 = shape[out_id]
+    return Box(col.w + lane, col.h, draw, "", core=col.core + 2 * lane), k2, d2
 
 
 def _encdec(node, kind, dims):

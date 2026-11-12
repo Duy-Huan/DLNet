@@ -11,7 +11,7 @@ dependencies = []
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.5", "pyyaml", "coverage>=7.10"]
-design = ["numpy", "pandas", "scipy", "scikit-learn", "threadpoolctl", "torch"]
+design = ["numpy", "pandas", "scipy", "scikit-learn", "threadpoolctl", "torch", "pyyaml"]
 
 [project.scripts]
 dlnet = "dlnet.cli:main"

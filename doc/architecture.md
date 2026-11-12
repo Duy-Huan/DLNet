@@ -37,6 +37,8 @@ Cả lần chạy nằm trong `threads.limit(n)` (`--threads`): torch, OpenBLAS 
 | `dlnet/plugins/` | Mọi thứ phụ thuộc loại dữ liệu: `tabular.py`, `hsi.py`, `arrays.py` (ảnh phân loại, phân đoạn, tái tạo; chuỗi thời gian; đồ thị; recommender) |
 | `dlnet/core.py`, `array_data.py`, `hsi_data.py` | Nạp, chia, chuẩn hóa dữ liệu; `Trainer` (AdamW, cosine, chọn checkpoint theo validation) |
 | `dlnet/zoo/` | Kho module và ngữ pháp kiến trúc (mục 3) |
+| `dlnet/paper.py`, `papers/` | Thẻ mạng từ paper (YAML) → spec `graph` → gói; mức trung thành A/B/C, `paper verify` so với mã gốc |
+| `dlnet/diagram.py`, `dlnet/notebook.py`, `dlnet/standalone.py` | Sơ đồ khối SVG, notebook huấn luyện, `model.py` thuần PyTorch của gói |
 | `dlnet/search.py` | Successive halving, Hyperband, giai đoạn nhiều seed, cache lần chạy, chọn Top-K đa dạng |
 | `dlnet/objectives.py` | Hướng tối ưu: accuracy, params, flops, balanced (MnasNet), pareto (NSGA-II) |
 | `dlnet/datacard.py`, `seeds.py`, `meta.py`, `surrogate.py` | Đặc trưng dữ liệu, chọn hạt giống, học từ các lần chạy trước (kNN, portfolio, surrogate ZAP) |

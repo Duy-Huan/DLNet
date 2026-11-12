@@ -128,10 +128,13 @@ OVERVIEW = """
 # 0. What the search found
 board = json.loads(Path("leaderboard.json").read_text())
 BASELINES = [r["name"] for r in board["top_k"]]
+PAPERS = [r["name"] for r in board.get("papers", [])]   # networks rebuilt from papers (dlnet paper build)
 print("task:", board["task"], "| metric:", board["metric"])
 for r in board["top_k"]:
     print(f"  {{r['name']:<45}} params {{r['params']:>10,}}   val {{r['val_mean']:.4f}} +- {{r['val_std']:.4f}}"
           f"   (search: {{r['epochs']}} epochs)")
+for r in board.get("papers", []):
+    print(f"  {{r['name']:<45}} params {{(r['params'] or 0):>10,}}   paper baseline, fidelity level {{r['level']}}")
 print("verdict:", board.get("verdict"))
 """
 
@@ -288,7 +291,7 @@ def evaluate_saved(name):
     print(f"{name}: test {test}")
     return p, model.cpu().eval(), meta, cfg
 
-for NAME in BASELINES:
+for NAME in BASELINES + PAPERS:
     loaded = evaluate_saved(NAME)
 """
 
@@ -424,6 +427,18 @@ def cells(out_dir, source: dict, git_url: str = "", git_subdir: str = "") -> lis
                      f"Block diagram (DLNet) and layer graph (torchview), then full training."))  # fmt: skip
         c.append(_code(BASELINE.format(name=n)))
         c.append(_code(TRAIN_ONE))
+    for r in board.get("papers", []):
+        rep = "; ".join(
+            f"{x.get('dataset', '?')}: {x['metric']} {x['value']}"
+            for x in r["reported"]
+            if "metric" in x
+        )
+        c.append(_md(f"### {r['name']} (from the paper: {r['paper']})\n\nFidelity level **{r['level']}** "
+                     f"(A = the authors' class, B = verified against the authors' code, C = written from the "
+                     f"paper, not verified). Reported by the paper: {rep or 'not given in the card'}. "
+                     f"Trained here on the same data and split as the baselines above."))  # fmt: skip
+        c.append(_code(BASELINE.format(name=r["name"])))
+        c.append(_code(TRAIN_ONE))
     c += [
         _md("## 4. Comparison"),
         _code(COMPARE),
@@ -463,6 +478,9 @@ def write(out_dir, source: dict, git_url: str = "", git_subdir: str = "", log=pr
                      "colab": {"provenance": []}},
         "cells": cells(out, source, git_url, git_subdir),
     }  # fmt: skip
+    board["notebook"] = {"source": {k: (str(v) if v is not None else None) for k, v in source.items()},
+                         "git_url": git_url, "git_subdir": git_subdir}  # fmt: skip
+    (out / "leaderboard.json").write_text(json.dumps(board, indent=2))
     path = out / "baselines.ipynb"
     path.write_text(json.dumps(nb, indent=1, ensure_ascii=False), encoding="utf-8")
     log(f"[notebook] {path} and architecture.svg in {len(board['top_k'])} package(s)")

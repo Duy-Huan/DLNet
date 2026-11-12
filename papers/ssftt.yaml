@@ -1,0 +1,31 @@
+# SSFTT (Sun et al., IEEE TGRS 2022): spectral-spatial feature tokenization transformer for HSI.
+# The network is DLNet's port of the authors' SSFTTnet; `dlnet paper verify` copies the weights of
+# the authors' model into it and compares the outputs (result: ssftt.fidelity.json, written by the
+# job `verify-papers` on GitHub Actions).
+paper:
+  name: SSFTT
+  title: Spectral-Spatial Feature Tokenization Transformer for Hyperspectral Image Classification
+  venue: IEEE Transactions on Geoscience and Remote Sensing, 2022
+  url: https://doi.org/10.1109/TGRS.2022.3144158
+  code: https://github.com/zgr6010/HSI_SSFTT
+  reported: []          # fill in from the paper's tables: {dataset, metric, value, protocol}
+
+official:
+  repo: https://github.com/zgr6010/HSI_SSFTT
+  commit: 994f5d7
+  entry: cls_SSFTT_IP/SSFTTnet.py:SSFTTnet
+  init_args: {in_channels: 1, num_classes: 16, num_tokens: 4, dim: 64, depth: 1, heads: 8, mlp_dim: 8}
+  input_ops: [[unsqueeze, 1]]    # the authors' model takes (N, 1, bands, H, W)
+
+input: {kind: map, dims: [30, 13, 13]}     # 30 PCA bands, 13 x 13 patch (the paper's Indian Pines setting)
+head: cls
+classes: 16
+
+architecture:
+  - {id: ssftt, module: ssftt, args: {tokens: 4, dim: 64, heads: 8, depth: 1}}
+
+training:
+  optimizer: adam
+  lr: 1.0e-3
+  batch: 64
+  epochs: 100

@@ -1,0 +1,29 @@
+# FAHM (Frequency-Aware Hierarchical Mamba for hyperspectral image classification, 2025).
+# The network is DLNet's port of the authors' FAHM. The comparison is on the FEATURES (the
+# authors' forward_features, averaged over tokens): the authors' classifier and four tensors
+# their forward pass never uses are left out, listed under `ignore_params`.
+paper:
+  name: FAHM
+  title: Frequency-Aware Hierarchical Mamba for Hyperspectral Image Classification
+  code: https://github.com/zhangxc0105/FAHM
+  reported: []          # fill in from the paper's tables: {dataset, metric, value, protocol}
+
+official:
+  repo: https://github.com/zhangxc0105/FAHM
+  commit: 6a3049e
+  entry: model/fahm.py:FAHM
+  init_args: {img_size: 7, in_chans: 30, num_classes: 16, n_groups: [2, 2, 2], embed_dims: [64, 32, 16], depths: [1, 1, 1]}
+  sys_path: ["."]
+  stub_modules: [torchsummaryX, fvcore, fvcore.nn]
+  method: forward_features
+  input_ops: [[flatten, 2]]
+  output_ops: [[mean, 1]]
+  compare: features
+  ignore_params: [head., rope., pre_conv.bn4., merge.0.batch_norm., merge.1.batch_norm., merge.2.batch_norm.]
+
+input: {kind: map, dims: [30, 7, 7]}
+head: cls
+classes: 16
+
+architecture:
+  - {id: fahm, module: fahm, args: {size: tiny, groups: 2}}

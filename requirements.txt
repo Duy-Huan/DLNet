@@ -9,5 +9,6 @@ scipy==1.18.1
 scikit-learn==1.9.1
 threadpoolctl==3.8.0
 torch==2.15.0
+pyyaml==6.0.3
 # Muon torch ban CPU (nhe, khong keo thu vien CUDA) tren Linux/Windows, cai truoc dong nay:
 #   pip install torch==2.15.0 --index-url https://download.pytorch.org/whl/cpu
