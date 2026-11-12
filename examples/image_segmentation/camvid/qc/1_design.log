@@ -1,0 +1,22 @@
+$ /usr/local/bin/python -m dlnet design --data /home/user/DLNet/examples/image_segmentation/camvid/input/data.npz --plugin image_segmentation --out /home/user/DLNet/examples/image_segmentation/camvid/output --budget 10m --topk 3 --seed 0 --threads 3 --no-cache
+[device] cpu, precision float32 (--device, --amp)
+[threads] 3 (of 4 CPUs; --threads to change)
+[plugin] image_segmentation  data=/home/user/DLNet/examples/image_segmentation/camvid/input/data.npz
+[load] task=classification features=3 classes=11 seed=0
+[profile] {'n_train': 420, 'n_features': 32400, 'n_classes': 11, 'primary_metric': 'miou', 'intrinsic_dim': 9.71, 'scaling_exponent_hat': 0.412, 'pca_dims_for_95pct_energy': 161, 'intrinsic_dim_estimators': {'twonn': {'mean': 9.098, 'std': 0.097}, 'mle': {'mean': 5.276, 'std': 0.608}, 'value': 7.187, 'rel_disagreement': 0.532, 'stable': False}, 'capacity_hint': {'min_width': 16, 'scaling_exponent': 0.557, 'used_for_pruning': False}, 'max_params': 126000, 'kind': 'segmentation', 'shape': [3, 90, 120], 'n_pixels_train': 4405855}
+[datacard] {'n_train': 420, 'channels': 3, 'height': 90, 'width': 120, 'spectral_slope': 2.658, 'high_freq_energy': 0.0355, 'corr_length': 17.0, 'corr_length_rel': 0.189, 'edge_density': 0.1552, 'channel_correlation': 0.988}
+[reference] classical baselines on the same split(s)
+/usr/local/lib/python3.13/site-packages/sklearn/linear_model/_logistic.py:599: ConvergenceWarning: lbfgs failed to converge after 500 iteration(s) (status=1):
+STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT
+
+Increase the number of iterations to improve the convergence (max_iter=500).
+You might also want to scale the data as shown in:
+    https://scikit-learn.org/stable/modules/preprocessing.html
+Please also refer to the documentation for alternative solver options:
+    https://scikit-learn.org/stable/modules/linear_model.html#logistic-regression
+  n_iter_i = _check_optimize_result(
+[reference] pixel_random_forest_5x5    val=0.2662
+[reference] pixel_logistic_regression_5x5 val=0.1511
+[zoo] 12 architectures from the module zoo (preset, random)
+[cost] 100 candidates; FLOPs/sample min 24,460,800 median 151,884,304 max 1,093,651,200
+[generate] 100 valid candidates from families ['deconvnet', 'deeplabv3', 'deeplabv3plus', 'fcn', 'fpn', 'linknet', 'pspnet', 'segformer', 'unet', 'unetpp', 'upernet', 'zoo_basic_block_bottleneck_dw_sep', 'zoo_basic_block_fcn_preact_block', 'zoo_basic_block_ghost_bottleneck_convmixer_block', 'zoo_dw_sep_bottleneck_ghost_bottleneck', 'zoo_fused_mbconv_ghost_bottleneck_linknet', 'zoo_mbconv_segformer', 'zoo_mbconv_unet', 'zoo_preact_block_mbconv_regnet_block', 'zoo_unet_res_block_basic_block_deeplabv3', 'zoo_vgg_stage_deconv', 'zoo_vgg_stage_fcn', 'zoo_vgg_stage_unet']

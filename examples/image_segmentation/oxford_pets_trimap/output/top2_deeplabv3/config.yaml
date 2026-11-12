@@ -1,0 +1,183 @@
+{
+  "plugin": "image_segmentation",
+  "task": "classification",
+  "split_seed": 0,
+  "in_dim": 3,
+  "out_dim": 3,
+  "primary_metric": "miou",
+  "arch": {
+    "family": "deeplabv3",
+    "width": 8,
+    "depth": 1,
+    "dropout": 0.1,
+    "encoder": "densenet",
+    "attention": "none",
+    "lr": 0.003,
+    "wd": 0.0001,
+    "batch": 32,
+    "spec": {
+      "op": "encdec",
+      "stages": [
+        {
+          "op": "seq",
+          "body": [
+            {
+              "op": "conv_bn_act",
+              "out": 8,
+              "k": 3,
+              "s": 1,
+              "act": "relu",
+              "norm": "batch"
+            },
+            {
+              "op": "conv_bn_act",
+              "out": 4,
+              "k": 1,
+              "s": 1,
+              "act": "relu",
+              "norm": "batch"
+            },
+            {
+              "op": "dense_block",
+              "layers": 1,
+              "growth": 4,
+              "bn_size": 2,
+              "dropout": 0.0
+            }
+          ]
+        },
+        {
+          "op": "seq",
+          "body": [
+            {
+              "op": "conv_bn_act",
+              "out": 8,
+              "k": 1,
+              "s": 1,
+              "act": "relu",
+              "norm": "batch"
+            },
+            {
+              "op": "pool",
+              "mode": "avg",
+              "k": 2,
+              "s": 2
+            },
+            {
+              "op": "dense_block",
+              "layers": 1,
+              "growth": 8,
+              "bn_size": 2,
+              "dropout": 0.0
+            }
+          ]
+        },
+        {
+          "op": "seq",
+          "body": [
+            {
+              "op": "conv_bn_act",
+              "out": 16,
+              "k": 1,
+              "s": 1,
+              "act": "relu",
+              "norm": "batch"
+            },
+            {
+              "op": "pool",
+              "mode": "avg",
+              "k": 2,
+              "s": 2
+            },
+            {
+              "op": "dense_block",
+              "layers": 1,
+              "growth": 16,
+              "bn_size": 2,
+              "dropout": 0.0
+            }
+          ]
+        }
+      ],
+      "dec": "deeplabv3",
+      "width": 8
+    },
+    "input": {
+      "kind": "map",
+      "dims": [
+        3,
+        96,
+        96
+      ]
+    },
+    "head": "dense",
+    "out_dim": 3,
+    "flops": 34357760,
+    "act_mb": 6.101216,
+    "vram_mb": 390.733616,
+    "seed_prior": 0.0,
+    "seed_rank": 30,
+    "seed_score": 68.5,
+    "seed_traits": [
+      "context",
+      "local_conv",
+      "multi_scale"
+    ]
+  },
+  "hyperparameters": {
+    "optimizer": "AdamW",
+    "lr": 0.003,
+    "weight_decay": 0.0001,
+    "batch_size": 32,
+    "epochs": 100,
+    "lr_schedule": "cosine",
+    "grad_clip_norm": 5.0,
+    "dropout": 0.1,
+    "width": 8,
+    "depth": 1,
+    "encoder": "densenet",
+    "attention": "none",
+    "source": {
+      "adopted": "searched",
+      "searched": {
+        "lr": 0.003,
+        "batch": 32,
+        "wd": 0.0001
+      },
+      "estimated": null,
+      "val_searched": 0.5338252197292275,
+      "val_estimated": null,
+      "methods": [
+        "LR range test (Smith 1506.01186)",
+        "gradient noise scale B_simple (McCandlish 1812.06162)",
+        "normalized weight decay (Loshchilov & Hutter 1711.05101)"
+      ]
+    }
+  },
+  "data": {
+    "kind": "segmentation",
+    "shape": [
+      3,
+      96,
+      96
+    ],
+    "x_key": "X",
+    "y_key": "y"
+  },
+  "recipe": {
+    "epochs": 100,
+    "schedule": "linear warm-up (5 %) then cosine",
+    "select": "best-val checkpoint",
+    "name": "modern",
+    "augment": true,
+    "label_smoothing": 0.1
+  },
+  "search_result": {
+    "val_mean": 0.5338252197292275,
+    "val_std": 0.0,
+    "epochs_used": 30,
+    "seeds": 1,
+    "splits": 1,
+    "test_std": 0.0
+  }
+}
