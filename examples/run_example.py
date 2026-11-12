@@ -305,6 +305,83 @@ def finish(name, out, steps, lb):
     return res
 
 
+ABOUT = {
+    "hsi/indian_pines": "AVIRIS, 145x145, 200 băng (0,4-2,5 µm), 20 m/pixel, 16 lớp nông nghiệp, mất cân bằng; chia pixel",
+    "hsi/indian_pines_block": "cùng cảnh, chia theo KHỐI không chồng lấn (số trung thực hơn chia pixel)",
+    "hsi/pavia_university": "ROSIS, 610x340, 103 băng (0,43-0,86 µm, chỉ VNIR), 1,3 m/pixel, 9 lớp đô thị; 2 % nhãn để train",
+    "hsi/salinas": "AVIRIS, 512x217, 204 băng, 3,7 m/pixel, 16 lớp cây trồng; 2 % nhãn để train",
+    "hsi/ksc": "AVIRIS, 512x614, 176 băng, 18 m/pixel, 13 lớp đầm lầy (Kennedy Space Center)",
+    "hsi/botswana": "Hyperion (vệ tinh), 1476x256, 145 băng, 30 m/pixel, 14 lớp (Okavango)",
+    "image_classification/mnist": "chữ số viết tay, xám 28x28, 10 lớp (600 ảnh/lớp)",
+    "image_classification/fashion_mnist": "quần áo, xám 28x28, 10 lớp (600 ảnh/lớp)",
+    "image_classification/cifar10": "ảnh tự nhiên màu 32x32, 10 lớp (600 ảnh/lớp)",
+    "image_classification/imagenette": "10 lớp ImageNet, màu, thu về 64x64 (300 ảnh/lớp)",
+    "image_classification/oxford_pets_breeds": "37 giống chó mèo (phân loại tinh), màu 64x64 (100 ảnh/giống)",
+    "image_segmentation/isbi2012_em": "ảnh hiển vi điện tử xám 256x256, nhị phân màng/tế bào, 30 ảnh",
+    "image_segmentation/oxford_pets_trimap": "thú cưng/nền/viền, màu 96x96, 1480 ảnh",
+    "image_segmentation/camvid": "cảnh đường phố, màu 120x90, 11 lớp (SegNet), 701 ảnh, có vùng bỏ qua",
+}
+
+README = """# Ví dụ QA/QC: DLNet chạy trọn quy trình trên dữ liệu chuẩn
+
+Mỗi thư mục `<lĩnh vực>/<bộ>/` là một lần dùng DLNet như người dùng thật:
+
+- `input/`: dữ liệu chuẩn, file gốc của nhà phát hành (HSI) hoặc tập con cố định của nó; nguồn và sha256 ở `SOURCE.md`.
+- `output/`: nguyên những gì `dlnet design` ghi ra: `leaderboard.md`, và ba gói `top1_*`, `top2_*`, `top3_*`.
+  Trong mỗi gói, `model.py` là **chính mạng được sinh ra, PyTorch thuần** (không import DLNet); gói top-1 đã được
+  train đầy đủ nên có thêm `model.pt` (trọng số) và `model.pt2` (đồ thị `torch.export`).
+- `qc/`: log từng bước, `QC.md`, `qc.json`, `predictions.npy` và hình (bản đồ lớp HSI, ảnh chồng nhãn, ma trận nhầm lẫn).
+
+Chạy lại: `python examples/prepare_data.py --cache <thư mục tải>` rồi `python examples/run_example.py <bộ>|all`
+(mặc định `--budget 10m --epochs 30 --threads 2`, CPU). Năm bước được kiểm: (1) design, (2) pytest của từng gói,
+(3) train đầy đủ gói top-1, (4) predict + export, (5) chấm lại `predictions.npy` trên tập TEST của gói và so với
+số `train.py` in ra, kiểm các tập không trùng nhau.
+
+## Kết quả
+
+Số đo là của ngân sách nhỏ trên CPU (10 phút tìm kiếm, 30 epoch): dùng để kiểm quy trình và hình dung đầu ra,
+không phải số tốt nhất đạt được trên các bộ này. Chia pixel của HSI cho OA cao hơn thực tế (patch train/test chồng nhau).
+
+| Bộ | Đặc trưng dữ liệu | 5 bước | Top-1 (tham số) | Chỉ số test | Baseline cổ điển tốt nhất (val) | Thắng baseline |
+|---|---|---|---|---|---|---|
+{rows}
+
+{missing}
+"""
+
+
+def summary():
+    rows, missing = [], []
+    for name in CASES:
+        q = HERE / name / "qc" / "qc.json"
+        if not q.exists():
+            missing.append(name)
+            continue
+        d = json.loads(q.read_text())
+        st = d["steps"]
+        ok = sum(bool(v.get("ok")) for v in st.values())
+        qc, v = st.get("5_qc", {}), d.get("verdict", {})
+        top = (d.get("top") or [{}])[0]
+        metric = (
+            f"{qc.get('metric', '')} {qc['test_from_predictions']:.4f}"
+            if "test_from_predictions" in qc
+            else "-"
+        )
+        ref = (
+            f"{v.get('best_reference', '-')} {v['best_reference_val']:.4f}"
+            if "best_reference_val" in v
+            else "-"
+        )
+        beats = {True: "có", False: "không"}.get(v.get("beats_reference"), "-")
+        pkg = st.get("3_train_top1", {}).get("package", top.get("name", "-"))
+        rows.append(
+            f"| [`{name}`]({name}/qc/QC.md) | {ABOUT[name]} | {ok}/5 | `{pkg}` ({top.get('params', 0):,}) | {metric} | {ref} | {beats} |"
+        )
+    note = ("Chưa chạy xong: " + ", ".join(f"`{m}`" for m in missing) + ".") if missing else ""
+    (HERE / "README.md").write_text(README.format(rows="\n".join(rows), missing=note))
+    print(f"examples/README.md: {len(rows)} cases, {len(missing)} not run")
+
+
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument(
@@ -314,6 +391,8 @@ if __name__ == "__main__":
     ap.add_argument("--epochs", type=int, default=30, help="full training of the top-1 package")
     ap.add_argument("--threads", type=int, default=2)
     a = ap.parse_args()
+    if a.case == "summary":
+        raise SystemExit(summary())
     names = [c for c in CASES if a.case == "all" or c == a.case or c.startswith(a.case + "/")]
     for n in names:
         run(n, a.budget, a.epochs, a.threads)

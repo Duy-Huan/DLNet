@@ -6,6 +6,10 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-12
+
+- Số đo v1.0 (agent.md §9.9, doc/algorithms.md §7): bảng, ảnh, chuỗi thời gian 3 seed; HSI Indian Pines 2 seed (resnet2d 0,9841; fahm 0,9733; mambahsi_plus 0,9732; cnn2d 0,9720; ssftt 0,9620; mambahsi 0,9419). Chưa họ mới nào thắng họ cũ ở ngân sách nhỏ trên CPU.
+
 - **`model.py` của gói xuất ra là chính mạng được sinh, viết bằng PyTorch thuần** (`dlnet/standalone.py`): nguồn của đúng các lớp mạng dùng + `build_model()` với các lời gọi constructor tường minh; không import DLNet, không còn thư mục `zoo/` trong gói. File được chạy thử và so với mạng đã tìm kiếm trước khi ghi (cùng tham số, cùng seed cho cùng trọng số, cùng đầu ra); đo trên toàn kho: 238/238 cặp (op, kiểu) và 79 họ đều "identical". Không viết được thì giữ dạng cũ và ghi lý do trong `report.md`. Lệnh mới `dlnet standalone <gói>` chuyển gói cũ (giữ `model.pt`). Gated DeltaNet: tham số `D` không huấn luyện được đặt ngay trong lớp khối.
 
 - `scripts/ci_local.py`: chạy các cổng của CI trên máy trước khi push (`--quick`, mặc định, `--full`); `--install` cài hook pre-push (`scripts/hooks/pre-push`) để mọi `git push` tự kiểm trước. Quy tắc ghi ở agent.md §10 và skill `git-dev-main`.
@@ -441,7 +445,8 @@ Bản đầu tiên: prototype chạy được từ dữ liệu đến Top-K base
 - Chưa có zero-cost proxy, cost model FLOPs/VRAM, Tensor-LoRA, deep unfolding; chưa có plugin image và timeseries.
 - Kết quả trên Indian Pines và Pavia University là một lần chạy ngắn trên CPU: với chia theo khối, mạng sâu chưa vượt rõ baseline cổ điển.
 
-[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v0.24.0...HEAD
+[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.0.0
 [0.24.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.24.0
 [0.23.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.23.0
 [0.22.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v0.22.0

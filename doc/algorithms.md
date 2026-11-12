@@ -81,3 +81,19 @@ Quy tắc (`agent.md` §16.1): proxy chỉ được dùng để loại sau khi �
 |---|---|---|
 | Intrinsic dimension (TwoNN, MLE) | Facco 2017; Levina & Bickel 2004 (viết từ trí nhớ) | `profile.py` |
 | FLOPs, bộ nhớ kích hoạt, VRAM | `torch.utils.flop_counter` trên thiết bị `meta` | `zoo/cost.py` (VRAM chưa đối chiếu GPU; FLOPs bỏ qua phép elementwise) |
+
+## 7. v1.0: khối và họ mới, số đo tóm tắt
+
+Nguồn và kết quả đối chiếu số học với mã gốc của từng khối: [THIRD_PARTY.md](../THIRD_PARTY.md) (5 job CI, 32 + 8 + 19 + 9 phép so; trùng từng bit hoặc lệch ≤ 8,3e-7). Số đo đầy đủ: `agent.md` §9.9.
+
+| Miền | Họ mới | Kết quả (cùng split, cùng epoch với họ cũ) |
+|---|---|---|
+| Bảng | `realmlp` | nhất 1/3 bộ sklearn (breast_cancer 0,9855), chênh trong độ lệch seed |
+| Ảnh | `mambavision`, `kat` | digits: 0,9420 và 0,8922, thua cnn 0,9909 |
+| Chuỗi thời gian | `xlstm`, `gated_deltanet`, `timemixer`, `timexer` | xlstm và gated_deltanet ngang tcn (≥ 0,97 trên cả hai bài); timexer ở mức ngẫu nhiên trên bài cần so kênh |
+| HSI | `fahm`, `mambahsi_plus`, `ssftt`, `mambahsi` | Indian Pines chia pixel, 2 seed: OA 0,9733 / 0,9732 / 0,9620 / 0,9419; resnet2d 0,9841 |
+| Đồ thị, gợi ý | `gps_net`, `polynormer_net`, `sgformer_net`, `finalmlp`, `dcnv3`, `wukong` | chưa đo trên dữ liệu thật |
+
+Chưa họ mới nào thắng họ cũ ở ngân sách nhỏ trên CPU; các họ có vòng lặp Python (Mamba, xLSTM, Gated DeltaNet) chậm hơn CNN hàng chục tới hàng trăm lần.
+
+**Mã của mạng xuất ra** (`dlnet/standalone.py`): `model.py` trong mỗi gói là nguồn PyTorch thuần của chính mạng, sinh bằng cách ghi lại đối số constructor khi dựng mạng rồi gom nguồn các lớp được dùng; kiểm bằng cách so trọng số cùng seed và đầu ra với mạng gốc (xem [architecture.md](architecture.md)).
