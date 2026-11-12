@@ -6,6 +6,12 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-12
+
+- **Notebook huấn luyện `baselines.ipynb`** trong mỗi thư mục đầu ra (`dlnet/notebook.py`), chạy trên Jupyter hoặc Google Colab: setup (clone repo hoặc tải zip trên Colab, cài phần thiếu, chọn GPU), dữ liệu (cùng cách chia và tiền xử lý), mỗi baseline một mục (sơ đồ khối, đồ thị từng lớp bằng torchview, huấn luyện đầy đủ, đường cong, chỉ số test, lưu `model.pt`), so sánh, rồi nạp lại từng baseline và vẽ kết quả. Lệnh `dlnet notebook <out> --data ...` cho thư mục cũ (cập nhật cả mô-đun phụ trợ `core.py`, `inference.py`, ... của gói).
+- **Sơ đồ khối kiểu paper `architecture.svg`** cho mỗi gói (`dlnet/diagram.py`, SVG thuần, không phụ thuộc): khối tô màu theo loại, tham số chính, kích thước đầu ra thật; residual, nhánh song song, khối lặp, encoder–decoder có skip.
+- `core.train_full` ghi `tr.history` (loss huấn luyện, điểm validation, learning rate mỗi epoch).
+
 ## [1.0.2] - 2026-11-12
 
 - Sửa (QA `examples/`, phân đoạn ảnh): `design` dựng sẵn mọi ứng viên trước khi tìm kiếm, nên (a) một mô hình không cấp phát được (khối attention trên ảnh 256×256 đòi 60 GB) làm hỏng cả lượt chạy, và (b) 100 mô hình nằm cùng lúc trong bộ nhớ làm máy hết RAM. Nay ứng viên được dựng lần lượt khi tới lượt (`search._open`); ứng viên không dựng được bị loại và ghi vào cảnh báo; ứng viên bị bỏ vì không vừa ngân sách được giải phóng ngay.
@@ -454,7 +460,8 @@ Bản đầu tiên: prototype chạy được từ dữ liệu đến Top-K base
 - Chưa có zero-cost proxy, cost model FLOPs/VRAM, Tensor-LoRA, deep unfolding; chưa có plugin image và timeseries.
 - Kết quả trên Indian Pines và Pavia University là một lần chạy ngắn trên CPU: với chia theo khối, mạng sâu chưa vượt rõ baseline cổ điển.
 
-[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v1.0.2...HEAD
+[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.1.0
 [1.0.2]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.0.2
 [1.0.1]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.0.1
 [1.0.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.0.0

@@ -1,0 +1,103 @@
+<svg xmlns='http://www.w3.org/2000/svg' width='671' height='1162' viewBox='0 0 671 1162'>
+<defs><marker id='arr' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto-start-reverse'><path d='M 0 0 L 10 5 L 0 10 z' fill='#374151'/></marker></defs>
+<rect width='100%' height='100%' fill='#ffffff'/>
+<text x='335.3' y='22.0' font-family='Helvetica, Arial, sans-serif' font-size='15' font-weight='bold' text-anchor='middle' fill='#111827'>top1_deeplabv3plus  (rank 1)</text>
+<text x='335.3' y='40.0' font-family='Helvetica, Arial, sans-serif' font-size='11' font-weight='normal' text-anchor='middle' fill='#4b5563'>9,950 parameters</text>
+<rect x='67.3' y='56.0' width='120.0' height='46' rx='6' fill='#ffffff' stroke='#111827' stroke-width='1.4'/>
+<text x='127.3' y='76.0' font-family='Helvetica, Arial, sans-serif' font-size='12' font-weight='bold' text-anchor='middle' fill='#111827'>Input</text>
+<text x='127.3' y='91.0' font-family='Helvetica, Arial, sans-serif' font-size='10' font-weight='normal' text-anchor='middle' fill='#374151'>1 x 256 x 256</text>
+<line x1='127.3' y1='102.0' x2='127.3' y2='118.0' stroke='#374151' stroke-width='1.3' marker-end='url(#arr)'/>
+<rect x='24.0' y='120.0' width='293.9' height='278.0' rx='8' fill='none' stroke='#9ca3af' stroke-width='1.2' stroke-dasharray='5 4'/>
+<text x='32.0' y='133.0' font-family='Helvetica, Arial, sans-serif' font-size='10' font-weight='bold' text-anchor='start' fill='#4b5563'>encoder stage 1 -&gt; 8 x 256 x 256</text>
+<rect x='67.3' y='148.0' width='120.0' height='46' rx='6' fill='#dbeafe' stroke='#2563eb' stroke-width='1.4'/>
+<text x='127.3' y='168.0' font-family='Helvetica, Arial, sans-serif' font-size='12' font-weight='bold' text-anchor='middle' fill='#111827'>Conv 3x3, 8</text>
+<text x='127.3' y='183.0' font-family='Helvetica, Arial, sans-serif' font-size='10' font-weight='normal' text-anchor='middle' fill='#374151'>BN, ReLU</text>
+<text x='195.3' y='175.0' font-family='Helvetica, Arial, sans-serif' font-size='10' font-weight='normal' text-anchor='start' fill='#6b7280'>8 x 256 x 256</text>
+<line x1='127.3' y1='194.0' x2='127.3' y2='210.0' stroke='#374151' stroke-width='1.3' marker-end='url(#arr)'/>
+<rect x='67.3' y='212.0' width='120.0' height='46' rx='6' fill='#dbeafe' stroke='#2563eb' stroke-width='1.4'/>
+<text x='127.3' y='232.0' font-family='Helvetica, Arial, sans-serif' font-size='12' font-weight='bold' text-anchor='middle' fill='#111827'>Conv 1x1, 4</text>
+<text x='127.3' y='247.0' font-family='Helvetica, Arial, sans-serif' font-size='10' font-weight='normal' text-anchor='middle' fill='#374151'>BN, ReLU</text>
+<text x='195.3' y='239.0' font-family='Helvetica, Arial, sans-serif' font-size='10' font-weight='normal' text-anchor='start' fill='#6b7280'>4 x 256 x 256</text>
+<line x1='127.3' y1='258.0' x2='127.3' y2='274.0' stroke='#374151' stroke-width='1.3' marker-end='url(#arr)'/>
+<rect x='36.0' y='276.0' width='182.7' height='46' rx='6' fill='#dbeafe' stroke='#2563eb' stroke-width='1.4'/>
+<text x='127.3' y='296.0' font-family='Helvetica, Arial, sans-serif' font-size='12' font-weight='bold' text-anchor='middle' fill='#111827'>Dense block</text>
+<text x='127.3' y='311.0' font-family='Helvetica, Arial, sans-serif' font-size='10' font-weight='normal' text-anchor='middle' fill='#374151'>layers=2, growth=2, bn_size=2</text>
+<text x='226.7' y='303.0' font-family='Helvetica, Arial, sans-serif' font-size='10' font-weight='normal' text-anchor='start' fill='#6b7280'>8 x 256 x 256</text>
+<line x1='127.3' y1='322.0' x2='127.3' y2='338.0' stroke='#374151' stroke-width='1.3' marker-end='url(#arr)'/>
+<rect x='67.3' y='340.0' width='120.0' height='46' rx='6' fill='#dbeafe' stroke='#2563eb' stroke-width='1.4'/>
+<text x='127.3' y='360.0' font-family='Helvetica, Arial, sans-serif' font-size='12' font-weight='bold' text-anchor='middle' fill='#111827'>SE</text>
+<text x='127.3' y='375.0' font-family='Helvetica, Arial, sans-serif' font-size='10' font-weight='normal' text-anchor='middle' fill='#374151'>ratio=0.25</text>
+<text x='195.3' y='367.0' font-family='Helvetica, Arial, sans-serif' font-size='10' font-weight='normal' text-anchor='start' fill='#6b7280'>8 x 256 x 256</text>
+<line x1='127.3' y1='398.0' x2='127.3' y2='414.0' stroke='#374151' stroke-width='1.3' marker-end='url(#arr)'/>
+<rect x='24.0' y='416.0' width='299.8' height='266.0' rx='8' fill='none' stroke='#9ca3af' stroke-width='1.2' stroke-dasharray='5 4'/>
+<text x='32.0' y='429.0' font-family='Helvetica, Arial, sans-serif' font-size='10' font-weight='bold' text-anchor='start' fill='#4b5563'>encoder stage 2 -&gt; 16 x 128 x 128</text>
+<rect x='67.3' y='444.0' width='120.0' height='46' rx='6' fill='#dbeafe' stroke='#2563eb' stroke-width='1.4'/>
+<text x='127.3' y='464.0' font-family='Helvetica, Arial, sans-serif' font-size='12' font-weight='bold' text-anchor='middle' fill='#111827'>Conv 1x1, 8</text>
+<text x='127.3' y='479.0' font-family='Helvetica, Arial, sans-serif' font-size='10' font-weight='normal' text-anchor='middle' fill='#374151'>BN, ReLU</text>
+<text x='195.3' y='471.0' font-family='Helvetica, Arial, sans-serif' font-size='10' font-weight='normal' text-anchor='start' fill='#6b7280'>8 x 256 x 256</text>
+<line x1='127.3' y1='490.0' x2='127.3' y2='506.0' stroke='#374151' stroke-width='1.3' marker-end='url(#arr)'/>
+<rect x='67.3' y='508.0' width='120.0' height='34' rx='6' fill='#fef9c3' stroke='#ca8a04' stroke-width='1.4'/>
+<text x='127.3' y='528.0' font-family='Helvetica, Arial, sans-serif' font-size='12' font-weight='bold' text-anchor='middle' fill='#111827'>avg pool 2x</text>
+<text x='195.3' y='529.0' font-family='Helvetica, Arial, sans-serif' font-size='10' font-weight='normal' text-anchor='start' fill='#6b7280'>8 x 128 x 128</text>
+<line x1='127.3' y1='542.0' x2='127.3' y2='558.0' stroke='#374151' stroke-width='1.3' marker-end='url(#arr)'/>
+<rect x='36.0' y='560.0' width='182.7' height='46' rx='6' fill='#dbeafe' stroke='#2563eb' stroke-width='1.4'/>
+<text x='127.3' y='580.0' font-family='Helvetica, Arial, sans-serif' font-size='12' font-weight='bold' text-anchor='middle' fill='#111827'>Dense block</text>
+<text x='127.3' y='595.0' font-family='Helvetica, Arial, sans-serif' font-size='10' font-weight='normal' text-anchor='middle' fill='#374151'>layers=2, growth=4, bn_size=2</text>
+<text x='226.7' y='587.0' font-family='Helvetica, Arial, sans-serif' font-size='10' font-weight='normal' text-anchor='start' fill='#6b7280'>16 x 128 x 128</text>
+<line x1='127.3' y1='606.0' x2='127.3' y2='622.0' stroke='#374151' stroke-width='1.3' marker-end='url(#arr)'/>
+<rect x='67.3' y='624.0' width='120.0' height='46' rx='6' fill='#dbeafe' stroke='#2563eb' stroke-width='1.4'/>
+<text x='127.3' y='644.0' font-family='Helvetica, Arial, sans-serif' font-size='12' font-weight='bold' text-anchor='middle' fill='#111827'>SE</text>
+<text x='127.3' y='659.0' font-family='Helvetica, Arial, sans-serif' font-size='10' font-weight='normal' text-anchor='middle' fill='#374151'>ratio=0.25</text>
+<text x='195.3' y='651.0' font-family='Helvetica, Arial, sans-serif' font-size='10' font-weight='normal' text-anchor='start' fill='#6b7280'>16 x 128 x 128</text>
+<line x1='127.3' y1='682.0' x2='127.3' y2='698.0' stroke='#374151' stroke-width='1.3' marker-end='url(#arr)'/>
+<rect x='24.0' y='700.0' width='288.0' height='266.0' rx='8' fill='none' stroke='#9ca3af' stroke-width='1.2' stroke-dasharray='5 4'/>
+<text x='32.0' y='713.0' font-family='Helvetica, Arial, sans-serif' font-size='10' font-weight='bold' text-anchor='start' fill='#4b5563'>encoder stage 3 -&gt; 32 x 64 x 64</text>
+<rect x='67.3' y='728.0' width='120.0' height='46' rx='6' fill='#dbeafe' stroke='#2563eb' stroke-width='1.4'/>
+<text x='127.3' y='748.0' font-family='Helvetica, Arial, sans-serif' font-size='12' font-weight='bold' text-anchor='middle' fill='#111827'>Conv 1x1, 16</text>
+<text x='127.3' y='763.0' font-family='Helvetica, Arial, sans-serif' font-size='10' font-weight='normal' text-anchor='middle' fill='#374151'>BN, ReLU</text>
+<text x='195.3' y='755.0' font-family='Helvetica, Arial, sans-serif' font-size='10' font-weight='normal' text-anchor='start' fill='#6b7280'>16 x 128 x 128</text>
+<line x1='127.3' y1='774.0' x2='127.3' y2='790.0' stroke='#374151' stroke-width='1.3' marker-end='url(#arr)'/>
+<rect x='67.3' y='792.0' width='120.0' height='34' rx='6' fill='#fef9c3' stroke='#ca8a04' stroke-width='1.4'/>
+<text x='127.3' y='812.0' font-family='Helvetica, Arial, sans-serif' font-size='12' font-weight='bold' text-anchor='middle' fill='#111827'>avg pool 2x</text>
+<text x='195.3' y='813.0' font-family='Helvetica, Arial, sans-serif' font-size='10' font-weight='normal' text-anchor='start' fill='#6b7280'>16 x 64 x 64</text>
+<line x1='127.3' y1='826.0' x2='127.3' y2='842.0' stroke='#374151' stroke-width='1.3' marker-end='url(#arr)'/>
+<rect x='36.0' y='844.0' width='182.7' height='46' rx='6' fill='#dbeafe' stroke='#2563eb' stroke-width='1.4'/>
+<text x='127.3' y='864.0' font-family='Helvetica, Arial, sans-serif' font-size='12' font-weight='bold' text-anchor='middle' fill='#111827'>Dense block</text>
+<text x='127.3' y='879.0' font-family='Helvetica, Arial, sans-serif' font-size='10' font-weight='normal' text-anchor='middle' fill='#374151'>layers=2, growth=8, bn_size=2</text>
+<text x='226.7' y='871.0' font-family='Helvetica, Arial, sans-serif' font-size='10' font-weight='normal' text-anchor='start' fill='#6b7280'>32 x 64 x 64</text>
+<line x1='127.3' y1='890.0' x2='127.3' y2='906.0' stroke='#374151' stroke-width='1.3' marker-end='url(#arr)'/>
+<rect x='67.3' y='908.0' width='120.0' height='46' rx='6' fill='#dbeafe' stroke='#2563eb' stroke-width='1.4'/>
+<text x='127.3' y='928.0' font-family='Helvetica, Arial, sans-serif' font-size='12' font-weight='bold' text-anchor='middle' fill='#111827'>SE</text>
+<text x='127.3' y='943.0' font-family='Helvetica, Arial, sans-serif' font-size='10' font-weight='normal' text-anchor='middle' fill='#374151'>ratio=0.25</text>
+<text x='195.3' y='935.0' font-family='Helvetica, Arial, sans-serif' font-size='10' font-weight='normal' text-anchor='start' fill='#6b7280'>32 x 64 x 64</text>
+<rect x='393.8' y='520.0' width='165.5' height='46' rx='6' fill='#dbeafe' stroke='#2563eb' stroke-width='1.4'/>
+<text x='476.6' y='540.0' font-family='Helvetica, Arial, sans-serif' font-size='12' font-weight='bold' text-anchor='middle' fill='#111827'>deeplabv3plus decoder</text>
+<text x='476.6' y='555.0' font-family='Helvetica, Arial, sans-serif' font-size='10' font-weight='normal' text-anchor='middle' fill='#374151'>width 8</text>
+<path d='M 317.9 259.0 C 363.8 259.0 363.8 543.0 393.8 543.0' fill='none' stroke='#6b7280' stroke-width='1.1' stroke-dasharray='4 3' marker-end='url(#arr)'/>
+<path d='M 323.8 549.0 C 363.8 549.0 363.8 543.0 393.8 543.0' fill='none' stroke='#6b7280' stroke-width='1.1' stroke-dasharray='4 3' marker-end='url(#arr)'/>
+<path d='M 312.0 833.0 C 363.8 833.0 363.8 543.0 393.8 543.0' fill='none' stroke='#6b7280' stroke-width='1.1' stroke-dasharray='4 3' marker-end='url(#arr)'/>
+<text x='476.6' y='582.0' font-family='Helvetica, Arial, sans-serif' font-size='10' font-weight='normal' text-anchor='middle' fill='#6b7280'>skip connections from every stage</text>
+<path d='M 476.6 588.0 L 476.6 976.0 L 135.3 976.0' fill='none' stroke='#374151' stroke-width='1.3' marker-end='url(#arr)'/>
+<text x='567.4' y='557.0' font-family='Helvetica, Arial, sans-serif' font-size='10' font-weight='normal' text-anchor='start' fill='#6b7280'>8 x 256 x 256</text>
+<line x1='127.3' y1='986.0' x2='127.3' y2='1002.0' stroke='#374151' stroke-width='1.3' marker-end='url(#arr)'/>
+<rect x='30.4' y='1004.0' width='193.9' height='46' rx='6' fill='#fee2e2' stroke='#dc2626' stroke-width='1.4'/>
+<text x='127.3' y='1024.0' font-family='Helvetica, Arial, sans-serif' font-size='12' font-weight='bold' text-anchor='middle' fill='#111827'>1x1 conv -&gt; 2 classes</text>
+<text x='127.3' y='1039.0' font-family='Helvetica, Arial, sans-serif' font-size='10' font-weight='normal' text-anchor='middle' fill='#374151'>per pixel, resized to the input</text>
+<text x='232.3' y='1031.0' font-family='Helvetica, Arial, sans-serif' font-size='10' font-weight='normal' text-anchor='start' fill='#6b7280'>2 x 256 x 256</text>
+<rect x='24.0' y='1068.0' width='16' height='12' rx='3' fill='#dbeafe' stroke='#2563eb'/>
+<text x='46.0' y='1078.0' font-family='Helvetica, Arial, sans-serif' font-size='10' font-weight='normal' text-anchor='start' fill='#374151'>convolution</text>
+<rect x='349.3' y='1068.0' width='16' height='12' rx='3' fill='#fde7d4' stroke='#ea580c'/>
+<text x='371.3' y='1078.0' font-family='Helvetica, Arial, sans-serif' font-size='10' font-weight='normal' text-anchor='start' fill='#374151'>attention / transformer</text>
+<rect x='24.0' y='1090.0' width='16' height='12' rx='3' fill='#ede9fe' stroke='#7c3aed'/>
+<text x='46.0' y='1100.0' font-family='Helvetica, Arial, sans-serif' font-size='10' font-weight='normal' text-anchor='start' fill='#374151'>frequency (FFT)</text>
+<rect x='349.3' y='1090.0' width='16' height='12' rx='3' fill='#dcfce7' stroke='#16a34a'/>
+<text x='371.3' y='1100.0' font-family='Helvetica, Arial, sans-serif' font-size='10' font-weight='normal' text-anchor='start' fill='#374151'>recurrent / state space</text>
+<rect x='24.0' y='1112.0' width='16' height='12' rx='3' fill='#ccfbf1' stroke='#0d9488'/>
+<text x='46.0' y='1122.0' font-family='Helvetica, Arial, sans-serif' font-size='10' font-weight='normal' text-anchor='start' fill='#374151'>MLP / linear</text>
+<rect x='349.3' y='1112.0' width='16' height='12' rx='3' fill='#fef9c3' stroke='#ca8a04'/>
+<text x='371.3' y='1122.0' font-family='Helvetica, Arial, sans-serif' font-size='10' font-weight='normal' text-anchor='start' fill='#374151'>pooling / reshape</text>
+<rect x='24.0' y='1134.0' width='16' height='12' rx='3' fill='#f1f5f9' stroke='#64748b'/>
+<text x='46.0' y='1144.0' font-family='Helvetica, Arial, sans-serif' font-size='10' font-weight='normal' text-anchor='start' fill='#374151'>norm / activation</text>
+<rect x='349.3' y='1134.0' width='16' height='12' rx='3' fill='#fce7f3' stroke='#db2777'/>
+<text x='371.3' y='1144.0' font-family='Helvetica, Arial, sans-serif' font-size='10' font-weight='normal' text-anchor='start' fill='#374151'>graph / interaction</text>
+</svg>

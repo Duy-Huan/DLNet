@@ -456,6 +456,7 @@ Kết luận trung thực: Top-K được huấn luyện sâu gấp 2,5 lần n�
 - **`model.pt2` chứa cả tập dữ liệu** (sau v1.0.0): đầu vào mẫu của `torch.export` là lát cắt chung vùng nhớ với toàn bộ dữ liệu; CIFAR-10: 74 MB cho mô hình 73 nghìn tham số. Sao riêng đầu vào mẫu: 0,4 MB.
 - **Dựng sẵn mọi ứng viên** (sau v1.0.1): ISBI 256×256: một khối attention đòi 60 GB làm hỏng cả lượt `design`; Oxford Pets trimap: 100 mô hình cùng nằm trong bộ nhớ làm máy khởi động lại. Nay dựng lần lượt, loại ứng viên không dựng được (`search._open`). Còn lại: một ứng viên đòi vài GB (dưới RAM máy) vẫn được thử; ước lượng bộ nhớ của cost model không tính ma trận attention bên trong khối.
 - **37 lớp bị hiểu là hồi quy** (sau v1.0.1): nhãn nguyên hơn 20 giá trị → hồi quy, không cảnh báo. Nay file ảnh/chuỗi nhận mã lớp liên tiếp là phân loại; trường hợp mơ hồ có cảnh báo.
+- **v1.1 (yêu cầu người dùng sau QA)**: mỗi thư mục đầu ra có `baselines.ipynb` (Jupyter / Colab: setup, dữ liệu, sơ đồ, huấn luyện từng baseline, so sánh, nạp lại; `dlnet/notebook.py`, test e2e chạy notebook như script) và mỗi gói có `architecture.svg` (sơ đồ khối kiểu paper từ spec, `dlnet/diagram.py`; vẽ được cho 238/238 cặp op/kiểu và mọi họ). Đồ thị từng lớp trong notebook dùng torchview (cần chương trình graphviz, Colab có sẵn).
 - Kết quả QA từng bộ: `examples/README.md`.
 
 ## 10. Quy ước cho agent (người/AI) phát triển repo

@@ -1,0 +1,49 @@
+<svg xmlns='http://www.w3.org/2000/svg' width='470' height='522' viewBox='0 0 470 522'>
+<defs><marker id='arr' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto-start-reverse'><path d='M 0 0 L 10 5 L 0 10 z' fill='#374151'/></marker></defs>
+<rect width='100%' height='100%' fill='#ffffff'/>
+<text x='235.0' y='22.0' font-family='Helvetica, Arial, sans-serif' font-size='15' font-weight='bold' text-anchor='middle' fill='#111827'>top3_zoo_gfnet_block_patchify_pos  (rank 3)</text>
+<text x='235.0' y='40.0' font-family='Helvetica, Arial, sans-serif' font-size='11' font-weight='normal' text-anchor='middle' fill='#4b5563'>369,386 parameters</text>
+<rect x='143.4' y='56.0' width='120.0' height='46' rx='6' fill='#ffffff' stroke='#111827' stroke-width='1.4'/>
+<text x='203.4' y='76.0' font-family='Helvetica, Arial, sans-serif' font-size='12' font-weight='bold' text-anchor='middle' fill='#111827'>Input</text>
+<text x='203.4' y='91.0' font-family='Helvetica, Arial, sans-serif' font-size='10' font-weight='normal' text-anchor='middle' fill='#374151'>1 x 28 x 28</text>
+<line x1='203.4' y1='102.0' x2='203.4' y2='118.0' stroke='#374151' stroke-width='1.3' marker-end='url(#arr)'/>
+<rect x='134.4' y='120.0' width='137.8' height='46' rx='6' fill='#fde7d4' stroke='#ea580c' stroke-width='1.4'/>
+<text x='203.4' y='140.0' font-family='Helvetica, Arial, sans-serif' font-size='12' font-weight='bold' text-anchor='middle' fill='#111827'>Patch embed, d=64</text>
+<text x='203.4' y='155.0' font-family='Helvetica, Arial, sans-serif' font-size='10' font-weight='normal' text-anchor='middle' fill='#374151'>patch=4</text>
+<text x='280.3' y='147.0' font-family='Helvetica, Arial, sans-serif' font-size='10' font-weight='normal' text-anchor='start' fill='#6b7280'>49 tok x 64</text>
+<line x1='203.4' y1='166.0' x2='203.4' y2='182.0' stroke='#374151' stroke-width='1.3' marker-end='url(#arr)'/>
+<rect x='143.4' y='184.0' width='120.0' height='46' rx='6' fill='#fde7d4' stroke='#ea580c' stroke-width='1.4'/>
+<text x='203.4' y='204.0' font-family='Helvetica, Arial, sans-serif' font-size='12' font-weight='bold' text-anchor='middle' fill='#111827'>Pos. embed</text>
+<text x='203.4' y='219.0' font-family='Helvetica, Arial, sans-serif' font-size='10' font-weight='normal' text-anchor='middle' fill='#374151'>mode=learned</text>
+<text x='271.4' y='211.0' font-family='Helvetica, Arial, sans-serif' font-size='10' font-weight='normal' text-anchor='start' fill='#6b7280'>49 tok x 64</text>
+<line x1='203.4' y1='230.0' x2='203.4' y2='246.0' stroke='#374151' stroke-width='1.3' marker-end='url(#arr)'/>
+<rect x='126.0' y='248.0' width='154.6' height='46' rx='6' fill='#ede9fe' stroke='#7c3aed' stroke-width='1.4'/>
+<text x='203.4' y='268.0' font-family='Helvetica, Arial, sans-serif' font-size='12' font-weight='bold' text-anchor='middle' fill='#111827'>GFNet block</text>
+<text x='203.4' y='283.0' font-family='Helvetica, Arial, sans-serif' font-size='10' font-weight='normal' text-anchor='middle' fill='#374151'>mlp_ratio=4, dropout=0.1</text>
+<text x='288.7' y='275.0' font-family='Helvetica, Arial, sans-serif' font-size='10' font-weight='normal' text-anchor='start' fill='#6b7280'>49 tok x 64</text>
+<line x1='203.4' y1='294.0' x2='203.4' y2='310.0' stroke='#374151' stroke-width='1.3' marker-end='url(#arr)'/>
+<rect x='98.0' y='312.0' width='210.7' height='46' rx='6' fill='#fce7f3' stroke='#db2777' stroke-width='1.4'/>
+<text x='203.4' y='332.0' font-family='Helvetica, Arial, sans-serif' font-size='12' font-weight='bold' text-anchor='middle' fill='#111827'>Wukong</text>
+<text x='203.4' y='347.0' font-family='Helvetica, Arial, sans-serif' font-size='10' font-weight='normal' text-anchor='middle' fill='#374151'>layers=3, lcb=40, fmb=40, rank_k=8</text>
+<text x='316.7' y='339.0' font-family='Helvetica, Arial, sans-serif' font-size='10' font-weight='normal' text-anchor='start' fill='#6b7280'>80 tok x 64</text>
+<line x1='203.4' y1='358.0' x2='203.4' y2='374.0' stroke='#374151' stroke-width='1.3' marker-end='url(#arr)'/>
+<rect x='85.9' y='376.0' width='234.8' height='34' rx='6' fill='#fee2e2' stroke='#dc2626' stroke-width='1.4'/>
+<text x='203.4' y='396.0' font-family='Helvetica, Arial, sans-serif' font-size='12' font-weight='bold' text-anchor='middle' fill='#111827'>mean over tokens + Linear -&gt; 10</text>
+<text x='328.8' y='397.0' font-family='Helvetica, Arial, sans-serif' font-size='10' font-weight='normal' text-anchor='start' fill='#6b7280'>10</text>
+<rect x='24.0' y='428.0' width='16' height='12' rx='3' fill='#dbeafe' stroke='#2563eb'/>
+<text x='46.0' y='438.0' font-family='Helvetica, Arial, sans-serif' font-size='10' font-weight='normal' text-anchor='start' fill='#374151'>convolution</text>
+<rect x='249.0' y='428.0' width='16' height='12' rx='3' fill='#fde7d4' stroke='#ea580c'/>
+<text x='271.0' y='438.0' font-family='Helvetica, Arial, sans-serif' font-size='10' font-weight='normal' text-anchor='start' fill='#374151'>attention / transformer</text>
+<rect x='24.0' y='450.0' width='16' height='12' rx='3' fill='#ede9fe' stroke='#7c3aed'/>
+<text x='46.0' y='460.0' font-family='Helvetica, Arial, sans-serif' font-size='10' font-weight='normal' text-anchor='start' fill='#374151'>frequency (FFT)</text>
+<rect x='249.0' y='450.0' width='16' height='12' rx='3' fill='#dcfce7' stroke='#16a34a'/>
+<text x='271.0' y='460.0' font-family='Helvetica, Arial, sans-serif' font-size='10' font-weight='normal' text-anchor='start' fill='#374151'>recurrent / state space</text>
+<rect x='24.0' y='472.0' width='16' height='12' rx='3' fill='#ccfbf1' stroke='#0d9488'/>
+<text x='46.0' y='482.0' font-family='Helvetica, Arial, sans-serif' font-size='10' font-weight='normal' text-anchor='start' fill='#374151'>MLP / linear</text>
+<rect x='249.0' y='472.0' width='16' height='12' rx='3' fill='#fef9c3' stroke='#ca8a04'/>
+<text x='271.0' y='482.0' font-family='Helvetica, Arial, sans-serif' font-size='10' font-weight='normal' text-anchor='start' fill='#374151'>pooling / reshape</text>
+<rect x='24.0' y='494.0' width='16' height='12' rx='3' fill='#f1f5f9' stroke='#64748b'/>
+<text x='46.0' y='504.0' font-family='Helvetica, Arial, sans-serif' font-size='10' font-weight='normal' text-anchor='start' fill='#374151'>norm / activation</text>
+<rect x='249.0' y='494.0' width='16' height='12' rx='3' fill='#fce7f3' stroke='#db2777'/>
+<text x='271.0' y='504.0' font-family='Helvetica, Arial, sans-serif' font-size='10' font-weight='normal' text-anchor='start' fill='#374151'>graph / interaction</text>
+</svg>

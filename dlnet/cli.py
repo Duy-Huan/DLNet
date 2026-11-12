@@ -507,6 +507,13 @@ def _design(args, n_threads) -> int:
         args.budget, clock_mode, budget, time.time() - t_wall, n_threads
     )
     v = export.export(args.out, plugin, data, prof, chosen, ref, args.seed, extras=extras)
+    try:  # notebook + block diagrams: a convenience, must never fail a finished run
+        from . import notebook
+
+        src = {k: getattr(args, k, None) for k in ("data", "gt", "target", "cube_key", "gt_key")}
+        notebook.write(args.out, src)
+    except Exception as e:  # noqa: BLE001
+        print(f"[notebook] not written: {type(e).__name__}: {e}")
     spent = f"{clock.now() - t0:.0f} epochs, " if clock_mode == "work" else ""
     print(f"[done] {spent}{time.time() - t_wall:.0f}s  -> {args.out}/leaderboard.md")
     print(
@@ -561,6 +568,16 @@ def main(argv=None) -> int:
     unfold_run.add_parser(sub)
     gan_run.add_parser(sub)
     sub.add_parser("zoo", help="list every module of the zoo with kinds, tags and sources")
+    nb = sub.add_parser(
+        "notebook",
+        help="write baselines.ipynb (Jupyter / Colab: train, compare, reuse) and block diagrams for an output folder",
+    )
+    nb.add_argument("out", help="DLNet output folder (holds leaderboard.json)")
+    nb.add_argument("--data", required=True, help="the data file of the run")
+    for opt in ("--gt", "--target", "--cube-key", "--gt-key"):
+        nb.add_argument(opt)
+    nb.add_argument("--git-url", default="", help="repository to clone on Colab (optional)")
+    nb.add_argument("--git-subdir", default="", help="the output folder inside that repository")
     sa = sub.add_parser(
         "standalone",
         help="rewrite model.py of exported packages as plain PyTorch source (no zoo/ folder)",
@@ -722,6 +739,14 @@ def main(argv=None) -> int:
     for p in plugins._registry().values():
         p.add_arguments(d)
     args = ap.parse_args(argv)
+    if args.cmd == "notebook":
+        from . import notebook
+
+        notebook.refresh_support(args.out)
+        src = {"data": args.data, "gt": args.gt, "target": args.target, "cube_key": args.cube_key,
+               "gt_key": args.gt_key}  # fmt: skip
+        notebook.write(args.out, src, args.git_url, args.git_subdir)
+        return 0
     if args.cmd == "standalone":
         from . import standalone
 
