@@ -6,3 +6,18 @@ $ /usr/local/bin/python -m dlnet design --data /home/user/DLNet/examples/image_c
 [profile] {'n_train': 3600, 'n_features': 784, 'n_classes': 10, 'primary_metric': 'accuracy', 'intrinsic_dim': 13.57, 'scaling_exponent_hat': 0.295, 'pca_dims_for_95pct_energy': 172, 'intrinsic_dim_estimators': {'twonn': {'mean': 13.372, 'std': 0.302}, 'mle': {'mean': 10.275, 'std': 0.054}, 'value': 11.823, 'rel_disagreement': 0.262, 'stable': True}, 'capacity_hint': {'min_width': 32, 'scaling_exponent': 0.338, 'used_for_pruning': False}, 'max_params': 1080000, 'kind': 'image', 'shape': [1, 28, 28]}
 [datacard] {'n_train': 3600, 'channels': 1, 'height': 28, 'width': 28, 'n_classes': 10, 'samples_per_class_min': 360, 'samples_per_class_median': 360.0, 'imbalance_ratio': 1.0, 'spectral_slope': 2.478, 'high_freq_energy': 0.1024, 'corr_length': 5.0, 'corr_length_rel': 0.179, 'edge_density': 0.2032, 'position_dependence': 0.4157, 'knn_accuracy': 0.78, 'linear_probe_pixels': 0.773, 'linear_probe_random_conv': 0.708, 'conv_bias_gain': -0.065}
 [reference] classical baselines on the same split(s)
+[reference] hist_gradient_boosting     val=0.8292
+[reference] logistic_regression        val=0.8217
+[reference] random_forest              val=0.8125
+[zoo] 12 architectures from the module zoo (preset, random)
+[cost] 92 candidates; FLOPs/sample min 1,069,184 median 18,290,432 max 201,179,648
+[generate] 92 valid candidates from families ['allconv', 'cnn', 'densenet', 'kat', 'lenet', 'mambavision', 'mobilenetv2', 'resnet', 'vgg', 'vit', 'zoo_basic_block', 'zoo_basic_block_cbam', 'zoo_convnext_block', 'zoo_dw_sep_basic_block_fused_mbconv', 'zoo_ffn_patchify_pos', 'zoo_fnet_block_patchify', 'zoo_gfnet_block_mlp_patchify', 'zoo_gfnet_block_patchify_pos', 'zoo_preact_block', 'zoo_regnet_block', 'zoo_sk_conv_dense_block_fca', 'zoo_unet_res_block']
+[surrogate] ZAP ranking learned from 14 past datasets
+[seeds] -1 global_attention: 3600 training images (360 per class at least): global attention needs much data
+[seeds] +0.5 position_aware: position dependence 0.42: classes differ by where things are
+[seeds] 92/92 candidates, rankers ['zap_surrogate']; first: ['random', 'mobilenetv2', 'mobilenetv2', 'resnet', 'resnet']
+[search] 92 candidates, rungs=(4, 12, 30)
+[search] rung 1 (4 ep): kept 3; best val=0.7925
+[search] rung 2 (12 ep): kept 2; best val=0.8217
+[search] rung 3 (30 ep): kept 1; best val=0.8233
+[evolve] skipped: the remaining search budget cannot train 8 children to 12 epochs (raise --budget or lower --evolve-pop)
