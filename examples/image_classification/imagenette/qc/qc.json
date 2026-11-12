@@ -1,0 +1,145 @@
+{
+ "case": "image_classification/imagenette",
+ "steps": {
+  "1_design": {
+   "ok": true,
+   "seconds": 603.6,
+   "packages": [
+    "top1_vgg",
+    "top2_zoo_gfnet_block_patchify_pos",
+    "top3_resnet"
+   ]
+  },
+  "2_package_tests": {
+   "ok": true
+  },
+  "3_train_top1": {
+   "ok": true,
+   "seconds": 124.2,
+   "epochs": 30,
+   "package": "top1_vgg",
+   "weights_kb": 112
+  },
+  "4_predict_export": {
+   "ok": true,
+   "seconds": 8.2
+  },
+  "5_qc": {
+   "ok": true,
+   "metric": "accuracy",
+   "test_from_predictions": 0.6067,
+   "test_printed_by_train_py": 0.6066666666666667,
+   "splits_disjoint": true,
+   "n_test": 600,
+   "image": [
+    64,
+    64,
+    3
+   ],
+   "classes": 10,
+   "metrics": {
+    "accuracy": 0.6066666666666667,
+    "balanced_accuracy": 0.6066666666666667,
+    "kappa": 0.562962962962963,
+    "per_class_recall": [
+     0.75,
+     0.7333,
+     0.65,
+     0.2,
+     0.6,
+     0.6667,
+     0.6,
+     0.4667,
+     0.65,
+     0.75
+    ]
+   }
+  }
+ },
+ "verdict": {
+  "beats_reference": true,
+  "val_margin": 0.18667,
+  "val_noise": 0.01996,
+  "test_margin": 0.21,
+  "test_noise": 0.02004,
+  "top1_val": 0.605,
+  "best_reference": "random_forest",
+  "best_reference_val": 0.41833
+ },
+ "reference": [
+  {
+   "name": "random_forest",
+   "val": 0.41833,
+   "test": {
+    "accuracy": 0.385,
+    "balanced_accuracy": 0.385,
+    "kappa": 0.31667,
+    "score": 0.385
+   }
+  },
+  {
+   "name": "hist_gradient_boosting",
+   "val": 0.41333,
+   "test": {
+    "accuracy": 0.36,
+    "balanced_accuracy": 0.36,
+    "kappa": 0.28889,
+    "score": 0.36
+   }
+  },
+  {
+   "name": "logistic_regression",
+   "val": 0.365,
+   "test": {
+    "accuracy": 0.32667,
+    "balanced_accuracy": 0.32667,
+    "kappa": 0.25185,
+    "score": 0.32667
+   }
+  }
+ ],
+ "top": [
+  {
+   "rank": 1,
+   "name": "top1_vgg",
+   "params": 26682,
+   "val_mean": 0.605,
+   "val_std": 0.0,
+   "test": {
+    "accuracy": 0.595,
+    "balanced_accuracy": 0.595,
+    "kappa": 0.55,
+    "score": 0.595
+   },
+   "group": 0
+  },
+  {
+   "rank": 2,
+   "name": "top2_zoo_gfnet_block_patchify_pos",
+   "params": 480794,
+   "val_mean": 0.54167,
+   "val_std": 0.0,
+   "test": {
+    "accuracy": 0.54167,
+    "balanced_accuracy": 0.54167,
+    "kappa": 0.49074,
+    "score": 0.54167
+   },
+   "group": 1
+  },
+  {
+   "rank": 3,
+   "name": "top3_resnet",
+   "params": 44370,
+   "val_mean": 0.49333,
+   "val_std": 0.0,
+   "test": {
+    "accuracy": 0.48,
+    "balanced_accuracy": 0.48,
+    "kappa": 0.42222,
+    "score": 0.48
+   },
+   "group": 2
+  }
+ ]
+}
