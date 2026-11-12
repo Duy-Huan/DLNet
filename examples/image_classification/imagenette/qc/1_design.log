@@ -18,3 +18,9 @@ $ /usr/local/bin/python -m dlnet design --data /home/user/DLNet/examples/image_c
 [seeds] -0.5 position_aware: same probe: absolute position matters little
 [seeds] 92/92 candidates, rankers ['zap_surrogate']; first: ['random', 'resnet', 'resnet', 'preset:regnet', 'mobilenetv2']
 [search] 92 candidates, rungs=(4, 12, 30)
+[search] rung 1 (4 ep): kept 4; best val=0.4250
+[search] rung 2 (12 ep): kept 2; best val=0.5183
+[search] rung 3 (30 ep): kept 1; best val=0.5417
+[evolve] skipped: the remaining search budget cannot train 8 children to 12 epochs (raise --budget or lower --evolve-pop)
+[equalize] vgg: trained on to 30 epochs, val=0.6050
+[equalize] resnet: trained on to 30 epochs, val=0.4933
