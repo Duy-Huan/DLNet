@@ -1,0 +1,5 @@
+$ /usr/local/bin/python train.py --data /home/user/DLNet/examples/image_classification/mnist/input/data.npz --epochs 30 --seed 0
+params=72,666 epochs=30
+val : {'accuracy': 0.9916666666666667, 'balanced_accuracy': 0.9916666666666666, 'kappa': 0.99074074073964, 'score': 0.9916666666666667}
+test: {'accuracy': 0.9883333333333333, 'balanced_accuracy': 0.9883333333333333, 'kappa': 0.9870370370359403, 'score': 0.9883333333333333}
+saved /home/user/DLNet/examples/image_classification/mnist/output/top1_cnn/model.pt and preprocess.json; predict with: python predict.py --data <new file>

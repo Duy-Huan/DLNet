@@ -21,3 +21,11 @@ $ /usr/local/bin/python -m dlnet design --data /home/user/DLNet/examples/image_c
 [search] rung 2 (12 ep): kept 3; best val=0.9725
 [search] rung 3 (30 ep): kept 3; best val=0.9867
 [evolve] skipped: the remaining search budget cannot train 8 children to 12 epochs (raise --budget or lower --evolve-pop)
+[equalize] resnet: trained on to 30 epochs, val=0.9833
+[hparams] estimating lr / batch size / weight decay for the finalists
+[warning] Some models were trained only once: their +/- is the sampling error of the validation set, not run-to-run noise. A larger --budget repeats the finalists.
+[warning] Only 4 of 92 candidates could be trained within the budget; raise --budget, or lower --zoo / --per-family, or use --seeds N.
+[proxies] Spearman with rung-1 validation (n=4): {'naswot': None, 'synflow': None, 'grad_norm': None, 'snip': None, 'zico': None, 'params': 0.8, 'seed_prior': 0.6}
+[budget] load 3.0s/0ep, reference 7.8s/0ep, generate 6.7s/0ep, proxies 61.9s/0ep, seed_selection 1.1s/0ep, search 207.0s/124ep, evolution 0.0s/0ep, equalize 318.2s/26ep, runs 0.0s/0ep, hparams 0.0s/0ep, export 0.0s/0ep
+[done] 606s  -> /home/user/DLNet/examples/image_classification/mnist/output/leaderboard.md
+[verdict] beats_reference=True val_margin=0.05417 test_margin=0.06

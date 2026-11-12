@@ -1,0 +1,33 @@
+{
+ "task": "classification",
+ "kind": "image",
+ "classes": [
+  0,
+  1,
+  2,
+  3,
+  4,
+  5,
+  6,
+  7,
+  8,
+  9
+ ],
+ "y_mean": null,
+ "y_std": null,
+ "shape": [
+  1,
+  28,
+  28
+ ],
+ "preprocess": {
+  "type": "channels",
+  "layout": "image",
+  "mean": [
+   33.730159759521484
+  ],
+  "std": [
+   78.9729995727539
+  ]
+ }
+}
