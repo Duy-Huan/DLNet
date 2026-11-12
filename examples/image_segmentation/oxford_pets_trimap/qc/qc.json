@@ -1,0 +1,115 @@
+{
+ "case": "image_segmentation/oxford_pets_trimap",
+ "steps": {
+  "1_design": {
+   "ok": true,
+   "seconds": 593.1,
+   "packages": [
+    "top1_deconvnet",
+    "top2_deeplabv3"
+   ]
+  },
+  "2_package_tests": {
+   "ok": true
+  },
+  "3_train_top1": {
+   "ok": true,
+   "seconds": 192.3,
+   "epochs": 30,
+   "package": "top1_deconvnet",
+   "weights_kb": 106
+  },
+  "4_predict_export": {
+   "ok": true,
+   "seconds": 12.6
+  },
+  "5_qc": {
+   "ok": true,
+   "metric": "miou",
+   "test_from_predictions": 0.5795,
+   "test_printed_by_train_py": 0.5794929027296695,
+   "splits_disjoint": true,
+   "n_test_images": 296,
+   "image": [
+    96,
+    96,
+    3
+   ],
+   "metrics": {
+    "miou": 0.5794929027296695,
+    "pixel_accuracy": 0.8139919704861112,
+    "per_class_iou": [
+     0.7971,
+     0.6511,
+     0.2902
+    ]
+   }
+  }
+ },
+ "verdict": {
+  "beats_reference": true,
+  "val_margin": 0.22249,
+  "val_noise": 0.0287,
+  "test_margin": 0.21723,
+  "test_noise": 0.02872,
+  "top1_val": 0.57849,
+  "best_reference": "pixel_random_forest_5x5",
+  "best_reference_val": 0.356
+ },
+ "reference": [
+  {
+   "name": "pixel_random_forest_5x5",
+   "val": 0.356,
+   "test": {
+    "accuracy": 0.64552,
+    "balanced_accuracy": 0.48659,
+    "kappa": 0.30636,
+    "miou": 0.35966,
+    "score": 0.35966
+   }
+  },
+  {
+   "name": "pixel_logistic_regression_5x5",
+   "val": 0.19894,
+   "test": {
+    "accuracy": 0.5565,
+    "balanced_accuracy": 0.32561,
+    "kappa": -0.02242,
+    "miou": 0.19673,
+    "score": 0.19673
+   }
+  }
+ ],
+ "top": [
+  {
+   "rank": 1,
+   "name": "top1_deconvnet",
+   "params": 22323,
+   "val_mean": 0.57849,
+   "val_std": 0.00416,
+   "test": {
+    "accuracy": 0.81449,
+    "balanced_accuracy": 0.69211,
+    "kappa": 0.65766,
+    "miou": 0.57689,
+    "score": 0.57689
+   },
+   "group": 0
+  },
+  {
+   "rank": 2,
+   "name": "top2_deeplabv3",
+   "params": 15987,
+   "val_mean": 0.53383,
+   "val_std": 0.0,
+   "test": {
+    "accuracy": 0.80221,
+    "balanced_accuracy": 0.6486,
+    "kappa": 0.62939,
+    "miou": 0.5355,
+    "score": 0.5355
+   },
+   "group": 1
+  }
+ ]
+}

@@ -1,0 +1,5 @@
+$ /usr/local/bin/python train.py --data /home/user/DLNet/examples/image_segmentation/oxford_pets_trimap/input/data.npz --epochs 30 --seed 0
+params=22,323 epochs=30
+val : {'accuracy': 0.8141433669998123, 'balanced_accuracy': 0.6985518460559471, 'kappa': 0.663198182106868, 'miou': 0.5818955484931249, 'score': 0.5818955484931249}
+test: {'accuracy': 0.8139919704861112, 'balanced_accuracy': 0.6973697269264895, 'kappa': 0.6591873114449972, 'miou': 0.5794929027296695, 'score': 0.5794929027296695}
+saved /home/user/DLNet/examples/image_segmentation/oxford_pets_trimap/output/top1_deconvnet/model.pt and preprocess.json; predict with: python predict.py --data <new file>

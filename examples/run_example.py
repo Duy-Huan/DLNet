@@ -191,6 +191,16 @@ def qc_array(case, pkg, cfg, inp, out):
     return m, "accuracy", disjoint, {"n_test": len(te), "image": list(X.shape[1:]), "classes": k}
 
 
+def compact(path):
+    """Store integer predictions in the smallest integer type: predict.py writes int64, and the
+    masks of 1480 images at 96x96 were a 109 MB file (13 MB as uint8)."""
+    p = np.load(path)
+    if p.dtype.kind in "iu" and p.size:
+        small = np.promote_types(np.min_scalar_type(int(p.min())), np.min_scalar_type(int(p.max())))
+        if small.itemsize < p.dtype.itemsize:
+            np.save(path, p.astype(small))
+
+
 def first_float(pattern, text):
     m = re.search(pattern, text)
     return float(m.group(1)) if m else None
@@ -258,6 +268,7 @@ def run(name, budget, epochs, threads):
     if not steps["4_predict_export"]["ok"]:
         return finish(name, qc_dir, steps, None)
 
+    compact(qc_dir / "predictions.npy")
     cfg = json.loads((top1 / "config.yaml").read_text())
     qc = qc_hsi if case["plugin"] == "hsi" else qc_array
     m, key, disjoint, extra = qc(case, top1, cfg, inp, qc_dir)

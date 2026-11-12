@@ -20,3 +20,11 @@ $ /usr/local/bin/python -m dlnet design --data /home/user/DLNet/examples/image_s
 [search] rung 3 (30 ep): kept 1; best val=0.5743
 [evolve] skipped: the remaining search budget cannot train 8 children to 12 epochs (raise --budget or lower --evolve-pop)
 [equalize] deeplabv3: trained on to 30 epochs, val=0.5338
+[runs] deconvnet: 2 runs, val=0.5785 +/- 0.0042
+[hparams] estimating lr / batch size / weight decay for the finalists
+[warning] Some models were trained only once: their +/- is the sampling error of the validation set, not run-to-run noise. A larger --budget repeats the finalists.
+[warning] Only 2 of 100 candidates could be trained within the budget; raise --budget, or lower --zoo / --per-family, or use --seeds N.
+[warning] Only 2 of the 3 requested models could be exported (too few trained candidates).
+[budget] load 18.9s/0ep, reference 57.5s/0ep, generate 76.6s/0ep, proxies 64.0s/0ep, seed_selection 0.0s/0ep, search 149.5s/34ep, evolution 0.0s/0ep, equalize 112.7s/26ep, runs 111.3s/30ep, hparams 0.0s/0ep, export 0.0s/0ep
+[done] 591s  -> /home/user/DLNet/examples/image_segmentation/oxford_pets_trimap/output/leaderboard.md
+[verdict] beats_reference=True val_margin=0.22249 test_margin=0.21723
