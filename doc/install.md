@@ -1,6 +1,6 @@
 # Cài DLNet như một phần mềm (Windows, macOS, Linux)
 
-Từ v1.6, mỗi bản phát hành trên GitHub (trang **Releases**, tag `vX.Y.Z`) có sẵn gói cài cho ba hệ điều hành. Gói cài chứa sẵn Python, PyTorch (CPU) và mọi thư viện DLNet cần: **không cần cài Python**. Sau khi cài, lệnh `dlnet` dùng được trong terminal, giống `python -m dlnet`.
+Từ v1.5, mỗi bản phát hành trên GitHub (trang **Releases**, tag `vX.Y.Z`) có sẵn gói cài cho ba hệ điều hành. Gói cài chứa sẵn Python, PyTorch (CPU) và mọi thư viện DLNet cần: **không cần cài Python**. Sau khi cài, lệnh `dlnet` dùng được trong terminal, giống `python -m dlnet`.
 
 | Hệ điều hành | Gói cài | Bản chạy ngay (không cài) |
 |---|---|---|
@@ -14,7 +14,7 @@ Mỗi hệ điều hành có `SHA256SUMS-<os>-<arch>.txt` để kiểm tra tệp
 
 **Windows**: chạy `DLNet-<ver>-windows-x64-setup.exe`. Không có quyền quản trị thì chọn "Install for me only". Bộ cài thêm `dlnet` vào PATH (mở terminal mới sau khi cài) và tạo hai mục trong Start menu: *DLNet MCP server* (chạy `dlnet serve`, workspace ở `Documents\dlnet-workspace`) và *DLNet command prompt*. Gỡ trong *Settings → Apps*. Windows SmartScreen có thể cảnh báo vì bộ cài chưa được ký số: chọn *More info → Run anyway*.
 
-**macOS**: mở `DLNet-<ver>-macos-arm64.pkg`. Gói chưa được Apple công chứng (notarize), nên lần đầu macOS chặn: chuột phải vào tệp → *Open*, hoặc *System Settings → Privacy & Security → Open Anyway*. DLNet được cài vào `/Library/DLNet`, lệnh `dlnet` ở `/usr/local/bin`. Gỡ: `sudo rm -rf /Library/DLNet /usr/local/bin/dlnet`. Trên Apple silicon, PyTorch dùng được GPU qua MPS (`--device mps`).
+**macOS**: mở `DLNet-<ver>-macos-arm64.pkg`. Gói chưa được Apple công chứng (notarize), nên lần đầu macOS chặn: chuột phải vào tệp → *Open*, hoặc *System Settings → Privacy & Security → Open Anyway*. DLNet được cài vào `/Library/DLNet`, lệnh `dlnet` ở `/usr/local/bin`. Gỡ: `sudo rm -rf /Library/DLNet /usr/local/bin/dlnet && sudo pkgutil --forget io.github.dlnet`. Trên Apple silicon, PyTorch dùng được GPU qua MPS (`--device mps`).
 
 **Linux**:
 
@@ -62,7 +62,7 @@ powershell -ExecutionPolicy Bypass -File scripts\setup_env.ps1 -Gpu   # Windows
 
 ## Quy trình phát hành (cho người phát triển)
 
-Mỗi tag phát hành **bắt buộc** có đủ gói cài cho ba hệ điều hành (agent.md §11). `release.yml` gọi `installers.yml`: trên runner Windows, macOS (arm64) và Linux, `scripts/build_installer.py` build chương trình bằng PyInstaller (`packaging/dlnet.spec`), **chạy thử chính chương trình đã đóng gói** (`--version`, `selfcheck`, một lần `design` rồi `run-script train.py` và `predict.py` của gói đầu ra, `serve` trả lời `/healthz` và MCP `initialize`), rồi mới tạo gói cài (Inno Setup trên Windows, `pkgbuild` trên macOS, `dpkg-deb` trên Linux). Chỉ khi `python scripts/release.py assets` thấy đủ mọi tệp, tag và GitHub Release mới được tạo (kèm wheel và sdist). Một hệ điều hành build hoặc chạy thử thất bại thì phiên bản đó chưa được phát hành; sửa rồi đẩy lại, `release.yml` tự chạy lại.
+Mỗi tag phát hành **bắt buộc** có đủ gói cài cho ba hệ điều hành (agent.md §11). `release.yml` gọi `installers.yml`: trên runner Windows, macOS (arm64) và Linux, `scripts/build_installer.py` build chương trình bằng PyInstaller (`packaging/dlnet.spec`), **chạy thử chính chương trình đã đóng gói** (`--version`, `selfcheck`, một lần `design` rồi `run-script train.py` và `predict.py` của gói đầu ra, `serve` trả lời `/healthz` và MCP `initialize`), rồi mới tạo gói cài (Inno Setup trên Windows, `pkgbuild` trên macOS, `dpkg-deb` trên Linux). Sau đó `scripts/test_install.py` **cài thật gói vừa tạo** như người dùng (Windows `setup.exe /VERYSILENT /CURRENTUSER`, macOS `sudo installer -pkg`, Linux `sudo apt-get install ./*.deb`), kiểm `SHA256SUMS`, gọi `dlnet` từ PATH mới (`--version` khớp tên tệp, `selfcheck`, `serve` trả lời `/healthz`), rồi gỡ và kiểm chương trình cùng mục PATH đã bị xóa. Chỉ khi `python scripts/release.py assets` thấy đủ mọi tệp, tag và GitHub Release mới được tạo (kèm wheel và sdist). Một hệ điều hành build hoặc chạy thử thất bại thì phiên bản đó chưa được phát hành; sửa rồi đẩy lại, `release.yml` tự chạy lại.
 
 Build thử trên máy của bạn (tạo gói của hệ điều hành đang dùng vào `dist/installers/`):
 

@@ -4,6 +4,10 @@ Tu dong de xuat Top-K baseline deep learning (PyTorch) cho mot tap du lieu. Kien
 
 **Tài liệu đầy đủ: [`doc/`](doc/README.md)** (hướng dẫn sử dụng, tham chiếu lệnh, kiến trúc, thuật toán).
 
+## Cài như một phần mềm (không cần Python)
+
+Mỗi bản phát hành (trang **Releases**) có gói cài cho Windows (`.exe`), macOS Apple silicon (`.pkg`) và Linux (`.deb`), kèm bản chạy ngay `.zip`/`.tar.gz`. Cài xong dùng lệnh `dlnet` trong terminal (`dlnet --version`, `dlnet selfcheck`, `dlnet design ...`, `dlnet serve`). Mỗi gói được CI cài thật, chạy thử và gỡ trước khi tag được tạo. Chi tiết, GPU và cách gỡ: [doc/install.md](doc/install.md).
+
 ## Cài đặt nhanh (môi trường Python)
 
 Môi trường ảo (`.venv`) **không** nằm trong git (nặng hàng GB, riêng từng máy, GitHub từ chối file trên 100 MB). Repo ghi lại **phiên bản Python** (`.python-version` = 3.12) và **danh sách package** (`requirements.txt`). Sau khi `git pull`, dùng Python 3.12:

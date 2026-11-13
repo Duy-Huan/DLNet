@@ -74,11 +74,14 @@ begin
   if CurUninstallStep <> usPostUninstall then exit;
   if IsAdminInstallMode then Root := HKEY_LOCAL_MACHINE else Root := HKEY_CURRENT_USER;
   if not RegQueryStringValue(Root, EnvKey(''), 'Path', Paths) then exit;
-  Dir := ';' + ExpandConstant('{app}');
+  { wrap in ';' so the entry is found first, last or in the middle of the list }
+  Paths := ';' + Paths + ';';
+  Dir := ';' + ExpandConstant('{app}') + ';';
   P := Pos(Uppercase(Dir), Uppercase(Paths));
   if P > 0 then
   begin
-    Delete(Paths, P, Length(Dir));
+    Delete(Paths, P, Length(Dir) - 1);
+    Paths := Copy(Paths, 2, Length(Paths) - 2);
     RegWriteExpandStringValue(Root, EnvKey(''), 'Path', Paths);
   end;
 end;

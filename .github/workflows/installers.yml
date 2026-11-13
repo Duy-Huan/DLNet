@@ -1,7 +1,8 @@
 name: Installers
 
 # Builds the installable DLNet program on Windows, macOS and Linux (scripts/build_installer.py:
-# PyInstaller, smoke test of the frozen program, then the OS installer) and uploads them as the
+# PyInstaller, smoke test of the frozen program, then the OS installer), installs that installer
+# and uses and uninstalls it (scripts/test_install.py), and uploads them as the
 # artifact `installers-<os>`. Called by release.yml before a tag is created: a release without
 # every installer is not made. Also runs on dev when the packaging changes, and by hand.
 
@@ -17,6 +18,7 @@ on:
     paths:
       - packaging/**
       - scripts/build_installer.py
+      - scripts/test_install.py
       - .github/workflows/installers.yml
 
 permissions:
@@ -55,6 +57,8 @@ jobs:
           if (-not (Test-Path "C:\Program Files (x86)\Inno Setup 6\ISCC.exe")) { choco install innosetup -y --no-progress }
       - name: Build, smoke-test, package
         run: python scripts/build_installer.py
+      - name: Install the package, use it from PATH, uninstall
+        run: python scripts/test_install.py
       - uses: actions/upload-artifact@v4
         with:
           name: installers-${{ matrix.name }}

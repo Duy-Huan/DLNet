@@ -496,8 +496,12 @@ commit ► push dev ► CI (lint · test 3.10-3.12 · regression · e2e)
                       ▼
               release: version trong pyproject.toml đã có tag vX.Y.Z chưa?
                  ├─ rồi  → dừng (main cập nhật nhưng không phát hành)
-                 └─ chưa → kiểm tra version·CHANGELOG, build wheel, thử cài,
-                           tạo tag vX.Y.Z và GitHub Release (ghi chú lấy từ CHANGELOG)
+                 └─ chưa → kiểm tra version·CHANGELOG
+                           ► installers.yml: Windows · macOS · Linux, mỗi máy build,
+                             chạy thử chương trình, tạo gói cài, CÀI THẬT, dùng, GỠ
+                           ► đủ mọi gói cài? (release.py assets) ─ thiếu → dừng, không tag
+                           ► build wheel, thử cài, tạo tag vX.Y.Z và GitHub Release
+                             (wheel + sdist + gói cài 3 OS + SHA256SUMS)
 ```
 
 Workflow (`.github/workflows/`):
@@ -511,6 +515,7 @@ Thiết lập thủ công trên GitHub (không làm được từ code): xem `.g
 - **Phiên bản** theo SemVer `X.Y.Z`. Trước 1.0: tăng **minor** khi thêm tính năng hoặc đổi hành vi (kể cả định dạng gói xuất ra, CLI), tăng **patch** khi sửa lỗi hoặc tài liệu. Từ 1.0: theo SemVer đầy đủ.
 - **Nguồn sự thật:** `pyproject.toml` (`version`). `dlnet/__init__.py` (`__version__`) và `CHANGELOG.md` phải khớp; `tests/test_release.py` và `python scripts/release.py check` bắt lệch.
 - **Tag:** `vX.Y.Z`, chỉ tạo trên `main` bởi `release.yml`; không tạo hay di chuyển tag bằng tay. Không đẩy lại một tag đã công bố: sai thì phát hành bản vá mới.
+- **Gói cài bắt buộc theo tag (từ v1.5):** mỗi tag phải kèm đủ 6 tệp `DLNet-<v>-windows-x64-setup.exe`/`.zip`, `-macos-arm64.pkg`/`.tar.gz`, `-linux-x64.deb`/`.tar.gz` và `SHA256SUMS-<os>-<arch>.txt`. Gói chỉ được tính khi `scripts/build_installer.py` (chạy thử chương trình đã đóng gói) **và** `scripts/test_install.py` (cài thật, gọi `dlnet` từ PATH, gỡ) đều qua. Thiếu một tệp thì `release.yml` dừng trước khi tạo tag. Không phát hành bằng tay để lách quy tắc này. Sửa gì trong `packaging/` thì push `dev` để `installers.yml` chạy lại trước khi bump. Hướng dẫn: `doc/install.md`.
 - **Changelog:** `CHANGELOG.md` (Keep a Changelog). Mỗi thay đổi người dùng thấy được thêm một dòng vào `[Unreleased]` ngay trong commit gây ra nó (mục Thêm, Đổi, Sửa, Loại bỏ, Bảo mật, Hạn chế đã biết).
 
 **Cách phát hành một phiên bản (toàn bộ trên `dev`):**
