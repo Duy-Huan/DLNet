@@ -152,6 +152,36 @@ Khác với gốc (có chủ ý, ghi trong docstring từng lớp):
 
 **Chưa port**: OverLoCK (CVPR 2025) cần kernel NATTEN và kiến trúc ba mạng con truyền ngữ cảnh cho nhau, không lắp vào ngữ pháp tuần tự; xLSTM-Mixer cần sLSTM (chưa port, có mLSTM); TabR/ModernNCA cần truy hồi kNN trên tập train trong mỗi batch (vòng huấn luyện khác); mô hình pretrained (proxy chặn trọng số).
 
+### v1.4: làm đầy kho (`dlnet/zoo/ops_more.py`)
+
+Rà kho 137 module so với timm, PyTorch Geometric, Time-Series-Library, FuxiCTR và các paper nền; 21 module còn thiếu được viết lại bằng torch thuần theo mã chính thức (commit / phiên bản ghim), đối chiếu số học bằng `scripts/verify_more.py` (job `verify-more`).
+
+| Module của zoo | Nguồn chính thức (ghim) | Paper |
+|---|---|---|
+| `dlinear` | thuml/Time-Series-Library@4e938a1 `models/DLinear.py` (`encoder`) | Zeng et al., AAAI 2023 |
+| `tsmixer_block` | Time-Series-Library `models/TSMixer.py` `ResBlock` | Chen et al., TMLR 2023 |
+| `tide_block` | Time-Series-Library `models/TiDE.py` `ResBlock` | Das et al., TMLR 2023 |
+| `gatv2` | torch_geometric 2.6.1 `GATv2Conv` (viết lại trên ma trận kề dày) | Brody et al., ICLR 2022 |
+| `gcnii` | torch_geometric `GCN2Conv` (trọng số dùng chung) + `examples/gcn2_cora.py` | Chen et al., ICML 2020 |
+| `appnp` | torch_geometric `APPNP` sau một MLP hai lớp | Gasteiger et al., ICLR 2019 |
+| `sgc` | torch_geometric `SGConv` | Wu et al., ICML 2019 |
+| `cin` | reczoo/FuxiCTR@183da1c `CompressedInteractionNet` (bỏ lớp ra) | xDeepFM, Lian et al., KDD 2018 |
+| `autoint_attn` | FuxiCTR `model_zoo/AutoInt` `MultiHeadSelfAttention` | Song et al., CIKM 2019 |
+| `senet_fields`, `bilinear_fields` | FuxiCTR `SqueezeExcitation`, `BilinearInteractionV2` (so thêm với bản lặp từng cặp `BilinearInteraction`) | FiBiNET, Huang et al., RecSys 2019 |
+| `isab`, `pma` | juho-lee/set_transformer@73432c6 `modules.py` | Lee et al., ICML 2019 |
+| `attn_pool` | timm 1.0.31 `AttentionPoolLatent` | Beyer et al., arXiv:2205.01580 |
+| `inception_next_block` | timm 1.0.31 `inception_next.MetaNeXtBlock` + `InceptionDWConv2d` | Yu et al., CVPR 2024 |
+| `focal_block` | timm 1.0.31 `focalnet.FocalNetBlock` + `FocalModulation` | Yang et al., NeurIPS 2022 |
+| `non_local` | timm 1.0.31 `NonLocalAttn` | Wang et al., CVPR 2018 |
+| `pvt_block` | timm 1.0.31 `pvt_v2.Block` (attention giảm không gian, MLP có depthwise 3x3) | Wang et al., CVMJ 2022 |
+| `blur_pool` | timm 1.0.31 `BlurPool2d` | Zhang, ICML 2019 |
+| `simam` | ZjjConan/SimAM@ae98f43 `simam_module` | Yang et al., ICML 2021 |
+| `gem` | filipradenovic/cnnimageretrieval-pytorch@1e66a41 `GeM` | Radenovic et al., TPAMI 2018 |
+
+**Kết quả đối chiếu** (GitHub Actions `verify-more`, run 43351297903, torch CPU, trọng số chép từ module gốc, chế độ eval): 53/53 phép so khớp. Sai khác lớn nhất bằng 0 (trùng từng bit) với DLinear, TSMixer, TiDE, CIN, AutoInt, FiBiNET (cả bản V2 và bản lặp từng cặp), Set Transformer, và mọi khối timm, SimAM, GeM; các lớp đồ thị viết lại trên ma trận kề dày lệch ≤ 3,6e-7 so với PyG trên danh sách cạnh (GATv2 ≤ 3,6e-7; GCNII, APPNP, SGC ≤ 1,2e-7), là sai số làm tròn float32 do thứ tự cộng khác nhau.
+
+Không port: dropout / drop-path trong các khối (dùng `res` có `drop_path` của zoo), `use_post_norm` của FocalNet, `linear_attn` của PVTv2, cạnh có thuộc tính (`edge_dim`) và `share_weights` của GATv2, `weight2` (không dùng chung) của GCNII, lớp ra `fc` của CIN.
+
 ## Chưa port và lý do
 
 | Nguồn | Lớp / phần chưa có | Lý do |
@@ -164,6 +194,7 @@ Khác với gốc (có chủ ý, ghi trong docstring từng lớp):
 | cortex | phần protein: tokenizer, BLOSUM, corruption/diffusion, acquisition | ngoài phạm vi |
 | modular_deep_learning | EM, stochastic, expert-loss; optimizer hai nhiệt độ; attention trên hidden của experts | là biến thể huấn luyện, không phải module |
 | pytorch/vision | Inception v3, GoogLeNet phụ trợ, MaxViT, MNASNet, LRASPP, deform conv, DropBlock | chưa làm; detection, video, optical flow, quantization, trọng số pretrained: ngoài phạm vi |
+| thuml/Time-Series-Library | TimesNet (`TimesBlock`) | chọn chu kỳ bằng FFT **trên cả batch** rồi rẽ nhánh Python (`.cpu().numpy()`): đầu ra của một mẫu phụ thuộc các mẫu khác trong batch và không xuất được bằng `torch.export`; chưa có cách viết tĩnh giữ đúng hành vi gốc |
 | timm | MobileViT, MaxViT/CoAtNet, EfficientFormer, EdgeNeXt, CSPNet, GhostNet SE (hard-sigmoid), HaloAttn, BottleneckAttn, LambdaLayer, trọng số pretrained | chưa làm (khối attention 2-D nặng hoặc cần nhiều tầng phụ trợ); trọng số pretrained ngoài phạm vi (DLNet huấn luyện từ đầu) |
 | smp | `MAnet`, `PAN`, `DPT`, encoder dùng trọng số ImageNet | MAnet/PAN chưa làm; DPT cần encoder ViT nhiều tầng; encoder của DLNet là các stage của zoo |
 | MONAI | UNETR, SwinUNETR, `AttentionUnet` (cổng attention hai đầu vào), mạng 3-D hoàn chỉnh | cổng attention cần hai tensor vào (chưa có trong ngữ pháp một-vào-một-ra); UNETR/SwinUNETR là mạng lớn |

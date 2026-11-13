@@ -243,7 +243,15 @@ class Collector:
         if isinstance(node, ast.Import):
             for a in node.names:
                 if (a.asname or a.name).split(".")[0] == name:
-                    self._import(f"import {a.name}" + (f" as {a.asname}" if a.asname else ""), name)
+                    if (
+                        a.asname and "." in a.name
+                    ):  # `import a.b.c as X` is `from a.b import c as X`
+                        pkg, last = a.name.rsplit(".", 1)
+                        self._import(f"from {pkg} import {last} as {a.asname}", name)
+                    else:
+                        self._import(
+                            f"import {a.name}" + (f" as {a.asname}" if a.asname else ""), name
+                        )
             return
         for a in node.names:
             if (a.asname or a.name) != name:

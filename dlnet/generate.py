@@ -21,6 +21,7 @@ SPACE = {
                  "sigma": [0.01, 0.1]},
     # RealMLP-TD (NeurIPS 2024): 256 x 3 with SELU / Mish as in its defaults
     "realmlp": {"width": [256, 128], "depth": [3, 2], "dropout": [0.15, 0.0], "act": ["selu", "mish"]},
+    "tide_mlp": {"width": [64, 128, 256], "depth": [1, 2, 3], "dropout": [0.0, 0.1, 0.2]},
 }  # fmt: skip
 TRAIN = {"lr": [1e-3, 3e-3], "wd": [1e-4, 1e-2], "batch": [64, 128]}
 

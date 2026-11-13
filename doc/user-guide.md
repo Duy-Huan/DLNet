@@ -86,6 +86,18 @@ python -m dlnet design --data cube.mat --gt gt.mat --split block --patch 9 --pca
 | Đồ thị | `gps_net`, `polynormer_net`, `sgformer_net` | graph transformer (đồ thị nhỏ, ma trận kề dày) |
 | Recommender | `finalmlp`, `dcnv3`, `wukong` | mô hình CTR |
 
+**Họ thêm ở v1.4** (rà kho so với timm, PyTorch Geometric, Time-Series-Library, FuxiCTR; mỗi module đối chiếu số học với mã gốc):
+
+| Dữ liệu | Họ mới | Ghi chú |
+|---|---|---|
+| Bảng | `tide_mlp` | khối residual của TiDE: MLP có đường tắt tuyến tính và LayerNorm |
+| Chuỗi thời gian | `dlinear`, `tsmixer` | hai mốc so sánh "tuyến tính / MLP" mà paper chuỗi thời gian nào cũng báo; `dlinear` gần như không có siêu tham số |
+| Ảnh | `inceptionnext`, `focalnet`, `pvt` | stem, ba tầng khối, conv 3x3 bước 2 giữa các tầng |
+| Đồ thị | `gatv2_net`, `gcnii_net`, `appnp_net`, `sgc_net` | ma trận kề dày (đồ thị nhỏ); `gcnii_net` sâu `4 x depth` lớp |
+| Recommender | `xdeepfm`, `autoint`, `fibinet` | CIN, self-attention giữa các trường, SENET + tương tác song tuyến |
+
+Module rời dùng trong `--zoo`, thẻ paper và ngữ pháp: `attn_pool`, `pma`, `isab` (tập hợp / gộp token), `non_local`, `simam`, `blur_pool`, `gem` (ảnh).
+
 Ngữ pháp `--zoo` còn tự dùng các khối mới như `gated_attn_block`, `diff_attn_block`, `dyt`, `rope_vit_block`, `wtconv`, `uib`, `mobile_mqa`, `lsnet_block`, `star_block`, `efficientvit_block`, `msca_block`, `gr_kan`. Xem danh sách bằng `python -m dlnet zoo`.
 
 Gợi ý ngân sách trên CPU: 5–15 phút cho vài nghìn mẫu nhỏ; tăng `--budget` khi dữ liệu lớn hơn. Kết quả trong ngân sách ngắn là **xếp hạng sơ bộ**: các hạng liền nhau có thể đổi chỗ khi huấn luyện đầy đủ (cột `group` trong leaderboard cho biết những mô hình không phân biệt được trong nhiễu).

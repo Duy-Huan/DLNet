@@ -61,6 +61,7 @@ Mọi mạng của DLNet được mô tả bằng một **spec** JSON và dựng
 - **Ngữ pháp** (`zoo/space.py`): lấy mẫu kiến trúc ngẫu nhiên đúng kiểu, 9 phép đột biến (đổi tham số, đổi op, chèn, xóa, bọc residual, lặp, đổi độ rộng, thành MoE, đổi decoder), lai ghép.
 - **Preset** (`zoo/presets.py`): kiến trúc nổi tiếng viết thành spec (ResNet, ResNeXt, DenseNet, MobileNet, EfficientNet, ConvNeXt, RegNet, Swin-like, ViT, GhostNet, RepVGG, PoolFormer, Res2Net, SKNet, ResNeSt, U-Net, Unet++, DeepLabV3+, ...).
 - **Họ mô hình** (`zoo/families.py`): công thức "cấu hình → spec" cho từng miền (tabular, image, segmentation, timeseries, hsi, graph, recsys, reconstruction).
+- **Bổ sung v1.4** (`zoo/ops_more.py`): 21 module lấp chỗ trống sau khi rà kho với timm, PyTorch Geometric, Time-Series-Library, FuxiCTR (chuỗi thời gian tuyến tính / MLP, GNN kinh điển, tương tác trường của CTR, Set Transformer, gộp token bằng attention, khối ảnh InceptionNeXt / FocalNet / PVTv2 / non-local / SimAM / BlurPool / GeM) và 13 họ dùng chúng; đối chiếu bằng `scripts/verify_more.py`.
 - **Nguồn**: torchvision, timm, segmentation_models_pytorch, MONAI, rasbt/deeplearning-models, cortex, openrec, mamba; 63 khối đã đối chiếu số học với mã gốc ([THIRD_PARTY.md](../THIRD_PARTY.md)).
 
 ## 4. Plugin

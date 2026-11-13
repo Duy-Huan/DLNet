@@ -6,6 +6,15 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-11-13
+
+- **Làm đầy kho module (137 → 158)**, `dlnet/zoo/ops_more.py`, viết theo mã chính thức và đối chiếu số học trên CI (`scripts/verify_more.py`, job `verify-more`): chuỗi thời gian `dlinear`, `tsmixer_block`, `tide_block`; đồ thị `gatv2`, `gcnii`, `appnp`, `sgc`; trường nhúng (CTR) `cin`, `autoint_attn`, `senet_fields`, `bilinear_fields`; tập hợp và gộp token `isab`, `pma`, `attn_pool`; ảnh `inception_next_block`, `focal_block`, `non_local`, `pvt_block`, `blur_pool`, `simam`, `gem`. Kết quả: 53/53 phép so khớp, trùng từng bit trừ các lớp đồ thị (ma trận kề dày so với danh sách cạnh của PyG, lệch ≤ 3,6e-7). Bảng nguồn và phần chưa port (TimesNet: lý do) ở `THIRD_PARTY.md`.
+- **13 họ kiến trúc mới (80 → 93)** cho `design`: `tide_mlp` (bảng); `dlinear`, `tsmixer` (chuỗi thời gian); `inceptionnext`, `focalnet`, `pvt` (ảnh); `gatv2_net`, `gcnii_net`, `appnp_net`, `sgc_net` (đồ thị); `xdeepfm`, `autoint`, `fibinet` (recommender).
+- `model.py` độc lập: hai cách viết cùng một import (`import torch.nn.functional as F` và `from torch.nn import functional as F`) không còn bị coi là xung đột tên (trước đây gói rơi về dạng `model.py` + `zoo/`).
+- Đo trên dữ liệu nhỏ (doc/algorithms.md): không họ mới nào thắng họ cũ; `dlinear` ở mức ngẫu nhiên trên bài phân loại chuỗi (mô hình tuyến tính cho dự báo), giữ làm mốc so sánh.
+- `paper import` chạy trên mã gốc thật (job `verify-papers`): StarNet-S1 sinh được thẻ 163 nút đạt mức B (đầu ra trùng từng bit); SSFTT không import được vì dùng einops, công cụ báo rõ và thẻ viết tay vẫn ở mức B.
+- Sửa: `doc/cli.md` sinh ra giống nhau trên Python 3.11–3.13 (`paper <cards>` có mặc định); `paper import` báo "không import được" thay vì sập khi `torch.fx` không lần được mô hình (einops, rẽ nhánh theo dữ liệu).
+
 ## [1.3.0] - 2026-11-12
 
 - `dlnet paper import`: sinh nháp thẻ từ mã gốc của tác giả bằng `torch.fx` (mỗi lớp một dòng; `add`, `mul`, `concat`, pooling toàn cục, lớp Linear cuối thành head); gặp phép toán không viết được thì dừng và nêu tên. Lớp nguyên thủy mới cho thẻ: `maxpool`, `avgpool` (137 module).
@@ -474,7 +483,8 @@ Bản đầu tiên: prototype chạy được từ dữ liệu đến Top-K base
 - Chưa có zero-cost proxy, cost model FLOPs/VRAM, Tensor-LoRA, deep unfolding; chưa có plugin image và timeseries.
 - Kết quả trên Indian Pines và Pavia University là một lần chạy ngắn trên CPU: với chia theo khối, mạng sâu chưa vượt rõ baseline cổ điển.
 
-[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.4.0
 [1.3.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.3.0
 [1.2.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.2.0
 [1.1.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.1.0

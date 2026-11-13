@@ -173,6 +173,10 @@ SPACE = {
     },
     "kat": {"width": [32, 64], "depth": [2, 4], "dropout": [0.0, 0.1], "patch": [2, 4, 7, 8]},
     **{
+        f: {"width": [16, 32, 48], "depth": [1, 2], "dropout": [0.0, 0.1]}
+        for f in recipes.MODERN_STAGES
+    },
+    **{
         f: {
             "width": [8, 16, 32],
             "depth": [1, 2],
@@ -207,6 +211,14 @@ SPACE = {
     "timexer": {"width": [32, 64], "depth": [1, 2], "dropout": [0.0, 0.1], "patch": [8, 4, 16]},
     "xlstm": {"width": [32, 64], "depth": [1, 2], "dropout": [0.0, 0.1]},
     "gated_deltanet": {"width": [32, 64], "depth": [1, 2], "dropout": [0.0, 0.1]},
+    "dlinear": {
+        "width": [32],
+        "depth": [1],
+        "dropout": [0.0],
+        "moving_avg": [25, 5, 13],
+        "individual": [0, 1],
+    },
+    "tsmixer": {"width": [32, 64, 128], "depth": [1, 2, 4], "dropout": [0.0, 0.1, 0.3]},
 }
 REF_MAX_FEATURES = 512  # flattened inputs larger than this are PCA-reduced for the references
 REF_PCA = 64

@@ -12,6 +12,8 @@ Importing this package registers every op. Layout:
   ops_hsi      HSI networks: MambaHSI, MambaHSI+, SSFTT, FAHM
   ops_next     2023-2025 drop-ins: gated/diff attention, DyT, 2-D RoPE, WTConv, UIB, MQA, LSNet, StarNet, EfficientViT, MSCA
   ops_freq     frequency domain (FFT/iFFT): GFNet, AFNO, FNO, FFC, FcaNet, FNet, spectral filters
+  ops_more     v1.4 additions: DLinear, TSMixer, TiDE; GATv2, GCNII, APPNP, SGC; CIN, AutoInt, FiBiNET; Set Transformer,
+               attention pooling; InceptionNeXt, FocalNet, non-local, PVTv2, BlurPool, SimAM, GeM
   dense        encoder-decoder composition, smp decoders                    space     sampling, mutation, crossover
   presets      well-known architectures written as specs
 Sources and what was and was not ported: THIRD_PARTY.md.
@@ -29,6 +31,7 @@ from . import (  # noqa: F401  (registers the ops)
     ops_hsi,
     ops_img,
     ops_modern,
+    ops_more,
     ops_next,
     ops_paper,
     ops_seq,

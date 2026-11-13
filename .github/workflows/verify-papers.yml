@@ -11,6 +11,7 @@ on:
     paths:
       - papers/**
       - dlnet/paper.py
+      - dlnet/paper_import.py
       - dlnet/zoo/core.py
       - dlnet/zoo/ops_paper.py
       - scripts/verify_papers.py

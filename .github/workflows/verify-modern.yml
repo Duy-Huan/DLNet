@@ -13,6 +13,8 @@ on:
       - dlnet/zoo/ops_freq.py
       - dlnet/zoo/ops_next.py
       - dlnet/zoo/ops_hsi.py
+      - dlnet/zoo/ops_more.py
+      - scripts/verify_more.py
       - scripts/verify_hsi.py
       - scripts/verify_next.py
       - scripts/verify_modern.py
@@ -184,3 +186,29 @@ jobs:
           pip install -e . numpy einops "timm==1.0.31" dacite omegaconf
       - name: Compare outputs
         run: python scripts/verify_seq2.py --root /tmp/seq
+
+  verify-more:
+    # v1.4 additions (dlnet/zoo/ops_more.py): time series, graph, CTR, set, image modules
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Official code (pinned)
+        run: |
+          set -e
+          mkdir -p /tmp/more && cd /tmp/more
+          clone() { git clone -q "https://github.com/$1" "$2" && git -C "$2" checkout -q "$3"; }
+          clone thuml/Time-Series-Library Time-Series-Library 4e938a1
+          clone reczoo/FuxiCTR FuxiCTR 183da1c
+          clone juho-lee/set_transformer set_transformer 73432c6
+          clone ZjjConan/SimAM SimAM ae98f43
+          clone filipradenovic/cnnimageretrieval-pytorch cirtorch 1e66a41
+      - name: Install DLNet (CPU torch), timm and torch_geometric
+        run: |
+          pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+          pip install -e . numpy "timm==1.0.31" "torch_geometric==2.6.1"
+      - name: Compare outputs
+        run: python scripts/verify_more.py --root /tmp/more

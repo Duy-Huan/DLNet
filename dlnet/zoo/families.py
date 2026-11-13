@@ -33,6 +33,7 @@ TABULAR = (
     "tabm",
     "tabm_plr",
     "realmlp",
+    "tide_mlp",
 )
 ENSEMBLE_FAMILIES = (
     "tabm",
@@ -49,6 +50,9 @@ IMAGE = (
     "mobilenetv2",
     "mambavision",
     "kat",
+    "inceptionnext",
+    "focalnet",
+    "pvt",
 )
 SEGMENTATION = (
     "fcn", "unet", "deconvnet", "unetpp", "fpn", "deeplabv3", "deeplabv3plus", "pspnet", "linknet",
@@ -64,6 +68,8 @@ TIMESERIES = (
     "timexer",
     "xlstm",
     "gated_deltanet",
+    "dlinear",
+    "tsmixer",
 )
 HSI = (
     "cnn1d",
@@ -108,8 +114,12 @@ GRAPH = (
     "gps_net",
     "polynormer_net",
     "sgformer_net",
+    "gatv2_net",
+    "gcnii_net",
+    "appnp_net",
+    "sgc_net",
 )
-RECSYS = ("mf", "ncf", "fm", "dlrm", "finalmlp", "dcnv3", "wukong")
+RECSYS = ("mf", "ncf", "fm", "dlrm", "finalmlp", "dcnv3", "wukong", "xdeepfm", "autoint", "fibinet")
 RECONSTRUCTION = ("conv_ae", "vae")
 BACKBONES = ("lenet", "allconv", "vgg", "resnet", "densenet", "mobilenetv2")
 
@@ -140,6 +150,8 @@ def cba(out, k=3, s=1, act="relu", norm="batch", **kw):
 
 def tabular(cfg, dims):
     f, w, d, p, r = cfg["family"], cfg["width"], cfg["depth"], cfg["dropout"], cfg.get("rank", 8)
+    if f == "tide_mlp":  # TiDE residual blocks (TMLR 2023): MLP with a linear skip and LayerNorm
+        return S(*[N("tide_block", hidden=2 * w, out=w, dropout=p) for _ in range(d)])
     lin = lambda out, act="identity": N("linear_act", out=out, act=act)
     if f == "mlp":
         return S(N("mlp", width=w, depth=d, act="gelu", dropout=p))
@@ -273,6 +285,21 @@ def encoder_stages(kind, width, depth, size, attention="none", cap=3):
     return stages
 
 
+MODERN_STAGES = {
+    # InceptionNeXt (CVPR 2024), FocalNet (NeurIPS 2022), PVT v2 (spatial-reduction attention)
+    "inceptionnext": lambda c, s: N(
+        "inception_next_block",
+        band=11 if s >= 12 else 7,
+        branch_ratio=0.125 if c >= 8 else 0.25,
+        mlp_ratio=4.0,
+    ),
+    "focalnet": lambda c, s: N("focal_block", focal_window=3, focal_level=2, mlp_ratio=4.0),
+    "pvt": lambda c, s: N(
+        "pvt_block", heads=2 if c % 2 == 0 else 1, sr_ratio=2 if s >= 8 else 1, mlp_ratio=4.0
+    ),
+}
+
+
 def image(cfg, dims):
     f, w, d, p = cfg["family"], cfg["width"], cfg["depth"], cfg["dropout"]
     size = min(dims[1:])
@@ -313,6 +340,14 @@ def image(cfg, dims):
         return S(N("patchify", dim=w, patch=cfg["patch"]), N("cls_token"), N("pos", mode="learned"),
                  rep(d, N("kat_block", heads=4, ratio=4, groups=8)), N("seq_pool", mode="cls"),
                  N("norm", norm="layer"))  # fmt: skip
+    if f in MODERN_STAGES:  # v1.4: stem, then stages of one modern block, strided 3x3 between them
+        s, ww, body = size, w, [cba(w)]
+        for stage in range(3):
+            body += [MODERN_STAGES[f](ww, s) for _ in range(d)]
+            if stage < 2 and s >= 8:
+                ww, s = ww * 2, s // 2
+                body.append(cba(ww, 3, 2))
+        return S(*body)
     if f in BACKBONES:
         return S(*encoder_stages(f, w, d, size, cfg.get("attention", "none")))
     raise ValueError(f"unknown image family {f!r}")
@@ -393,6 +428,11 @@ def timeseries(cfg, dims):
         )
     if f == "itransformer":  # iTransformer (arXiv:2310.06625)
         return S(N("itransformer", d=w, layers=d, heads=4, dropout=p))
+    if f == "dlinear":  # DLinear (AAAI 2023): trend + seasonal linear maps; width and depth unused
+        k = cfg.get("moving_avg", 25)
+        return S(N("dlinear", moving_avg=k, individual=cfg.get("individual", 0)))
+    if f == "tsmixer":  # TSMixer (TMLR 2023): MLPs over time and over the channels
+        return S(*[N("tsmixer_block", d_model=w, dropout=p) for _ in range(d)])
     raise ValueError(f"unknown time-series family {f!r}")
 
 
@@ -608,6 +648,15 @@ def graph(cfg, dims):
         )
     if f == "sgformer_net":  # SGFormer (NeurIPS 2023): simple global attention + GCN branch
         return S(N("sgformer", hidden=w, layers=max(d, 1), heads=1, dropout=p), ro)
+    if f == "gatv2_net":  # GATv2 (ICLR 2022): dynamic attention
+        heads = 2 if w % 2 == 0 else 1
+        return S(*[N("gatv2", out=w, heads=heads, act="elu") for _ in range(d)], ro)
+    if f == "gcnii_net":  # GCNII (ICML 2020): deep GCN with initial residual and identity mapping
+        return S(N("gcnii", hidden=w, layers=4 * d, alpha=0.1, theta=0.5, dropout=p), ro)
+    if f == "appnp_net":  # APPNP (ICLR 2019): predict, then personalised-PageRank propagation
+        return S(N("appnp", hidden=w, out=w, k=5 * d, alpha=0.1, dropout=p), ro)
+    if f == "sgc_net":  # SGC (ICML 2019): K-step propagation, one linear layer
+        return S(N("sgc", out=w, k=d), ro)
     if f == "graph_mlp":  # no message passing: the flattened features and adjacency
         return S(N("flatten"), N("mlp", width=w, depth=d, act="gelu", dropout=p))
     if f not in layer:
@@ -638,6 +687,29 @@ def recsys(cfg, dims):
     if f == "wukong":  # WuKong (ICML 2024): stacked FM blocks + linear compression, then an MLP
         return S(emb, N("wukong", layers=d + 1, lcb=16, fmb=16, rank_k=8, dropout=p), N("flatten"),
                  N("mlp", width=2 * w, depth=2, act="relu", dropout=p))  # fmt: skip
+    if f == "xdeepfm":  # xDeepFM (KDD 2018): CIN next to a plain MLP
+        both = {
+            "op": "par",
+            "branches": [N("cin", units=2 * w, layers=d + 1),
+                         S(N("flatten"), N("mlp", width=2 * w, depth=d, act="relu", dropout=p))],
+            "merge": "concat",
+        }  # fmt: skip
+        return S(emb, both)
+    if f == "autoint":  # AutoInt (CIKM 2019): stacked interacting (self-attention) layers
+        heads = 2 if w % 2 == 0 else 1
+        return S(emb, *[N("autoint_attn", out=w, heads=heads, dropout=p, use_scale=1, layer_norm=0) for _ in range(d + 1)],
+                 N("flatten"))  # fmt: skip
+    if f == "fibinet":  # FiBiNET (RecSys 2019): bilinear pairs of the raw and the SENET embeddings
+
+        def pair(*pre):
+            return S(*pre, N("bilinear_fields", bilinear_type="field_interaction"), N("flatten"))
+
+        both = {
+            "op": "par",
+            "branches": [pair(), pair(N("senet_fields", reduction=3, act="relu"))],
+            "merge": "concat",
+        }
+        return S(emb, both, N("mlp", width=2 * w, depth=d, act="relu", dropout=p))
     raise ValueError(f"unknown recsys family {f!r}")
 
 
