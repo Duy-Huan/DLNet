@@ -9,6 +9,7 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 ## [1.6.0] - 2026-11-13
 
 - **Gói cài cho Linux ARM64** (`DLNet-<v>-linux-arm64.deb` / `.tar.gz`): Raspberry Pi 4/5 với hệ điều hành 64-bit, AWS Graviton, CPU của Jetson. Build, chạy thử, cài thật và gỡ trên runner `ubuntu-22.04-arm` như các nền tảng khác. Từ v1.6 mỗi tag bắt buộc có 4 nền tảng (`scripts/release.py` `PLATFORMS`).
+- `doc/user-guide.md` mục Cài đặt chỉ tới gói cài; `doc/install.md` thuộc các tài liệu viết tay mà quy tắc tài liệu kiểm (`scripts/release.py docs`).
 - Hạn chế đã biết: không có gói cho macOS Intel (PyTorch không còn bản macOS x86_64 từ 2.3).
 
 ## [1.5.0] - 2026-11-13
