@@ -159,6 +159,37 @@ def smoke(version: str) -> None:
                 srv.wait(20)
             except subprocess.TimeoutExpired:
                 srv.kill()
+        # the web UI: its static files are package data, they must be inside the frozen program
+        port = _free_port()
+        env = {**os.environ, "DLNET_UI_STATE": str(Path(tmp) / "ui.json")}
+        ui = subprocess.Popen([exe(), "ui", "--port", str(port), "--workspace", str(Path(tmp) / "uiws"), "--no-browser"],
+                              env=env)  # fmt: skip
+        try:
+            for _ in range(240):
+                try:
+                    page = (
+                        urllib.request.urlopen(f"http://127.0.0.1:{port}/", timeout=2)
+                        .read()
+                        .decode()
+                    )
+                    break
+                except OSError:
+                    time.sleep(0.5)
+            else:
+                raise AssertionError("dlnet ui did not answer")
+            assert 'name="dlnet-token"' in page and version in page, "dlnet ui served no page"
+            for f in ("app.js", "app.css", "i18n/en.json", "i18n/vi.json"):
+                body = urllib.request.urlopen(
+                    f"http://127.0.0.1:{port}/static/{f}", timeout=10
+                ).read()
+                assert len(body) > 100, f"dlnet ui: static/{f} missing from the program"
+            print("[smoke] ui: page and static files OK")
+        finally:
+            ui.terminate()
+            try:
+                ui.wait(20)
+            except subprocess.TimeoutExpired:
+                ui.kill()
 
 
 # ----------------------------------------------------------------------------- installers

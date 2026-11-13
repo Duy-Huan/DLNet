@@ -198,7 +198,7 @@ def hyperparameters(r: dict, recipe_epochs: int) -> dict:
     return hp
 
 
-_OWN = ("leaderboard.md", "leaderboard.json", "profile.json", "reference")
+_OWN = ("leaderboard.md", "leaderboard.json", "profile.json", "reference", "results.tex")
 CACHE_NAME = ".dlnet_cache.json"  # kept between runs (resume); see search.RunCache
 
 
@@ -340,6 +340,7 @@ def export(out_dir, plugin, data, prof, chosen, reference, seed, epochs_recipe=1
                 "n_splits": r.get("n_splits", 1),
                 "test_std": round(r.get("test_std", 0.0), 5),
                 "test": {k: round(x, 5) for k, x in r["test"].items()},
+                "runs": {k: [round(x, 5) for x in v] for k, v in (r.get("runs") or {}).items()},
             }
         )
 

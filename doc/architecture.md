@@ -43,7 +43,10 @@ Cả lần chạy nằm trong `threads.limit(n)` (`--threads`): torch, OpenBLAS 
 | `dlnet/objectives.py` | Hướng tối ưu: accuracy, params, flops, balanced (MnasNet), pareto (NSGA-II) |
 | `dlnet/datacard.py`, `seeds.py`, `meta.py`, `surrogate.py` | Đặc trưng dữ liệu, chọn hạt giống, học từ các lần chạy trước (kNN, portfolio, surrogate ZAP) |
 | `dlnet/advisor.py` | Tùy chọn AI: advisor gọi AI CLI ([ai-advisor.md](ai-advisor.md)) |
-| `dlnet/mcp_http.py`, `mcp_server.py`, `mcp_tools.py`, `service.py` | MCP server `dlnet serve`: transport Streamable HTTP (xác thực, phiên, SSE, tải tệp), tầng giao thức (hai thế hệ MCP), 19 tool, workspace cô lập và hàng đợi job ([mcp-server.md](mcp-server.md)) |
+| `dlnet/mcp_http.py`, `mcp_server.py`, `mcp_tools.py`, `service.py` | MCP server `dlnet serve`: transport Streamable HTTP (xác thực, phiên, SSE, tải tệp), tầng giao thức (hai thế hệ MCP), 20 tool, workspace cô lập và hàng đợi job ([mcp-server.md](mcp-server.md)) |
+| `dlnet/ui_server.py`, `dlnet/ui/` (`index.html`, `app.js`, `app.css`, `i18n/en.json`, `i18n/vi.json`) | giao diện web tùy chọn `dlnet ui` (v1.7): máy chủ HTTP chỉ trên 127.0.0.1, token mỗi phiên, gọi cùng các tool của MCP (`mcp_tools.Service`); trang tĩnh JavaScript thuần, chữ lấy từ hai từ điển đồng bộ, màu qua biến CSS cho sáng/tối ([ui.md](ui.md)) |
+| `dlnet/plan.py` | `dlnet plan` / tool `dlnet_plan`: ước lượng một lần `design` (đo một bước huấn luyện mỗi mạng, mô phỏng successive halving theo ngân sách) |
+| `dlnet/stats.py`, `dlnet/latex.py` | so sánh paper với top-1: kiểm định t ghép cặp theo lần chạy, hiệu chỉnh Holm; bảng `results.tex` (booktabs) |
 | `dlnet/proxies.py`, `hparams.py`, `profile.py` | Zero-cost proxy; lr / batch / weight decay; intrinsic dimension |
 | `dlnet/export.py`, `reference.py` | Gói đầu ra, leaderboard, quy tắc kết luận; baseline cổ điển |
 | `dlnet/clock.py`, `threads.py`, `jsonsafe.py` | Đồng hồ ngân sách và báo cáo theo giai đoạn; giới hạn luồng; ghi JSON chuẩn (`NaN` → `null`) |

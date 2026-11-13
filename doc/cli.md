@@ -94,6 +94,16 @@ run DLNet as a remote MCP server (Streamable HTTP) for Claude Code, Codex, Antig
 | `--keyfile` |  |  | TLS private key (PEM) |
 | `--quiet` |  |  | no access log |
 
+## `dlnet ui`
+
+optional web interface on this machine (the CLI stays the main tool)
+
+| Tùy chọn | Bắt buộc | Mặc định | Ý nghĩa |
+|---|---|---|---|
+| `--workspace` |  |  | folder with data/, runs/, papers/ (default: the last one used, else ./dlnet-workspace) |
+| `--port` |  | `8766` |  |
+| `--no-browser` |  |  | do not open the browser |
+
 ## `dlnet zoo`
 
 list every module of the zoo with kinds, tags and sources
@@ -219,4 +229,83 @@ propose Top-K deep learning baselines for a dataset
 | `--block-size` |  | `16` | [hsi] block size for --split block |
 | `--x-key` |  |  | [image/timeseries] array name of the inputs (X) |
 | `--y-key` |  |  | [image/timeseries] array name of the targets (y) |
+
+## `dlnet plan`
+
+estimate a design run before starting it: candidates, time, papers, the score to beat (no network is trained beyond one timing step each)
+
+| Tùy chọn | Bắt buộc | Mặc định | Ý nghĩa |
+|---|---|---|---|
+| `--data` | có |  | data file (CSV: tabular; .mat/.npz/.npy: hsi; .npz with X, y: images, masks, series) |
+| `--plugin` |  | `auto` | auto \| tabular \| hsi \| image_classification (image) \| image_segmentation (segmentation) \| image_reconstruction (autoencoder) \| timeseries \| graph \| recsys |
+| `--budget` |  | `5m` | budget of the whole run: wall clock (90s, 10m, 2h) or training epochs (400ep, reproducible) |
+| `--topk` |  | `3` | number of exported baselines |
+| `--papers` |  |  | paper cards (files or folders) to train on this data with the same protocol as the top-1 (after the search, outside --budget); adds a 'Paper baselines' table and their packages |
+| `--paper-recipe` |  |  | also train every paper card once with its authors' recipe (card `training`) |
+| `--paper-epochs` |  | `100` | epoch cap of --paper-recipe |
+| `--device` |  | `auto` | auto (CUDA GPU, else Apple MPS, else CPU) \| cpu \| cuda \| cuda:1 \| mps |
+| `--amp` |  | `auto` | mixed precision: auto = bf16 (or fp16) on a CUDA GPU, float32 elsewhere (một trong: auto, off, bf16, fp16) |
+| `--threads` |  | `0` | CPU threads for torch, BLAS and OpenMP (0 = auto: free CPUs; fix it for identical reruns) |
+| `--per-family` |  | `8` | random configurations per model family |
+| `--seed` |  | `0` | random seed (split, sampling, initialisation) |
+| `--cv-splits` |  | `0` | rank finalists on this many different splits (0 = plugin default; 1 = off) |
+| `--out` |  | `dlnet_out` | output folder (leaderboard + one package per baseline) |
+| `--no-cache` |  |  | do not reuse finished runs of --out |
+| `--meta-store` |  |  | JSONL file of past runs: used to order the families, and this run is appended |
+| `--zoo` |  | `12` | architectures from the module zoo (presets + random) |
+| `--no-zoo-presets` |  |  | random zoo architectures only |
+| `--zoo-width` |  | `16` | base width of the zoo presets |
+| `--evolve` |  | `1` | generations of mutation/crossover (0 = off) |
+| `--evolve-pop` |  | `8` | children per generation |
+| `--max-flops` |  |  | drop candidates above this many forward FLOPs per sample, e.g. 50M |
+| `--max-vram` |  |  | drop candidates above this estimated training VRAM in MB, e.g. 4000 |
+| `--no-proxies` |  |  | skip the zero-cost proxy report |
+| `--context` |  |  | task context in words, e.g. "medical CT, small lesions" or "mobile, real-time" |
+| `--goal` |  | `accuracy` | seed-selection bias (default: follows --objective) (một trong: accuracy, small, balanced) |
+| `--objective` |  | `accuracy` | accuracy: best validation \| params/flops: smallest model within --tolerance of the best \| balanced: MnasNet reward acc*(cost/T)^w \| pareto: non-dominated (accuracy, cost) first (một trong: accuracy, params, flops, balanced, pareto) |
+| `--cost` |  | `params` | cost used by balanced/pareto (một trong: params, flops) |
+| `--tolerance` |  | `0.01` | params/flops: allowed score loss vs the best |
+| `--target-cost` |  |  | balanced: target cost T, e.g. 200k params (default: pool median) |
+| `--cost-weight` |  | `-0.07` | balanced: exponent w (MnasNet: -0.07) |
+| `--max-params` |  |  | drop candidates with more parameters, e.g. 500k |
+| `--extra-specs` |  |  | JSON file with a list of zoo specs to add to the candidates |
+| `--surrogate-weight` |  | `1.0` | weight of the zero-shot ZAP surrogate in the seed ranking (0 = off) |
+| `--no-builtin-meta` |  |  | do not use the meta-dataset shipped with DLNet for the surrogate (image classification) |
+| `--advisor` |  |  | optional AI advisor CLI that ranks seeds and proposes architectures (doc/ai-advisor.md) (một trong: claude, codex, gemini) |
+| `--advisor-cmd` |  |  | custom advisor command; prompt on stdin or "{prompt_file}" |
+| `--advisor-weight` |  | `1.0` | weight of the advisor ranking |
+| `--advisor-proposals` |  | `3` | new architectures asked per call |
+| `--advisor-timeout` |  | `120.0` | seconds per advisor call |
+| `--seeds` |  | `0` | keep only this many seed architectures (data-aware ranking); 0 = keep all, ranked |
+| `--seed-proxies` |  |  | let the zero-cost proxy vote (synflow, naswot, snip) rank the seeds too |
+| `--scheduler` |  | `sh` | sh: one successive-halving bracket (4/12/30 epochs) \| hyperband: Li et al. 2018 (một trong: sh, hyperband) |
+| `--rung-score` |  | `val` | how successive halving ranks a rung before the cut: val (validation score), tse (training speed estimate, Ru et al. 2021), val+tse (Borda of both); see doc/algorithms.md (một trong: val, tse, val+tse) |
+| `--rungs` |  | `4,12,30` | epochs at the end of each successive-halving rung, e.g. 1,4,12,30 (a 1-epoch screening rung, best with --rung-score tse); scheduler sh only |
+| `--seed-order` |  | `data` | random = control arm that keeps --seeds candidates at random (for measuring the selector) (một trong: data, random) |
+| `--recipe` |  | `modern` | training recipe: modern = image augmentation (shifts, flips for colour) + label smoothing 0.1 (một trong: modern, plain) |
+| `--hparams` |  | `auto` | lr/batch/wd estimation: auto = only for finalists run >= 2 times (noise measurable) (một trong: auto, on, off) |
+| `--evolve-population` |  | `0` | aging-evolution population (0 = rung 1 size) |
+| `--tournament` |  | `0` | tournament size S (0 = population / 4) |
+| `--target` |  |  | [tabular] target column |
+| `--task` |  | `auto` |  (một trong: auto, classification, regression) |
+| `--gt` |  |  | [hsi] ground-truth file (omit if inside --data) |
+| `--cube-key` |  |  | [hsi] array name of the cube |
+| `--gt-key` |  |  | [hsi] array name of the ground truth |
+| `--split` |  | `pixel` | [hsi] split mode (một trong: pixel, block) |
+| `--frac` |  |  | [hsi] train,val,test fractions, e.g. 0.1,0.1,0.8 |
+| `--patch` |  | `9` | [hsi] odd patch size |
+| `--pca` |  | `30` | [hsi] spectral components (0 = keep all bands) |
+| `--block-size` |  | `16` | [hsi] block size for --split block |
+| `--x-key` |  |  | [image/timeseries] array name of the inputs (X) |
+| `--y-key` |  |  | [image/timeseries] array name of the targets (y) |
+| `--json` |  |  | print the plan as JSON |
+| `--save` |  |  | also write the plan as JSON to this file |
+
+## `dlnet latex`
+
+write results.tex (booktabs table of Top-K, reference, papers) for a run
+
+| Tùy chọn | Bắt buộc | Mặc định | Ý nghĩa |
+|---|---|---|---|
+| `out` | có |  | DLNet output folder (holds leaderboard.json) |
 

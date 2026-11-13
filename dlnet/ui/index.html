@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="dlnet-token" content="__TOKEN__">
+<meta name="dlnet-version" content="__VERSION__">
+<title>DLNet</title>
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/static/app.css">
+<script src="/static/theme.js"></script>
+</head>
+<body>
+<header class="top">
+  <nav class="nav" aria-label="main">
+    <a class="brand" href="#/runs">dlnet</a>
+    <a data-nav="runs" href="#/runs" data-i18n="nav.runs"></a>
+    <a data-nav="files" href="#/files" data-i18n="nav.files"></a>
+    <a data-nav="ai" href="#/ai" data-i18n="nav.ai"></a>
+  </nav>
+  <div class="tools">
+    <a id="ws-link" class="mono muted" href="#/workspace"></a>
+    <button id="lang" class="chip" type="button"></button>
+    <button id="theme" class="chip" type="button"></button>
+  </div>
+</header>
+<main id="view" tabindex="-1"></main>
+<div id="toast" role="status" aria-live="polite"></div>
+<script src="/static/app.js"></script>
+</body>
+</html>

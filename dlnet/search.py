@@ -291,6 +291,8 @@ def summarize(vals, tests) -> dict:
         "val_std": float(np.std(vals)),
         "test": {k: float(np.mean([t[k] for t in tests])) for k in tests[0]},
         "test_std": float(np.std([t["score"] for t in tests])),
+        # per run (run i = seed i on split i): paired comparisons between networks (dlnet/stats.py)
+        "runs": {"val": [float(v) for v in vals], "test": [float(t["score"]) for t in tests]},
     }
 
 

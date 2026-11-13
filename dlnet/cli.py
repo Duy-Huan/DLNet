@@ -528,6 +528,12 @@ def _design(args, n_threads) -> int:
         paper.compare(
             args.papers, args.out, plugin, data, folds, chosen, args.paper_recipe, args.paper_epochs
         )
+    try:  # LaTeX table for the paper: a convenience, must never fail a finished run
+        from . import latex
+
+        print(f"[latex] {latex.write(args.out)}")
+    except Exception as e:  # noqa: BLE001
+        print(f"[latex] not written: {type(e).__name__}: {e}")
     spent = f"{clock.now() - t0:.0f} epochs, " if clock_mode == "work" else ""
     print(f"[done] {spent}{time.time() - t_wall:.0f}s  -> {args.out}/leaderboard.md")
     print(
@@ -669,65 +675,8 @@ def _paper(args) -> int:
     return 1 if bad else 0
 
 
-def main(argv=None) -> int:
-    from . import gan_run, plugins, unfold_run
-
-    ap = argparse.ArgumentParser(prog="dlnet")
-    ap.add_argument("--version", action="version", version=f"dlnet {__version__}")
-    sub = ap.add_subparsers(dest="cmd", required=True)
-    sub.add_parser("selfcheck", help="verify the installation end to end (about 20 seconds)")
-    unfold_run.add_parser(sub)
-    gan_run.add_parser(sub)
-    from . import mcp_http
-
-    mcp_http.add_parser(sub)
-    sub.add_parser("zoo", help="list every module of the zoo with kinds, tags and sources")
-    rs = sub.add_parser(
-        "run-script",
-        help="run a Python script of an output package (train.py, predict.py) with DLNet's own "
-        "interpreter: what `python script.py` is for the installed DLNet program",
-    )
-    rs.add_argument("script")
-    rs.add_argument("script_args", nargs=argparse.REMAINDER, default=[])
-    nb = sub.add_parser(
-        "notebook",
-        help="write baselines.ipynb (Jupyter / Colab: train, compare, reuse) and block diagrams for an output folder",
-    )
-    nb.add_argument("out", help="DLNet output folder (holds leaderboard.json)")
-    nb.add_argument("--data", required=True, help="the data file of the run")
-    for opt in ("--gt", "--target", "--cube-key", "--gt-key"):
-        nb.add_argument(opt)
-    nb.add_argument("--git-url", default="", help="repository to clone on Colab (optional)")
-    nb.add_argument("--git-subdir", default="", help="the output folder inside that repository")
-    pp = sub.add_parser(
-        "paper",
-        help="a published network from a card (YAML): check it, build its package, verify it against the authors' code",
-    )
-    pp.add_argument("action", choices=["check", "build", "verify", "import"])
-    pp.add_argument("cards", nargs="*", default=[], help="card files (.yaml / .json)")
-    pp.add_argument("--repo", help="[import] the authors' repository (URL)")
-    pp.add_argument("--commit", help="[import] the commit of the checkout")
-    pp.add_argument("--entry", help="[import] path/to/file.py:ClassName of the model")
-    pp.add_argument("--init-args", default="{}", help="[import] JSON of the constructor arguments")
-    pp.add_argument("--kind", default="map", help="[import] input kind (map, ser, vec, ...)")
-    pp.add_argument("--dims", help="[import] input shape without the batch, e.g. 3,224,224")
-    pp.add_argument("--name", help="[import] name of the network (paper.name)")
-    pp.add_argument("--out", help="[build] folder for the package(s)")
-    pp.add_argument(
-        "--into", help="[build] a DLNet output folder: same data, train.py, joins its notebook"
-    )
-    pp.add_argument(
-        "--classes", type=int, help="[check/build] number of outputs if the card has no `classes`"
-    )
-    pp.add_argument(
-        "--official-root", help="[verify] checkout of the authors' repository at the card's commit"
-    )
-    sa = sub.add_parser(
-        "standalone",
-        help="rewrite model.py of exported packages as plain PyTorch source (no zoo/ folder)",
-    )
-    sa.add_argument("packages", nargs="+", help="package folders (each holds config.yaml)")
-    d = sub.add_parser("design", help="propose Top-K deep learning baselines for a dataset")
+def _design_args(d, plugins) -> None:
+    """Options of `design`, shared with `plan` (which estimates the same run without training)."""
     d.add_argument(
         "--data",
         required=True,
@@ -898,9 +847,95 @@ def main(argv=None) -> int:
     )
     for p in plugins._registry().values():
         p.add_arguments(d)
+
+
+def main(argv=None) -> int:
+    from . import gan_run, plugins, unfold_run
+
+    ap = argparse.ArgumentParser(prog="dlnet")
+    ap.add_argument("--version", action="version", version=f"dlnet {__version__}")
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    sub.add_parser("selfcheck", help="verify the installation end to end (about 20 seconds)")
+    unfold_run.add_parser(sub)
+    gan_run.add_parser(sub)
+    from . import mcp_http
+
+    mcp_http.add_parser(sub)
+    from . import ui_server
+
+    ui_server.add_parser(sub)
+    sub.add_parser("zoo", help="list every module of the zoo with kinds, tags and sources")
+    rs = sub.add_parser(
+        "run-script",
+        help="run a Python script of an output package (train.py, predict.py) with DLNet's own "
+        "interpreter: what `python script.py` is for the installed DLNet program",
+    )
+    rs.add_argument("script")
+    rs.add_argument("script_args", nargs=argparse.REMAINDER, default=[])
+    nb = sub.add_parser(
+        "notebook",
+        help="write baselines.ipynb (Jupyter / Colab: train, compare, reuse) and block diagrams for an output folder",
+    )
+    nb.add_argument("out", help="DLNet output folder (holds leaderboard.json)")
+    nb.add_argument("--data", required=True, help="the data file of the run")
+    for opt in ("--gt", "--target", "--cube-key", "--gt-key"):
+        nb.add_argument(opt)
+    nb.add_argument("--git-url", default="", help="repository to clone on Colab (optional)")
+    nb.add_argument("--git-subdir", default="", help="the output folder inside that repository")
+    pp = sub.add_parser(
+        "paper",
+        help="a published network from a card (YAML): check it, build its package, verify it against the authors' code",
+    )
+    pp.add_argument("action", choices=["check", "build", "verify", "import"])
+    pp.add_argument("cards", nargs="*", default=[], help="card files (.yaml / .json)")
+    pp.add_argument("--repo", help="[import] the authors' repository (URL)")
+    pp.add_argument("--commit", help="[import] the commit of the checkout")
+    pp.add_argument("--entry", help="[import] path/to/file.py:ClassName of the model")
+    pp.add_argument("--init-args", default="{}", help="[import] JSON of the constructor arguments")
+    pp.add_argument("--kind", default="map", help="[import] input kind (map, ser, vec, ...)")
+    pp.add_argument("--dims", help="[import] input shape without the batch, e.g. 3,224,224")
+    pp.add_argument("--name", help="[import] name of the network (paper.name)")
+    pp.add_argument("--out", help="[build] folder for the package(s)")
+    pp.add_argument(
+        "--into", help="[build] a DLNet output folder: same data, train.py, joins its notebook"
+    )
+    pp.add_argument(
+        "--classes", type=int, help="[check/build] number of outputs if the card has no `classes`"
+    )
+    pp.add_argument(
+        "--official-root", help="[verify] checkout of the authors' repository at the card's commit"
+    )
+    sa = sub.add_parser(
+        "standalone",
+        help="rewrite model.py of exported packages as plain PyTorch source (no zoo/ folder)",
+    )
+    sa.add_argument("packages", nargs="+", help="package folders (each holds config.yaml)")
+    d = sub.add_parser("design", help="propose Top-K deep learning baselines for a dataset")
+    _design_args(d, plugins)
+    pl = sub.add_parser(
+        "plan",
+        help="estimate a design run before starting it: candidates, time, papers, the score to beat "
+        "(no network is trained beyond one timing step each)",
+    )
+    _design_args(pl, plugins)
+    pl.add_argument("--json", action="store_true", help="print the plan as JSON")
+    pl.add_argument("--save", help="also write the plan as JSON to this file")
+    lx = sub.add_parser(
+        "latex", help="write results.tex (booktabs table of Top-K, reference, papers) for a run"
+    )
+    lx.add_argument("out", help="DLNet output folder (holds leaderboard.json)")
     args = ap.parse_args(argv)
     if args.cmd == "paper":
         return _paper(args)
+    if args.cmd == "plan":
+        from . import plan
+
+        return plan.run(args)
+    if args.cmd == "latex":
+        from . import latex
+
+        print(latex.write(args.out).read_text(encoding="utf-8"), end="")
+        return 0
     if args.cmd == "notebook":
         from . import notebook
 
@@ -921,6 +956,8 @@ def main(argv=None) -> int:
         return 0
     if args.cmd == "run-script":
         return run_script(args.script, args.script_args)
+    if args.cmd == "ui":
+        return ui_server.run(args)
     if args.cmd in ("serve", "mcp"):
         from . import mcp_http
 

@@ -12,6 +12,7 @@ DLNet nhận một bộ dữ liệu (bảng, ảnh, mask phân đoạn, chuỗi 
 | [algorithms.md](algorithms.md) | Thuật toán chuẩn đã dùng (tìm kiếm, hướng tối ưu, chọn hạt giống, proxy, hyperparameter), nguồn và kết quả đo | người dùng nâng cao, người phát triển |
 | [zoo.md](zoo.md) | Danh mục mọi module của zoo (sinh tự động) | người thiết kế kiến trúc |
 | [ai-advisor.md](ai-advisor.md) | Tùy chọn kết nối AI: advisor (Claude Code, Codex, Gemini/Antigravity) (`--advisor`) | người dùng muốn AI tham gia |
+| [ui.md](ui.md) | Giao diện web tùy chọn (`dlnet ui`): sáu màn hình, ước lượng trước khi chạy (`dlnet plan`), song ngữ, sáng/tối, bảo mật | người dùng thích giao diện |
 | [mcp-server.md](mcp-server.md) | DLNet như một dịch vụ MCP qua HTTP (`dlnet serve`): chạy server, kết nối Claude Code / Codex / Antigravity, tool, job, bảo mật | người dùng AI để điều khiển DLNet |
 
 Tài liệu liên quan ở gốc repo: [`CHANGELOG.md`](../CHANGELOG.md) (thay đổi theo phiên bản), [`THIRD_PARTY.md`](../THIRD_PARTY.md) (nguồn module và kết quả đối chiếu với mã gốc), [`agent.md`](../agent.md) (kế hoạch, quy tắc phát triển, số đo chi tiết), [`skills/`](../skills/README.md) (quy trình cho người/AI phát triển).

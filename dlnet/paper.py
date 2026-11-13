@@ -645,17 +645,21 @@ def compare(
     baseline of the run, with the top-1's learning rate, weight decay and batch size, so the only
     difference is the network. `authors_recipe`: also one run with the card's own `training`
     (optimizer, lr, weight decay, batch; epochs capped by `max_epochs`), cosine schedule.
-    Cards whose input is not the run's input are skipped with the reason."""
-    from . import core, search, zoo
+    Cards whose input is not the run's input are skipped with the reason. Many cards (10-20 papers)
+    run one after the other; a card that fails is recorded with its error and the others go on.
+    Each network is compared with the top-1 run by run (same seeds and splits): paired t-test on
+    the test scores, Holm-corrected over the cards (dlnet/stats.py)."""
+    from . import core, search, stats, zoo
 
     out = Path(out)
     kind, dims, head = plugin.zoo_input(data)
     top = chosen[0]
-    rows = []
+    rows, failed = [], []
     paths = sorted(
         p for c in cards for p in ([Path(c)] if Path(c).is_file() else Path(c).glob("*.y*ml"))
     )
-    for path in paths:
+    for i, path in enumerate(paths, 1):
+        log(f"[papers] {i}/{len(paths)} {path.name}")
         try:
             card = load(path)
             if "architecture" not in card:
@@ -700,17 +704,28 @@ def compare(
                 + (f"; authors' recipe test {row['authors']['test']['score']:.4f}" if "authors" in row else ""))  # fmt: skip
         except CardError as e:
             log(f"[papers] {path.name}: {e}")
-    if rows:
+            failed.append({"card": str(path), "error": str(e)})
+        except Exception as e:  # noqa: BLE001 - one broken card must not lose the other papers
+            log(f"[papers] {path.name}: failed, {type(e).__name__}: {e}")
+            failed.append({"card": str(path), "error": f"{type(e).__name__}: {e}"})
+    top_runs = (top.get("runs") or {}).get("test") or []
+    tests = [stats.paired(r["common"].get("runs", {}).get("test", []), top_runs) for r in rows]
+    for r, t, p_adj in zip(rows, tests, stats.holm([t["p"] for t in tests]), strict=True):
+        r["vs_top1"] = {**t, "p_holm": p_adj, "verdict": stats.verdict(t["diff"], p_adj)}
+    if rows or failed:
         board = json.loads((out / "leaderboard.json").read_text())
         by = {r["name"]: r for r in rows}
         board["papers"] = [{**p, **by.get(p["name"], {})} for p in board.get("papers", [])]
+        board["papers_failed"] = failed
         (out / "leaderboard.json").write_text(json.dumps(board, indent=2))
         with open(out / "leaderboard.md", "a", encoding="utf-8") as f:
-            f.write(table(rows, board, top))
+            f.write(table(rows, board, top, failed))
+    log(f"[papers] {len(rows)} trained, {len(failed)} failed, "
+        f"{len(paths) - len(rows) - len(failed)} skipped")  # fmt: skip
     return rows
 
 
-def table(rows, board, top) -> str:
+def table(rows, board, top, failed=()) -> str:
     """The "Paper baselines" section of leaderboard.md: reported / common protocol / authors' recipe."""
     metric = board["metric"]
     best = board["top_k"][0]
@@ -721,8 +736,14 @@ def table(rows, board, top) -> str:
         'C = written from the paper, not verified. "Paper reports" is copied from the paper: another '
         "split, preprocessing and budget, not comparable with the measured columns."
     )
-    head = f"| Network | Fidelity | Params | Paper reports | Common protocol: val {metric} | test | Authors' recipe: test |"
-    lines = ["", "## Paper baselines", "", intro, "", head, "|---|---|---|---|---|---|---|"]
+    intro += (
+        f" Last two columns: test of the network minus test of the top-1, paired over the {top['n_seeds']} "
+        "runs (same seeds and splits), and the paired t-test p-value Holm-corrected over all papers. "
+        "With few runs a large p means the difference is not shown, not that the networks are equal."
+    )
+    head = (f"| Network | Fidelity | Params | Paper reports | Common protocol: val {metric} | test | "
+            "Authors' recipe: test | vs top-1: Δ test | p (Holm) |")  # fmt: skip
+    lines = ["", "## Paper baselines", "", intro, "", head, "|---|---|---|---|---|---|---|---|---|"]
     for r in rows:
         rep = "; ".join(
             f"{x.get('dataset', '?')}: {x['metric']} {x['value']}"
@@ -735,6 +756,14 @@ def table(rows, board, top) -> str:
             if a
             else "not run"
         )
+        v = r.get("vs_top1") or {}
+        dt = "-" if v.get("diff") is None else f"{v['diff']:+.4f}"
+        pv = "-" if v.get("p_holm") is None else f"{v['p_holm']:.3f} ({v['verdict']})"
         lines.append(f"| {r['paper']} | {r['level']} | {r['params']:,} | {rep or '-'} | "
-                     f"{c['val_mean']:.4f} +- {c['val_std']:.4f} | {c['test']['score']:.4f} | {auth} |")  # fmt: skip
+                     f"{c['val_mean']:.4f} +- {c['val_std']:.4f} | {c['test']['score']:.4f} | {auth} | "
+                     f"{dt} | {pv} |")  # fmt: skip
+    if failed:
+        lines += ["", "Not trained:", ""] + [
+            f"- `{Path(f['card']).name}`: {f['error']}" for f in failed
+        ]
     return "\n".join(lines) + "\n"
