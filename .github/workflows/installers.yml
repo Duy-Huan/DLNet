@@ -1,0 +1,67 @@
+name: Installers
+
+# Builds the installable DLNet program on Windows, macOS and Linux (scripts/build_installer.py:
+# PyInstaller, smoke test of the frozen program, then the OS installer), installs that installer
+# and uses and uninstalls it (scripts/test_install.py), and uploads them as the
+# artifact `installers-<os>`. Called by release.yml before a tag is created: a release without
+# every installer is not made. Also runs on dev when the packaging changes, and by hand.
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        type: string
+        default: ""
+  workflow_dispatch:
+  push:
+    branches: [dev]
+    paths:
+      - packaging/**
+      - scripts/build_installer.py
+      - scripts/test_install.py
+      - .github/workflows/installers.yml
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {os: windows-latest, name: windows}
+          - {os: macos-latest, name: macos}  # Apple silicon (arm64)
+          - {os: ubuntu-22.04, name: linux}  # an older glibc: the program runs on more distributions
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: DLNet with CPU torch, and PyInstaller
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          if [ "$RUNNER_OS" != "macOS" ]; then
+            pip install torch --index-url https://download.pytorch.org/whl/cpu
+          fi
+          pip install ".[design]" "pyinstaller==6.22.0"
+      - name: Inno Setup
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "C:\Program Files (x86)\Inno Setup 6\ISCC.exe")) { choco install innosetup -y --no-progress }
+      - name: Build, smoke-test, package
+        run: python scripts/build_installer.py
+      - name: Install the package, use it from PATH, uninstall
+        run: python scripts/test_install.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installers-${{ matrix.name }}
+          path: dist/installers/*
+          if-no-files-found: error
+          retention-days: 14

@@ -460,6 +460,7 @@ Kết luận trung thực: Top-K được huấn luyện sâu gấp 2,5 lần n�
 - **v1.2: mạng từ paper làm baseline** (`dlnet/paper.py`, `papers/`, doc/user-guide.md): thẻ YAML (`paper`, `official`, `architecture` dạng đồ thị `{id, from, module, args}`, `blocks` có tham số, `training`), lệnh `dlnet paper check | build | verify`, mức trung thành A/B/C đo được. Kiểm chứng thật (job `verify-papers`, run 43257787470): **StarNet-S1** (CVPR 2024, thẻ viết tay từ sơ đồ bằng lớp nguyên thủy `conv`/`norm`/`act`/`mul`/`add`) và **SSFTT** (TGRS 2022) trùng từng bit với mô hình của tác giả, số tham số bằng nhau (2.869.168 và 153.224) → mức B. ResNet-20 viết từ paper (mức C, 272.378 tham số so với 0,27M). FAHM ở mức C trong hệ thẻ vì mã gốc cần kernel CUDA (bằng chứng riêng ở `verify-hsi`). Gói mẫu: `examples/papers/`. Chưa làm ở v1.2: sinh nháp thẻ từ mã gốc, huấn luyện hai giao thức và bảng ba cột, `design --papers` (v1.3).
 - **v1.3: sinh nháp thẻ và so sánh cùng giao thức**: `dlnet paper import` (torch.fx trên mã gốc → thẻ; test với một mạng có residual, concat, pooling: nháp đạt mức B khi `verify`); `dlnet design --papers` huấn luyện thẻ theo giao thức của top-1 và, với `--paper-recipe`, theo công thức tác giả; bảng "Paper baselines". Đo thật (Indian Pines, chia pixel 10/10/80, patch 13, PCA 30, ngân sách 6 phút, 3 lần chạy × 30 epoch): SSFTT (mức B, 153.224 tham số) val 0,9730 ± 0,0051, test OA 0,9772; công thức tác giả (Adam, lr 1e-3, 100 epoch) test 0,9810; top-1 của DLNet `tucker_cnn2d` (40.080 tham số) val 0,9847 ± 0,0028, test 0,9828. Một lần chia, chia pixel: chênh lệch nhỏ, chưa đủ để kết luận hơn kém. Chưa làm: thẻ làm hạt giống cho tìm kiếm (đột biến trên `graph`), gấp các khối lặp khi import.
 - **v1.4: làm đầy kho** (`dlnet/zoo/ops_more.py`, `scripts/verify_more.py`, job `verify-more`): 21 module và 13 họ mới sau khi rà kho với timm / PyG / Time-Series-Library / FuxiCTR (bảng nguồn ở `THIRD_PARTY.md`). Đo (doc/algorithms.md): không họ mới nào thắng họ cũ trên các bài nhỏ; `dlinear` ở mức ngẫu nhiên trên phân loại chuỗi (đúng bản chất tuyến tính), giữ làm mốc. TimesNet không port (chọn chu kỳ theo cả batch, không xuất được). Bài học: module mới dùng tên import giống các tệp op khác, nếu không `model.py` độc lập báo xung đột tên.
+- **v1.5: MCP server qua HTTP** (`dlnet serve`, doc/mcp-server.md): thay bản stdio cũ. Bài học: (1) đặc tả MCP đổi nhanh, đọc bản gốc trên GitHub (`modelcontextprotocol/modelcontextprotocol`, `docs/specification/<phiên bản>`) chứ không dựa trí nhớ: bản 2026-07-28 bỏ phiên và bước bắt tay, SDK chính thức đã dùng nó; (2) kiểm bằng SDK chính thức làm client (`scripts/verify_mcp.py`) mới lộ lỗi lược đồ, test tự viết không đủ; (3) việc dài phải là job nền + `wait`, không chặn lời gọi tool; (4) forward hook trả giá trị khác None sẽ thay đầu ra của module (lỗi trong test của v1.4).
 - Kết quả QA từng bộ: `examples/README.md`.
 
 ## 10. Quy ước cho agent (người/AI) phát triển repo
@@ -495,8 +496,12 @@ commit ► push dev ► CI (lint · test 3.10-3.12 · regression · e2e)
                       ▼
               release: version trong pyproject.toml đã có tag vX.Y.Z chưa?
                  ├─ rồi  → dừng (main cập nhật nhưng không phát hành)
-                 └─ chưa → kiểm tra version·CHANGELOG, build wheel, thử cài,
-                           tạo tag vX.Y.Z và GitHub Release (ghi chú lấy từ CHANGELOG)
+                 └─ chưa → kiểm tra version·CHANGELOG
+                           ► installers.yml: Windows · macOS · Linux, mỗi máy build,
+                             chạy thử chương trình, tạo gói cài, CÀI THẬT, dùng, GỠ
+                           ► đủ mọi gói cài? (release.py assets) ─ thiếu → dừng, không tag
+                           ► build wheel, thử cài, tạo tag vX.Y.Z và GitHub Release
+                             (wheel + sdist + gói cài 3 OS + SHA256SUMS)
 ```
 
 Workflow (`.github/workflows/`):
@@ -510,6 +515,7 @@ Thiết lập thủ công trên GitHub (không làm được từ code): xem `.g
 - **Phiên bản** theo SemVer `X.Y.Z`. Trước 1.0: tăng **minor** khi thêm tính năng hoặc đổi hành vi (kể cả định dạng gói xuất ra, CLI), tăng **patch** khi sửa lỗi hoặc tài liệu. Từ 1.0: theo SemVer đầy đủ.
 - **Nguồn sự thật:** `pyproject.toml` (`version`). `dlnet/__init__.py` (`__version__`) và `CHANGELOG.md` phải khớp; `tests/test_release.py` và `python scripts/release.py check` bắt lệch.
 - **Tag:** `vX.Y.Z`, chỉ tạo trên `main` bởi `release.yml`; không tạo hay di chuyển tag bằng tay. Không đẩy lại một tag đã công bố: sai thì phát hành bản vá mới.
+- **Gói cài bắt buộc theo tag (từ v1.5):** mỗi tag phải kèm đủ 6 tệp `DLNet-<v>-windows-x64-setup.exe`/`.zip`, `-macos-arm64.pkg`/`.tar.gz`, `-linux-x64.deb`/`.tar.gz` và `SHA256SUMS-<os>-<arch>.txt`. Gói chỉ được tính khi `scripts/build_installer.py` (chạy thử chương trình đã đóng gói) **và** `scripts/test_install.py` (cài thật, gọi `dlnet` từ PATH, gỡ) đều qua. Thiếu một tệp thì `release.yml` dừng trước khi tạo tag. Không phát hành bằng tay để lách quy tắc này. Sửa gì trong `packaging/` thì push `dev` để `installers.yml` chạy lại trước khi bump. Hướng dẫn: `doc/install.md`.
 - **Changelog:** `CHANGELOG.md` (Keep a Changelog). Mỗi thay đổi người dùng thấy được thêm một dòng vào `[Unreleased]` ngay trong commit gây ra nó (mục Thêm, Đổi, Sửa, Loại bỏ, Bảo mật, Hạn chế đã biết).
 
 **Cách phát hành một phiên bản (toàn bộ trên `dev`):**
@@ -881,6 +887,12 @@ Chưa làm: epochs (hiện là công thức mặc định 100 epoch, cosine, ch�
 - **Kết luận**: học từ lần chạy trước là cách tốt nhất DLNet có để xếp hạng hạt giống, nên bật mặc định cho thứ tự (`--surrogate-weight 1`); `--seeds` vẫn mặc định 0 vì chưa đo việc **loại** ứng viên theo surrogate cùng ngân sách. Data card chưa tạo khác biệt về Spearman với 14 bộ: cần nhiều bộ hơn. Thứ hạng sau 4 epoch là mục tiêu học, chưa phải kết quả sau huấn luyện đầy đủ.
 - **AI advisor / MCP**: cài đặt và kiểm thử bằng advisor giả lập và test JSON-RPC; **chưa** chạy với Claude Code, Codex, Antigravity thật, chưa đo hiệu quả.
 
+### 16.7 Xếp hạng vòng successive halving bằng TSE (v1.5)
+- **Research**: TSE (Ru et al., NeurIPS 2021): tổng loss huấn luyện theo epoch dự đoán thứ hạng cuối tốt hơn điểm validation sớm. Port theo mã gốc rubinxin/TSE@5f55142 (TSE, TSE-E, TSE-EMA μ = 0,9).
+- **Áp dụng**: `--rung-score val|tse|val+tse` (Borda), `--rungs` tùy chỉnh (cho phép vòng sàng lọc 1 epoch), `Trainer.epoch_losses`; tool MCP `dlnet_design` có cùng tham số.
+- **Đo** (`qa/reports/v1.5.0/`): 7 lượt × 24 ứng viên, mục tiêu là val ở epoch 6. Spearman: val@1 0,44, TSE@1 0,60, val@2 0,70, val+TSE@2 0,72. Giữ được mạng tốt nhất khi giữ 1/3: val@2 5/7, TSE@2 4/7. Regret: val@2 thấp nhất (0,0029). Đầu-cuối (`scripts/bench_rungs.py`, 150 epoch, fashion3k / cifar10_3k / shapes, 1 seed): `val` và `val+tse` cho cùng top-1 và cùng finalist trên cả 3 bộ.
+- **Kết luận**: TSE xếp cả nhóm tốt hơn nhưng không giữ phần đầu tốt hơn; không có lợi ích đầu-cuối, **mặc định giữ `val`, `4,12,30`**. Đã rút kế hoạch đo (2 lần lặp, cách `screen`) vì mỗi lần chạy mất 15–23 phút trên CPU. Chưa đo HSI, bảng, ngân sách lớn.
+
 ## 17. Tài liệu người dùng `doc/` và quy tắc cập nhật theo phiên bản
 
 `doc/` là tài liệu cho người dùng và người phát triển; `agent.md` là kế hoạch, quy tắc và số đo chi tiết. Cấu trúc:
@@ -937,6 +949,16 @@ Chưa làm: epochs (hiện là công thức mặc định 100 epoch, cosine, ch�
 - ~~**Mốc 3 (P1, mạng đầu ra)**~~ (xong v0.22.0, §9.6; còn EMA, mixup): công thức huấn luyện hiện đại (augmentation, label smoothing, warmup, EMA, mixup; ablation cho thấy tới 17 điểm trên CIFAR); gói xuất ra có `model.pt`, `preprocess.json`, `predict.py`, ONNX; thông báo lỗi và kiểm tra đầu vào.
 - **Mốc 4 (P2, cutting edge)**: pretrained (timm/DINOv2, TabPFN v2); TabM/PLR, PatchTST/iTransformer, Mamba-HSI, graph transformer; DEHB/PriorBand/LC-PFN; đo trên GPU.
 Mỗi mốc kết thúc bằng một lần chạy lại đội kiểm định.
+
+### 18.2 Lộ trình v1.5 – v1.7 (người dùng đã duyệt)
+- **v1.5**: MCP server qua HTTP (`dlnet serve`, xong); nghiên cứu chọn hạt giống / xếp hạng vòng loại (TSE, đang đo đầu-cuối; chỉ đổi mặc định khi top-1 tốt hơn thật).
+- **v1.6**: gói cài Windows / macOS / Linux; mỗi tag phát hành bắt buộc có đủ gói cài (máy ép: `release.yml` → `installers.yml` → `release.py assets`).
+- **v1.7** (giao diện đã chốt: Artifact "DLNet UI tối giản", 6 màn: workspace, lần chạy, tệp, chạy mới, một lần chạy, AI/MCP):
+  - CLI vẫn là chính; giao diện là tùy chọn, chỉ đọc thư mục workspace trên đĩa và chạy đúng lệnh CLI (hiện lệnh tương ứng trên mọi màn).
+  - **Bắt buộc hai ngôn ngữ EN / VI, đồng bộ 100%**: một bộ khóa chung, test thất bại nếu một khóa thiếu ở một ngôn ngữ, chuỗi rỗng, hoặc chuỗi hiển thị nằm cứng trong HTML/JS ngoài bộ dịch.
+  - **Chế độ sáng / tối**: theo hệ điều hành mặc định, có nút chuyển, nhớ lựa chọn; mọi màu là token, kiểm tương phản ≥ 4.5:1 ở cả hai chế độ.
+  - So sánh 10–20 paper trong một lệnh: `dlnet plan` (ước lượng trước: tham số, FLOPs, VRAM, s/epoch đo thật, tổng thời gian, mức A/B/C, số paper báo, dự báo sớm thô), chạy chắc (lỗi một baseline không dừng cả lần chạy, tiếp tục được, nhiều GPU), kiểm định ý nghĩa thống kê, xuất bảng LaTeX.
+  - Thứ tự: phần CLI trước, giao diện sau.
 
 ## Tài liệu tham khảo
 Toàn bộ PDF nằm trong `ref/` (mục lục: `ref/README.md`); thuật toán ước lượng chất lượng và hyperparameter trong `ref/optimazeDL/` (§16).

@@ -5,6 +5,7 @@ python scripts/release.py version        # print the version from pyproject.toml
 python scripts/release.py notes 0.1.0    # print the CHANGELOG section of that version
 python scripts/release.py bump 0.2.0     # release commit edits: versions, CHANGELOG, doc/ (agent.md sec. 17)
 python scripts/release.py docs [BASE]    # code changed since BASE (default: last tag) => README.md and doc/ too
+python scripts/release.py assets DIR     # DIR holds every installer a release must ship (agent.md sec. 11)
 """
 
 from __future__ import annotations
@@ -96,7 +97,7 @@ def check(root: Path = ROOT) -> list[str]:
 DOC_VERSION = r"Phiên bản tài liệu: \*\*([^*]+)\*\*"
 
 
-HAND_DOCS = ("doc/user-guide.md", "doc/architecture.md", "doc/algorithms.md")
+HAND_DOCS = ("doc/user-guide.md", "doc/architecture.md", "doc/algorithms.md", "doc/mcp-server.md")
 
 
 def _git(*args: str, root: Path = ROOT) -> str:
@@ -158,6 +159,30 @@ def bump(new: str, today: str, root: Path = ROOT) -> None:
         subprocess.run([sys.executable, str(root / "scripts" / "gen_docs.py")], check=True)
 
 
+# Every release ships the installable program for these platforms (agent.md sec. 11, doc/install.md).
+# scripts/build_installer.py writes exactly these names; the release workflow refuses to tag a
+# version when one is missing.
+PLATFORMS = (("windows", "x64"), ("macos", "arm64"), ("linux", "x64"))
+EXT = {"windows": ("setup.exe", "zip"), "macos": ("pkg", "tar.gz"), "linux": ("deb", "tar.gz")}
+
+
+def asset_names(version: str) -> dict[tuple[str, str], dict[str, str]]:
+    out = {}
+    for osn, arch in PLATFORMS:
+        inst, port = EXT[osn]
+        stem = f"DLNet-{version}-{osn}-{arch}"
+        out[(osn, arch)] = {"installer": f"{stem}{'-' if inst == 'setup.exe' else '.'}{inst}",
+                            "portable": f"{stem}.{port}"}  # fmt: skip
+    return out
+
+
+def missing_assets(folder: Path, version: str) -> list[str]:
+    want = [n for d in asset_names(version).values() for n in d.values()]
+    want += [f"SHA256SUMS-{o}-{a}.txt" for o, a in PLATFORMS]
+    have = {f.name for f in Path(folder).rglob("*") if f.is_file()}
+    return [n for n in want if n not in have]
+
+
 def main(argv: list[str] | None = None) -> int:
     a = sys.argv[1:] if argv is None else argv
     if a[:1] == ["check"]:
@@ -183,6 +208,12 @@ def main(argv: list[str] | None = None) -> int:
 
         bump(a[1], datetime.datetime.now(datetime.UTC).date().isoformat())
         return 0
+    if a[:1] == ["assets"] and len(a) == 2:
+        missing = missing_assets(Path(a[1]), pyproject_version())
+        for m in missing:
+            print(f"::error::installer missing from the release: {m}")
+        print("assets check: " + ("FAILED" if missing else f"ok ({len(PLATFORMS)} platforms)"))
+        return 1 if missing else 0
     if a[:1] == ["notes"] and len(a) == 2:
         print(notes(a[1]))
         return 0

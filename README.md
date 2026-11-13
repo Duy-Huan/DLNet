@@ -4,6 +4,10 @@ Tu dong de xuat Top-K baseline deep learning (PyTorch) cho mot tap du lieu. Kien
 
 **Tài liệu đầy đủ: [`doc/`](doc/README.md)** (hướng dẫn sử dụng, tham chiếu lệnh, kiến trúc, thuật toán).
 
+## Cài như một phần mềm (không cần Python)
+
+Mỗi bản phát hành (trang **Releases**) có gói cài cho Windows (`.exe`), macOS Apple silicon (`.pkg`) và Linux (`.deb`), kèm bản chạy ngay `.zip`/`.tar.gz`. Cài xong dùng lệnh `dlnet` trong terminal (`dlnet --version`, `dlnet selfcheck`, `dlnet design ...`, `dlnet serve`). Mỗi gói được CI cài thật, chạy thử và gỡ trước khi tag được tạo. Chi tiết, GPU và cách gỡ: [doc/install.md](doc/install.md).
+
 ## Cài đặt nhanh (môi trường Python)
 
 Môi trường ảo (`.venv`) **không** nằm trong git (nặng hàng GB, riêng từng máy, GitHub từ chối file trên 100 MB). Repo ghi lại **phiên bản Python** (`.python-version` = 3.12) và **danh sách package** (`requirements.txt`). Sau khi `git pull`, dùng Python 3.12:
@@ -27,6 +31,8 @@ Tùy chọn (làm hết các bước trên bằng một lệnh, tự tìm Python
 - Plugin `image_classification`, `image_segmentation` (mask `y` (N,H,W), metric mIoU) va `timeseries` (file `.npz` co `X` va `y`).
 - **Kho module `dlnet/zoo/` (158 module + 11 decoder phan doan, tu torchvision, timm, segmentation_models_pytorch, MONAI va ma chinh thuc cua cac paper 2022–2025; doi chieu so hoc voi ma goc tren GitHub Actions, xem `THIRD_PARTY.md`)**: moi `design` them cac kien truc tu zoo (`--zoo`, `--evolve`: aging evolution); `python -m dlnet zoo` liet ke module; nguon o `THIRD_PARTY.md`. v1.4 them 21 module va 13 ho (DLinear, TSMixer, TiDE; GATv2, GCNII, APPNP, SGC; xDeepFM, AutoInt, FiBiNET; Set Transformer, attention pooling; InceptionNeXt, FocalNet, non-local, PVTv2, BlurPool, SimAM, GeM); 53/53 phep doi chieu voi ma goc khop.
 - **Phan tich du lieu anh va chon hat giong**: `[datacard]` (pho, do dai tuong quan, phu thuoc vi tri, probe tich chap ngau nhien...), `--context "medical CT"`, `--goal small`, `--seeds N`, `--scheduler hyperband`. Do tren MNIST/Fashion: prior chua du doan duoc thu hang (`agent.md` §16.5), nen mac dinh khong loai ung vien.
+- **DLNet la mot dich vu MCP qua HTTP** (`python -m dlnet serve`): Claude Code, Codex, Antigravity ket noi toi `http://<host>:8765/mcp` va dung DLNet de phan tich du lieu, sinh mang, huan luyen, danh gia, du doan (19 tool, job nen, token, workspace co lap). Huong dan: [doc/mcp-server.md](doc/mcp-server.md).
+- `--rung-score val|tse|val+tse`, `--rungs`: cach xep hang moi vong successive halving (TSE, Ru et al. 2021). Do o v1.5: khong cai thien top-1, mac dinh giu `val` (`qa/reports/v1.5.0/`).
 - `--meta-store file.jsonl`: hoc thu tu ho mo hinh tu cac lan chay truoc (chi sap thu tu; do duoc 58% top-3, chua dat muc tieu 80%).
 - Cost model FLOPs/VRAM (`--max-flops`, `--max-vram`), Mamba/Mamba-2. Chua co: so lieu tren du lieu anh mau that (CIFAR...) va chuoi thoi gian that.
 

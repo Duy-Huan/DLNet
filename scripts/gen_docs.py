@@ -56,12 +56,18 @@ def cli_md() -> str:
             flags = ", ".join(f"`{s}`" for s in a.option_strings) or f"`{a.dest}`"
             default = (
                 ""
-                if a.default is None or a.default is False or a.default == argparse.SUPPRESS
+                # empty defaults look the same on every Python version (argparse changed them in 3.12+)
+                if a.default is None
+                or a.default is False
+                or (isinstance(a.default, (list, tuple)) and not a.default)
+                or a.default == argparse.SUPPRESS
                 else f"`{a.default}`"
             )
             choices = f" (một trong: {', '.join(map(str, a.choices))})" if a.choices else ""
             text = (a.help or "").replace("|", "\\|").replace("\n", " ")
-            rows.append(f"| {flags} | {'có' if a.required else ''} | {default} | {text}{choices} |")
+            # a positional that takes zero or more values is never required (3.11 says it is)
+            required = a.required and a.nargs not in (argparse.REMAINDER, "*", "?")
+            rows.append(f"| {flags} | {'có' if required else ''} | {default} | {text}{choices} |")
         if rows:
             out.append("| Tùy chọn | Bắt buộc | Mặc định | Ý nghĩa |\n|---|---|---|---|")
             out += rows

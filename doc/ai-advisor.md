@@ -48,48 +48,4 @@ Preset (kiểm tra cờ với phiên bản CLI của bạn):
 
 ## 2. MCP server
 
-`python -m dlnet mcp` chạy DLNet như một MCP server qua stdio (JSON-RPC 2.0, mỗi dòng một thông điệp; viết theo đặc tả MCP 2025-06-18, không cần SDK). Tool:
-
-| Tool | Làm gì |
-|---|---|
-| `dlnet_profile` | nạp dữ liệu, trả plugin, hồ sơ, data card |
-| `dlnet_candidates` | pool hạt giống DLNet sẽ tìm (đặc tính, kích thước, điểm prior, spec) |
-| `dlnet_zoo` | danh mục module (kiểu đầu vào, tham số, nguồn) để viết kiến trúc |
-| `dlnet_check_spec` | kiểm tra tĩnh một spec: số tham số, shape đầu ra hoặc lỗi |
-| `dlnet_design` | chạy `dlnet design` (chặn tới hết `budget`), có thể kèm `extra_specs` do AI viết; `device`, `threads` như tùy chọn CLI |
-| `dlnet_leaderboard` | đọc kết quả của một lần chạy |
-
-Vòng làm việc gợi ý cho AI: `dlnet_profile` → `dlnet_candidates` → viết vài spec, kiểm bằng `dlnet_check_spec` → `dlnet_design` với `extra_specs` → `dlnet_leaderboard` → lặp lại.
-
-### Cấu hình client
-
-Thay `/path/to/DLNet` và Python bằng của bạn (Python của môi trường đã cài DLNet).
-
-**Claude Code** (lệnh hoặc file `.mcp.json` ở gốc dự án):
-
-```bash
-claude mcp add --transport stdio dlnet -- python -m dlnet mcp
-```
-
-```json
-{"mcpServers": {"dlnet": {"command": "python", "args": ["-m", "dlnet", "mcp"], "cwd": "/path/to/DLNet"}}}
-```
-
-**Codex CLI** (`~/.codex/config.toml`, hoặc `codex mcp add`; tên bảng dùng gạch dưới):
-
-```toml
-[mcp_servers.dlnet]
-command = "python"
-args = ["-m", "dlnet", "mcp"]
-cwd = "/path/to/DLNet"
-```
-
-**Google Antigravity** (Agent panel → MCP Servers → Manage MCP Servers → View raw config, file `mcp_config.json`; vị trí file khác nhau giữa các bản, ví dụ `~/.gemini/antigravity/mcp_config.json`):
-
-```json
-{"mcpServers": {"dlnet": {"command": "python", "args": ["-m", "dlnet", "mcp"], "cwd": "/path/to/DLNet"}}}
-```
-
-**Gemini CLI** (`~/.gemini/settings.json`): cùng khối `mcpServers` như trên.
-
-Lưu ý: `dlnet_design` chạy hết `budget` trước khi trả lời. Nhiều client có giới hạn thời gian cho một lần gọi tool, nên chọn `budget` nhỏ hơn giới hạn đó (hoặc tăng giới hạn trong client). Các cấu hình trên lấy từ tài liệu của từng client tại thời điểm viết; DLNet chỉ kiểm tra server bằng test JSON-RPC, chưa chạy với từng client thật.
+Từ v1.5, DLNet là một MCP server qua HTTP (`dlnet serve`): AI client kết nối tới và dùng DLNet như một dịch vụ để sinh mạng, huấn luyện, đánh giá, dự đoán. Bản stdio cũ (`dlnet mcp` của v0.16–v1.4) đã gỡ. Cách chạy, cấu hình Claude Code / Codex / Antigravity, danh sách tool và bảo mật: **[mcp-server.md](mcp-server.md)**.

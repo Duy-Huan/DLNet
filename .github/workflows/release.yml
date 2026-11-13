@@ -1,6 +1,8 @@
 name: Release
 
 # Tao tag vX.Y.Z va GitHub Release tu `main` khi version trong pyproject.toml chua co tag.
+# Release gom wheel, sdist va goi cai cua Windows / macOS / Linux (installers.yml); thieu goi nao
+# thi khong tao tag.
 # Goi tu promote.yml (ngay sau khi dev duoc merge vao main). Co the chay tay (workflow_dispatch)
 # khi auto-merge bi tre, va chay hang tuan de bat kip. Idempotent: da co tag thi bo qua.
 
@@ -18,12 +20,13 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  release:
-    name: release
+  plan:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    env:
-      GH_TOKEN: ${{ github.token }}
+    timeout-minutes: 10
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      released: ${{ steps.exists.outputs.released }}
+      sha: ${{ steps.v.outputs.sha }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -37,6 +40,7 @@ jobs:
         run: |
           python scripts/release.py check
           echo "version=$(python scripts/release.py version)" >> "$GITHUB_OUTPUT"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
       - name: Da phat hanh chua?
         id: exists
         env:
@@ -48,10 +52,43 @@ jobs:
           else
             echo "released=false" >> "$GITHUB_OUTPUT"
           fi
+
+  # Quy tac (agent.md muc 11): moi tag phat hanh phai kem goi cai cho Windows, macOS, Linux.
+  # Goi cai duoc build va thu TRUOC; thieu mot goi thi khong tao tag.
+  installers:
+    needs: plan
+    if: needs.plan.outputs.released == 'false'
+    uses: ./.github/workflows/installers.yml
+    with:
+      ref: ${{ needs.plan.outputs.sha }}
+
+  release:
+    name: release
+    needs: [plan, installers]
+    if: needs.plan.outputs.released == 'false'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      V: ${{ needs.plan.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.plan.outputs.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: installers-*
+          path: installers
+          merge-multiple: true
+      - name: Du goi cai cho moi he dieu hanh
+        run: |
+          ls -l installers
+          python scripts/release.py assets installers
       - name: Build va thu cai wheel
-        if: steps.exists.outputs.released == 'false'
-        env:
-          V: ${{ steps.v.outputs.version }}
         run: |
           pip install build
           python -m build
@@ -60,12 +97,9 @@ jobs:
           /tmp/smoke/bin/python -c "import dlnet, os; assert dlnet.__version__ == os.environ['V'], dlnet.__version__"
           ls -l dist
       - name: Tao tag va GitHub Release
-        if: steps.exists.outputs.released == 'false'
-        env:
-          V: ${{ steps.v.outputs.version }}
         run: |
           python scripts/release.py notes "$V" > notes.md
-          gh release create "v${V}" dist/* \
-            --target "$(git rev-parse HEAD)" \
+          gh release create "v${V}" dist/* installers/* \
+            --target "${{ needs.plan.outputs.sha }}" \
             --title "DLNet v${V}" \
             --notes-file notes.md

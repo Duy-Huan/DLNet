@@ -1,0 +1,41 @@
+name: Verify the MCP server with the official SDK client
+
+# `dlnet serve` (Streamable HTTP) against the official MCP Python SDK as the client, in both
+# protocol eras (2025-11-25 with a session, 2026-07-28 stateless): scripts/verify_mcp.py.
+# The SDK is pinned and only installed on this runner; it is not a dependency of DLNet.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [dev]
+    paths:
+      - dlnet/mcp_http.py
+      - dlnet/mcp_server.py
+      - dlnet/mcp_tools.py
+      - dlnet/service.py
+      - scripts/verify_mcp.py
+      - .github/workflows/verify-mcp.yml
+
+permissions:
+  contents: read
+
+jobs:
+  mcp-sdk:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install DLNet (CPU torch) and the MCP SDK
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then pip install torch --index-url https://download.pytorch.org/whl/cpu; fi
+          pip install -e ".[design]" "mcp==2.3.0"
+      - name: Client session, both eras
+        run: python scripts/verify_mcp.py

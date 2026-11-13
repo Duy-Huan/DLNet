@@ -331,6 +331,9 @@ class Trainer:
         self.scaler = torch.amp.GradScaler(self.device.type, enabled=self.amp is torch.float16)
         self.gen = torch.Generator().manual_seed(seed)
         self.epochs_done = 0
+        self.epoch_losses: list[
+            float
+        ] = []  # mean training loss of every epoch (TSE, dlnet/search.py)
         self.seconds = 0.0
         self.loss_fn = (
             nn.MSELoss()
@@ -463,6 +466,7 @@ class Trainer:
                 )
             meta = self.device.type == "meta"  # stands in for a GPU in tests: no values
             self.last_train_loss = float(total / steps) if steps and not meta else math.nan
+            self.epoch_losses.append(self.last_train_loss)
             if scheduler is not None:
                 scheduler.step()
             self.epochs_done += 1

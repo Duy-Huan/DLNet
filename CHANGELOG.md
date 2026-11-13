@@ -6,6 +6,19 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-11-13
+
+- `dlnet design --rung-score val|tse|val+tse` và `--rungs 1,4,12,30`: xếp hạng mỗi vòng của successive halving bằng điểm validation, bằng TSE (ước lượng tốc độ huấn luyện: tổng loss huấn luyện các epoch, Ru et al., NeurIPS 2021, theo mã gốc rubinxin/TSE), hoặc cả hai; lịch vòng tùy chỉnh (vòng sàng lọc 1 epoch). `core.Trainer.epoch_losses` ghi loss trung bình từng epoch. **Đo rồi, mặc định giữ `val`, `4,12,30`**: sau 1 epoch TSE tương quan với điểm cuối tốt hơn val (Spearman 0,60 so với 0,44) nhưng val giữ các mạng đầu bảng tốt hơn; đầu-cuối ở 150 epoch trên 3 bộ ảnh, `val` và `val+tse` cho cùng top-1. Số liệu và script: `qa/reports/v1.5.0/`.
+- `dlnet run-script <script.py> ...`: chạy `train.py` / `predict.py` của gói đầu ra bằng chính chương trình DLNet (dùng cho bản cài đặt không có Python riêng).
+- **Gói cài cho Windows, macOS, Linux trong mỗi bản phát hành**: `DLNet-<v>-windows-x64-setup.exe` (Inno Setup, thêm `dlnet` vào PATH, mục Start menu cho MCP server), `-macos-arm64.pkg`, `-linux-x64.deb`, bản chạy ngay `.zip`/`.tar.gz`, `SHA256SUMS`. Chứa sẵn Python và PyTorch CPU (`packaging/`, PyInstaller). Trên runner của từng hệ điều hành, `scripts/build_installer.py` chạy thử chương trình đã đóng gói (`selfcheck`, `design`, `run-script` train/predict, `serve`), rồi `scripts/test_install.py` cài thật gói vừa tạo, gọi `dlnet` từ PATH, gỡ và kiểm đã sạch. `release.yml` chỉ tạo tag khi đủ mọi gói (`scripts/release.py assets`). Hướng dẫn: `doc/install.md`. Chưa có: chữ ký số, macOS Intel, Linux ARM.
+- Sửa: `doc/cli.md` sinh ra giống nhau trên Python 3.11 và 3.12+ (argparse 3.11 coi tham số vị trí `nargs=REMAINDER` là bắt buộc), CI không còn báo tài liệu lệch.
+- Sửa (bộ cài Windows): gỡ cài đặt không xóa được mục PATH khi DLNet đứng đầu danh sách.
+
+- **DLNet là một dịch vụ MCP qua HTTP: `dlnet serve`** (`dlnet/mcp_http.py`, `mcp_server.py`, `mcp_tools.py`, `service.py`; tài liệu `doc/mcp-server.md`). Claude Code, Codex CLI, Google Antigravity hoặc MCP client bất kỳ kết nối tới `http://<host>:8765/mcp` và dùng DLNet để phân tích dữ liệu, viết và kiểm kiến trúc, chạy `design`, huấn luyện, dự đoán, đọc kết quả. 19 tool, 3 prompt mẫu; việc dài chạy thành job nền có hàng đợi (tool chờ `wait` giây rồi trả `job_id` để hỏi lại, không vượt giới hạn thời gian của client), tiến độ gửi qua SSE; workspace cô lập (`data/`, `runs/`, `jobs/`), tải tệp lớn bằng `PUT` / `GET /files/...`.
+- Giao thức: transport Streamable HTTP, hai thế hệ song song: 2025-03-26 … 2025-11-25 (có phiên `MCP-Session-Id`) và 2026-07-28 (không phiên, `server/discover`, kiểm header `Mcp-Method` / `Mcp-Name`, `resultType`). Bảo mật: mặc định chỉ loopback, bind ra ngoài bắt buộc có bearer token, kiểm `Origin` và `Host` (DNS rebinding), đường dẫn bị giữ trong workspace.
+- Kiểm chứng: `scripts/verify_mcp.py` chạy toàn bộ luồng (design → train → predict → tải về) bằng **MCP Python SDK chính thức 2.3.0** làm client ở cả hai thế hệ (job CI `mcp-sdk` trên Linux, Windows, macOS); 18 test của `tests/test_mcp_http.py`.
+- **Gỡ** MCP server stdio cũ (`dlnet mcp` của v0.16–v1.4). `dlnet mcp` nay là tên gọi khác của `dlnet serve`; client cũ cấu hình lại theo `doc/mcp-server.md`. Tham số `out` của `dlnet_design` / `dlnet_leaderboard` thay bằng `name` / `run` (thư mục trong workspace).
+
 ## [1.4.0] - 2026-11-13
 
 - **Làm đầy kho module (137 → 158)**, `dlnet/zoo/ops_more.py`, viết theo mã chính thức và đối chiếu số học trên CI (`scripts/verify_more.py`, job `verify-more`): chuỗi thời gian `dlinear`, `tsmixer_block`, `tide_block`; đồ thị `gatv2`, `gcnii`, `appnp`, `sgc`; trường nhúng (CTR) `cin`, `autoint_attn`, `senet_fields`, `bilinear_fields`; tập hợp và gộp token `isab`, `pma`, `attn_pool`; ảnh `inception_next_block`, `focal_block`, `non_local`, `pvt_block`, `blur_pool`, `simam`, `gem`. Kết quả: 53/53 phép so khớp, trùng từng bit trừ các lớp đồ thị (ma trận kề dày so với danh sách cạnh của PyG, lệch ≤ 3,6e-7). Bảng nguồn và phần chưa port (TimesNet: lý do) ở `THIRD_PARTY.md`.
@@ -483,7 +496,8 @@ Bản đầu tiên: prototype chạy được từ dữ liệu đến Top-K base
 - Chưa có zero-cost proxy, cost model FLOPs/VRAM, Tensor-LoRA, deep unfolding; chưa có plugin image và timeseries.
 - Kết quả trên Indian Pines và Pavia University là một lần chạy ngắn trên CPU: với chia theo khối, mạng sâu chưa vượt rõ baseline cổ điển.
 
-[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v1.4.0...HEAD
+[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v1.5.0...HEAD
+[1.5.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.5.0
 [1.4.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.4.0
 [1.3.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.3.0
 [1.2.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.2.0

@@ -42,7 +42,8 @@ Cả lần chạy nằm trong `threads.limit(n)` (`--threads`): torch, OpenBLAS 
 | `dlnet/search.py` | Successive halving, Hyperband, giai đoạn nhiều seed, cache lần chạy, chọn Top-K đa dạng |
 | `dlnet/objectives.py` | Hướng tối ưu: accuracy, params, flops, balanced (MnasNet), pareto (NSGA-II) |
 | `dlnet/datacard.py`, `seeds.py`, `meta.py`, `surrogate.py` | Đặc trưng dữ liệu, chọn hạt giống, học từ các lần chạy trước (kNN, portfolio, surrogate ZAP) |
-| `dlnet/advisor.py`, `mcp_server.py` | Tùy chọn AI: advisor gọi AI CLI; MCP server `dlnet mcp` ([ai-advisor.md](ai-advisor.md)) |
+| `dlnet/advisor.py` | Tùy chọn AI: advisor gọi AI CLI ([ai-advisor.md](ai-advisor.md)) |
+| `dlnet/mcp_http.py`, `mcp_server.py`, `mcp_tools.py`, `service.py` | MCP server `dlnet serve`: transport Streamable HTTP (xác thực, phiên, SSE, tải tệp), tầng giao thức (hai thế hệ MCP), 19 tool, workspace cô lập và hàng đợi job ([mcp-server.md](mcp-server.md)) |
 | `dlnet/proxies.py`, `hparams.py`, `profile.py` | Zero-cost proxy; lr / batch / weight decay; intrinsic dimension |
 | `dlnet/export.py`, `reference.py` | Gói đầu ra, leaderboard, quy tắc kết luận; baseline cổ điển |
 | `dlnet/clock.py`, `threads.py`, `jsonsafe.py` | Đồng hồ ngân sách và báo cáo theo giai đoạn; giới hạn luồng; ghi JSON chuẩn (`NaN` → `null`) |

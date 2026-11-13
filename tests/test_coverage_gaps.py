@@ -6,7 +6,6 @@ that only ran inside subprocesses, and the MCP tools that start a design run.
 
 from __future__ import annotations
 
-import io
 import json
 import sys
 
@@ -225,51 +224,6 @@ def test_seed_rules_for_large_structures_colour_and_goals():
     assert w["context"] > 0 and w["channel_attention"] > 0 and w["light"] > 0
     assert w["global_attention"] == 0  # enough data: no penalty
     assert seeds.borda([([1, 2], 0.0)]).tolist() == [0.0, 0.0]
-
-
-# ------------------------------------------------------------------------ MCP tools
-
-
-def test_mcp_profile_design_and_leaderboard_round_trip(tmp_path, tabular_csv):
-    from dlnet import mcp_server
-
-    def call(name, args):
-        r = mcp_server.handle({"jsonrpc": "2.0", "id": 1, "method": "tools/call",
-                               "params": {"name": name, "arguments": args}})  # fmt: skip
-        return r["result"]
-
-    prof = json.loads(
-        call("dlnet_profile", {"data": str(tabular_csv), "target": "y"})["content"][0]["text"]
-    )
-    assert prof["plugin"] == "tabular" and prof["profile"]["n_train"] > 0
-    spec = {"op": "seq", "body": [{"op": "linear_act", "out": 16}]}
-    res = call("dlnet_design", {"data": str(tabular_csv), "target": "y", "out": str(tmp_path / "o"),
-                                "budget": "20ep", "topk": 1, "objective": "params", "extra_specs": [spec],
-                                "device": "cpu", "threads": 1})  # fmt: skip
-    body = json.loads(res["content"][0]["text"])
-    board = json.loads((tmp_path / "o" / "leaderboard.json").read_text())["budget"]
-    assert board["device"] == "cpu" and board["threads"] == 1
-    assert body["ok"] and body["top_k"] and "Leaderboard" in body["leaderboard_md"]
-    assert (tmp_path / "o.extra_specs.json").exists()
-    bad = call("dlnet_leaderboard", {"out": str(tmp_path / "missing")})
-    assert bad["isError"]
-    failed = json.loads(
-        call("dlnet_design", {"data": str(tmp_path / "nope.csv"), "out": str(tmp_path / "p")})[
-            "content"
-        ][0]["text"]
-    )
-    assert failed["ok"] is False
-    assert "zoo_ops" not in call("dlnet_zoo", {"kind": "map"})["content"][0]["text"]
-    assert mcp_server.handle({"jsonrpc": "2.0", "id": 9, "method": "ping"})["result"] == {}
-
-
-def test_mcp_stdout_carries_only_json_rpc():
-    from dlnet import mcp_server
-
-    out = io.StringIO()
-    mcp_server.serve(io.StringIO("not json\n\n[1, 2]\n"), out)
-    lines = out.getvalue().splitlines()
-    assert len(lines) == 1 and json.loads(lines[0])["error"]["code"] == -32700
 
 
 # ------------------------------------------------------------------------- advisor

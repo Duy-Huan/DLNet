@@ -1,0 +1,74 @@
+{
+  "fashion3k": {
+    "val": [
+      {
+        "val": 0.85378,
+        "test": 0.8377,
+        "name": "top1_mobilenetv2",
+        "seconds": null,
+        "epochs": 30,
+        "trained": 10,
+        "reference_best_test": 0.83115
+      }
+    ],
+    "val+tse": [
+      {
+        "val": 0.85378,
+        "test": 0.8377,
+        "name": "top1_mobilenetv2",
+        "seconds": 791.3,
+        "epochs": 30,
+        "trained": 10,
+        "reference_best_test": 0.83115
+      }
+    ]
+  },
+  "cifar10_3k": {
+    "val": [
+      {
+        "val": 0.61661,
+        "test": 0.60773,
+        "name": "top1_mobilenetv2",
+        "seconds": 867.5,
+        "epochs": 30,
+        "trained": 10,
+        "reference_best_test": 0.38651
+      }
+    ],
+    "val+tse": [
+      {
+        "val": 0.61661,
+        "test": 0.60773,
+        "name": "top1_mobilenetv2",
+        "seconds": 1038.7,
+        "epochs": 30,
+        "trained": 10,
+        "reference_best_test": 0.38651
+      }
+    ]
+  },
+  "shapes": {
+    "val": [
+      {
+        "val": 0.99686,
+        "test": 0.99846,
+        "name": "top1_zoo_unet_res_block",
+        "seconds": 388.2,
+        "epochs": 30,
+        "trained": 10,
+        "reference_best_test": 0.61728
+      }
+    ],
+    "val+tse": [
+      {
+        "val": 0.99686,
+        "test": 0.99846,
+        "name": "top1_zoo_unet_res_block",
+        "seconds": 429.0,
+        "epochs": 30,
+        "trained": 10,
+        "reference_best_test": 0.61728
+      }
+    ]
+  }
+}

@@ -1,0 +1,9 @@
+Package: dlnet
+Version: {version}
+Section: science
+Priority: optional
+Architecture: amd64
+Maintainer: DLNet <noreply@users.noreply.github.com>
+Description: DLNet: Top-K PyTorch deep-learning baselines for a dataset, and an MCP server
+ Turns a dataset into trained, evaluated PyTorch baselines (CPU build) and serves the same
+ tools to AI clients over MCP (dlnet serve). Installed in /opt/dlnet, command /usr/bin/dlnet.
