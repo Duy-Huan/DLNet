@@ -1,12 +1,11 @@
-"""M18: AI advisor (scripted fake CLI) and the MCP server (JSON-RPC over stdio)."""
+"""M18: AI advisor (scripted fake CLI). The MCP server is tested in tests/test_mcp_http.py."""
 
-import io
 import json
 import sys
 
 import numpy as np
 
-from dlnet import advisor, mcp_server
+from dlnet import advisor
 from dlnet.zoo import presets
 
 
@@ -59,47 +58,3 @@ def test_advisor_failure_does_not_stop_the_run(tmp_path):
     bad.write_text("print('I cannot help with that')")
     assert advisor.advise(f"{sys.executable} {bad}", *args, log=logs.append) is None
     assert all("[advisor] skipped" in m for m in logs)
-
-
-def _rpc(*msgs):
-    out = io.StringIO()
-    mcp_server.serve(io.StringIO("\n".join(json.dumps(m) for m in msgs) + "\n"), out)
-    return [json.loads(line) for line in out.getvalue().splitlines()]
-
-
-def test_mcp_handshake_tools_and_errors():
-    r = _rpc(
-        {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"protocolVersion": "2025-03-26"}},
-        {"jsonrpc": "2.0", "method": "notifications/initialized"},
-        {"jsonrpc": "2.0", "id": 2, "method": "tools/list"},
-        {"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": {"name": "dlnet_check_spec",
-         "arguments": {"spec": {"op": "basic_block", "out": 16}, "kind": "map", "dims": [3, 8, 8]}}},
-        {"jsonrpc": "2.0", "id": 4, "method": "tools/call", "params": {"name": "dlnet_check_spec",
-         "arguments": {"spec": {"op": "nope"}, "kind": "map", "dims": [3, 8, 8]}}},
-        {"jsonrpc": "2.0", "id": 5, "method": "nope"},
-        {"jsonrpc": "2.0", "id": 6, "method": "tools/call", "params": {"name": "nope"}},
-    )  # fmt: skip
-    assert [m["id"] for m in r] == [1, 2, 3, 4, 5, 6]  # the notification gets no reply
-    assert (
-        r[0]["result"]["protocolVersion"] == "2025-03-26"
-        and "tools" in r[0]["result"]["capabilities"]
-    )
-    names = {t["name"] for t in r[1]["result"]["tools"]}
-    assert {"dlnet_profile", "dlnet_candidates", "dlnet_design", "dlnet_leaderboard"} <= names
-    assert all("inputSchema" in t for t in r[1]["result"]["tools"])
-    ok = json.loads(r[2]["result"]["content"][0]["text"])
-    assert ok["valid"] and ok["params"] > 0 and ok["dims"] == [16, 8, 8]
-    assert json.loads(r[3]["result"]["content"][0]["text"])["valid"] is False
-    assert r[4]["error"]["code"] == -32601 and r[5]["error"]["code"] == -32602
-
-
-def test_mcp_candidates_on_images(tmp_path):
-    rng = np.random.default_rng(0)
-    p = tmp_path / "img.npz"
-    np.savez(p, X=rng.normal(size=(60, 8, 8)).astype("float32"), y=np.repeat(np.arange(3), 20))
-    r = _rpc({"jsonrpc": "2.0", "id": 1, "method": "tools/call",
-              "params": {"name": "dlnet_candidates", "arguments": {"data": str(p), "zoo": 4, "limit": 5}}})  # fmt: skip
-    body = json.loads(r[0]["result"]["content"][0]["text"])
-    assert body["plugin"] == "image_classification" and body["input"]["kind"] == "map"
-    assert 0 < len(body["candidates"]) <= 5 and all("spec" in c for c in body["candidates"])
-    assert "conv_bias_gain" in body["data_card"]

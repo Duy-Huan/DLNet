@@ -42,6 +42,58 @@ train and rank DCGAN-style generators on an image set (MMD^2 in pixel space)
 | `--seed` |  | `0` |  |
 | `--out` |  | `dlnet_out` |  |
 
+## `dlnet serve`
+
+run DLNet as a remote MCP server (Streamable HTTP) for Claude Code, Codex, Antigravity and other AI clients
+
+| Tùy chọn | Bắt buộc | Mặc định | Ý nghĩa |
+|---|---|---|---|
+| `--host` |  | `127.0.0.1` | address to listen on (default: this machine only) |
+| `--port` |  | `8765` |  |
+| `--workspace` |  | `dlnet-workspace` | folder for data/, runs/ and jobs/ |
+| `--token` |  |  | bearer token the clients must send (or DLNET_TOKEN, or --token-file) |
+| `--token-file` |  |  | file holding the bearer token |
+| `--generate-token` |  |  | make a random token and print it once |
+| `--allow-origin` |  | `[]` | extra allowed Origin (browser clients) |
+| `--allow-host` |  | `[]` | extra allowed Host header (behind a proxy) |
+| `--public-url` |  |  | URL the clients use (behind a proxy), for download links |
+| `--max-jobs` |  | `1` | jobs running at the same time (default 1) |
+| `--max-budget` |  | `12h` | largest wall-clock budget a design may ask for |
+| `--wait` |  | `45.0` | default seconds a tool waits for its job |
+| `--max-upload-gb` |  | `8.0` |  |
+| `--allow-fetch` |  |  | enable dlnet_fetch (download public https URLs) |
+| `--no-sandbox` |  |  | accept paths outside the workspace (trusted clients only) |
+| `--stateless` |  |  | do not issue MCP session ids |
+| `--certfile` |  |  | TLS certificate (PEM): serve https |
+| `--keyfile` |  |  | TLS private key (PEM) |
+| `--quiet` |  |  | no access log |
+
+## `dlnet mcp`
+
+
+
+| Tùy chọn | Bắt buộc | Mặc định | Ý nghĩa |
+|---|---|---|---|
+| `--host` |  | `127.0.0.1` | address to listen on (default: this machine only) |
+| `--port` |  | `8765` |  |
+| `--workspace` |  | `dlnet-workspace` | folder for data/, runs/ and jobs/ |
+| `--token` |  |  | bearer token the clients must send (or DLNET_TOKEN, or --token-file) |
+| `--token-file` |  |  | file holding the bearer token |
+| `--generate-token` |  |  | make a random token and print it once |
+| `--allow-origin` |  | `[]` | extra allowed Origin (browser clients) |
+| `--allow-host` |  | `[]` | extra allowed Host header (behind a proxy) |
+| `--public-url` |  |  | URL the clients use (behind a proxy), for download links |
+| `--max-jobs` |  | `1` | jobs running at the same time (default 1) |
+| `--max-budget` |  | `12h` | largest wall-clock budget a design may ask for |
+| `--wait` |  | `45.0` | default seconds a tool waits for its job |
+| `--max-upload-gb` |  | `8.0` |  |
+| `--allow-fetch` |  |  | enable dlnet_fetch (download public https URLs) |
+| `--no-sandbox` |  |  | accept paths outside the workspace (trusted clients only) |
+| `--stateless` |  |  | do not issue MCP session ids |
+| `--certfile` |  |  | TLS certificate (PEM): serve https |
+| `--keyfile` |  |  | TLS private key (PEM) |
+| `--quiet` |  |  | no access log |
+
 ## `dlnet zoo`
 
 list every module of the zoo with kinds, tags and sources
@@ -89,11 +141,6 @@ rewrite model.py of exported packages as plain PyTorch source (no zoo/ folder)
 | Tùy chọn | Bắt buộc | Mặc định | Ý nghĩa |
 |---|---|---|---|
 | `packages` | có |  | package folders (each holds config.yaml) |
-
-## `dlnet mcp`
-
-run DLNet as an MCP server on stdio for AI clients (Claude Code, Codex, Antigravity)
-
 
 ## `dlnet design`
 

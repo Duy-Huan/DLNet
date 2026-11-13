@@ -6,6 +6,11 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+- **DLNet là một dịch vụ MCP qua HTTP: `dlnet serve`** (`dlnet/mcp_http.py`, `mcp_server.py`, `mcp_tools.py`, `service.py`; tài liệu `doc/mcp-server.md`). Claude Code, Codex CLI, Google Antigravity hoặc MCP client bất kỳ kết nối tới `http://<host>:8765/mcp` và dùng DLNet để phân tích dữ liệu, viết và kiểm kiến trúc, chạy `design`, huấn luyện, dự đoán, đọc kết quả. 19 tool, 3 prompt mẫu; việc dài chạy thành job nền có hàng đợi (tool chờ `wait` giây rồi trả `job_id` để hỏi lại, không vượt giới hạn thời gian của client), tiến độ gửi qua SSE; workspace cô lập (`data/`, `runs/`, `jobs/`), tải tệp lớn bằng `PUT` / `GET /files/...`.
+- Giao thức: transport Streamable HTTP, hai thế hệ song song: 2025-03-26 … 2025-11-25 (có phiên `MCP-Session-Id`) và 2026-07-28 (không phiên, `server/discover`, kiểm header `Mcp-Method` / `Mcp-Name`, `resultType`). Bảo mật: mặc định chỉ loopback, bind ra ngoài bắt buộc có bearer token, kiểm `Origin` và `Host` (DNS rebinding), đường dẫn bị giữ trong workspace.
+- Kiểm chứng: `scripts/verify_mcp.py` chạy toàn bộ luồng (design → train → predict → tải về) bằng **MCP Python SDK chính thức 2.3.0** làm client ở cả hai thế hệ (job CI `mcp-sdk` trên Linux, Windows, macOS); 18 test của `tests/test_mcp_http.py`.
+- **Gỡ** MCP server stdio cũ (`dlnet mcp` của v0.16–v1.4). `dlnet mcp` nay là tên gọi khác của `dlnet serve`; client cũ cấu hình lại theo `doc/mcp-server.md`. Tham số `out` của `dlnet_design` / `dlnet_leaderboard` thay bằng `name` / `run` (thư mục trong workspace).
+
 ## [1.4.0] - 2026-11-13
 
 - **Làm đầy kho module (137 → 158)**, `dlnet/zoo/ops_more.py`, viết theo mã chính thức và đối chiếu số học trên CI (`scripts/verify_more.py`, job `verify-more`): chuỗi thời gian `dlinear`, `tsmixer_block`, `tide_block`; đồ thị `gatv2`, `gcnii`, `appnp`, `sgc`; trường nhúng (CTR) `cin`, `autoint_attn`, `senet_fields`, `bilinear_fields`; tập hợp và gộp token `isab`, `pma`, `attn_pool`; ảnh `inception_next_block`, `focal_block`, `non_local`, `pvt_block`, `blur_pool`, `simam`, `gem`. Kết quả: 53/53 phép so khớp, trùng từng bit trừ các lớp đồ thị (ma trận kề dày so với danh sách cạnh của PyG, lệch ≤ 3,6e-7). Bảng nguồn và phần chưa port (TimesNet: lý do) ở `THIRD_PARTY.md`.

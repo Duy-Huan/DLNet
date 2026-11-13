@@ -330,7 +330,7 @@ Mỗi lần chạy thêm một dòng vào `runs.jsonl`. Từ 3 lần chạy cùn
 python -m dlnet zoo                                               # liệt kê module
 python -m dlnet unfold --data problem.npz --layers 4,8,16         # LISTA cho y = A x + nhiễu
 python -m dlnet gan --data images.npz --budget-s 300              # DCGAN, xếp hạng theo MMD²
-python -m dlnet mcp                                               # MCP server cho AI client (doc/ai-advisor.md)
+python -m dlnet serve --workspace ~/dlnet-workspace                 # MCP server qua HTTP cho AI client (doc/mcp-server.md)
 ```
 
 ## 12. Xử lý sự cố

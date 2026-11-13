@@ -638,6 +638,9 @@ def main(argv=None) -> int:
     sub.add_parser("selfcheck", help="verify the installation end to end (about 20 seconds)")
     unfold_run.add_parser(sub)
     gan_run.add_parser(sub)
+    from . import mcp_http
+
+    mcp_http.add_parser(sub)
     sub.add_parser("zoo", help="list every module of the zoo with kinds, tags and sources")
     nb = sub.add_parser(
         "notebook",
@@ -677,10 +680,6 @@ def main(argv=None) -> int:
         help="rewrite model.py of exported packages as plain PyTorch source (no zoo/ folder)",
     )
     sa.add_argument("packages", nargs="+", help="package folders (each holds config.yaml)")
-    sub.add_parser(
-        "mcp",
-        help="run DLNet as an MCP server on stdio for AI clients (Claude Code, Codex, Antigravity)",
-    )
     d = sub.add_parser("design", help="propose Top-K deep learning baselines for a dataset")
     d.add_argument(
         "--data",
@@ -861,10 +860,10 @@ def main(argv=None) -> int:
 
         print(zoo.describe())
         return 0
-    if args.cmd == "mcp":
-        from .mcp_server import serve
+    if args.cmd in ("serve", "mcp"):
+        from . import mcp_http
 
-        return serve()
+        return mcp_http.run(args)
     if args.cmd == "unfold":
         return unfold_run.run(args)
     if args.cmd == "gan":

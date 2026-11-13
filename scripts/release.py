@@ -96,7 +96,7 @@ def check(root: Path = ROOT) -> list[str]:
 DOC_VERSION = r"Phiên bản tài liệu: \*\*([^*]+)\*\*"
 
 
-HAND_DOCS = ("doc/user-guide.md", "doc/architecture.md", "doc/algorithms.md")
+HAND_DOCS = ("doc/user-guide.md", "doc/architecture.md", "doc/algorithms.md", "doc/mcp-server.md")
 
 
 def _git(*args: str, root: Path = ROOT) -> str:
