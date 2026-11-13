@@ -94,6 +94,15 @@ Nguồn và kết quả đối chiếu số học với mã gốc của từng k
 | HSI | `fahm`, `mambahsi_plus`, `ssftt`, `mambahsi` | Indian Pines chia pixel, 2 seed: OA 0,9733 / 0,9732 / 0,9620 / 0,9419; resnet2d 0,9841 |
 | Đồ thị, gợi ý | `gps_net`, `polynormer_net`, `sgformer_net`, `finalmlp`, `dcnv3`, `wukong` | chưa đo trên dữ liệu thật |
 
+**Họ của v1.4, cùng giao thức** (`scripts/bench_v1.py`, 3 seed, trung bình ± độ lệch):
+
+| Dữ liệu | Họ mới | So với họ cũ |
+|---|---|---|
+| Bảng | `tide_mlp` | wine 0,983 ± 0,012 (realmlp 0,983, mlp 0,966); breast_cancer 0,983 (realmlp 0,986); diabetes RMSE 60,5 (mlp 56,0): ngang trên phân loại, kém trên hồi quy |
+| Chuỗi thời gian | `tsmixer`, `dlinear` | `ts_freq`: tsmixer 0,863 ± 0,131, dlinear 0,355 (tcn 0,979, itransformer 1,000); `ts_crosschannel`: cả hai ở mức ngẫu nhiên (tcn 0,992). DLinear là mô hình tuyến tính cho dự báo: trên phân loại theo tần số với pha ngẫu nhiên nó không học được, đúng như lý thuyết; giữ làm mốc so sánh |
+| Ảnh | `pvt`, `inceptionnext`, `focalnet` | digits 8x8: 0,976 / 0,972 / 0,961, thua cnn 0,989 và resnet 0,988, chậm hơn cnn 5–8 lần |
+| Đồ thị, gợi ý | `gatv2_net`, `gcnii_net`, `appnp_net`, `sgc_net`, `xdeepfm`, `autoint`, `fibinet` | chưa đo trên dữ liệu thật |
+
 Chưa họ mới nào thắng họ cũ ở ngân sách nhỏ trên CPU; các họ có vòng lặp Python (Mamba, xLSTM, Gated DeltaNet) chậm hơn CNN hàng chục tới hàng trăm lần.
 
 **Mã của mạng xuất ra** (`dlnet/standalone.py`): `model.py` trong mỗi gói là nguồn PyTorch thuần của chính mạng, sinh bằng cách ghi lại đối số constructor khi dựng mạng rồi gom nguồn các lớp được dùng; kiểm bằng cách so trọng số cùng seed và đầu ra với mạng gốc (xem [architecture.md](architecture.md)).

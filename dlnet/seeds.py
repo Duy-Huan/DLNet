@@ -50,6 +50,10 @@ OP_TRAITS = {
     "se": {"channel_attention"}, "eca": {"channel_attention"}, "cbam": {"channel_attention"},
     "coord_attn": {"channel_attention", "position_aware"}, "gc_block": {"channel_attention"},
     "scse": {"channel_attention"}, "grn": {"channel_attention"},
+    # v1.4 (ops_more.py)
+    "inception_next_block": {"local_conv", "multi_scale", "large_kernel"},
+    "focal_block": {"local_conv", "multi_scale", "context"}, "pvt_block": {"global_attention"},
+    "non_local": {"global_attention", "context"}, "simam": {"channel_attention"},
     # segmentation decoders
     "unet": {"fine_detail"}, "unetpp": {"fine_detail"}, "linknet": {"fine_detail", "light"},
     "fpn": {"fine_detail", "multi_scale"}, "deconv": set(), "fcn": {"fine_detail"},

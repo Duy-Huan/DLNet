@@ -6,6 +6,11 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+- **Làm đầy kho module (137 → 158)**, `dlnet/zoo/ops_more.py`, viết theo mã chính thức và đối chiếu số học trên CI (`scripts/verify_more.py`, job `verify-more`): chuỗi thời gian `dlinear`, `tsmixer_block`, `tide_block`; đồ thị `gatv2`, `gcnii`, `appnp`, `sgc`; trường nhúng (CTR) `cin`, `autoint_attn`, `senet_fields`, `bilinear_fields`; tập hợp và gộp token `isab`, `pma`, `attn_pool`; ảnh `inception_next_block`, `focal_block`, `non_local`, `pvt_block`, `blur_pool`, `simam`, `gem`. Bảng nguồn và phần chưa port (TimesNet: lý do) ở `THIRD_PARTY.md`.
+- **13 họ kiến trúc mới (80 → 93)** cho `design`: `tide_mlp` (bảng); `dlinear`, `tsmixer` (chuỗi thời gian); `inceptionnext`, `focalnet`, `pvt` (ảnh); `gatv2_net`, `gcnii_net`, `appnp_net`, `sgc_net` (đồ thị); `xdeepfm`, `autoint`, `fibinet` (recommender).
+- `model.py` độc lập: hai cách viết cùng một import (`import torch.nn.functional as F` và `from torch.nn import functional as F`) không còn bị coi là xung đột tên (trước đây gói rơi về dạng `model.py` + `zoo/`).
+- Sửa: `doc/cli.md` sinh ra giống nhau trên Python 3.11–3.13 (`paper <cards>` có mặc định); `paper import` báo "không import được" thay vì sập khi `torch.fx` không lần được mô hình (einops, rẽ nhánh theo dữ liệu).
+
 ## [1.3.0] - 2026-11-12
 
 - `dlnet paper import`: sinh nháp thẻ từ mã gốc của tác giả bằng `torch.fx` (mỗi lớp một dòng; `add`, `mul`, `concat`, pooling toàn cục, lớp Linear cuối thành head); gặp phép toán không viết được thì dừng và nêu tên. Lớp nguyên thủy mới cho thẻ: `maxpool`, `avgpool` (137 module).

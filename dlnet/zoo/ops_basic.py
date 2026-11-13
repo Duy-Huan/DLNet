@@ -41,7 +41,7 @@ class Swish(nn.Module):
 
 ACTS = {
     "relu": nn.ReLU, "gelu": nn.GELU, "swish": nn.SiLU, "tanh": nn.Tanh, "leaky": lambda: nn.LeakyReLU(0.1),
-    "relu6": nn.ReLU6, "hswish": nn.Hardswish, "sigmoid": nn.Sigmoid, "escort": Escort, "identity": nn.Identity,
+    "relu6": nn.ReLU6, "hswish": nn.Hardswish, "sigmoid": nn.Sigmoid, "escort": Escort, "identity": nn.Identity, "elu": nn.ELU,
 }  # fmt: skip
 
 
