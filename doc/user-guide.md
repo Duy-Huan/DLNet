@@ -144,6 +144,7 @@ Từ khóa hiểu được (tiếng Anh và tiếng Việt): y tế / medical / 
 - `--seeds N`: chỉ giữ N hạt giống tốt nhất theo xếp hạng (mặc định 0 = giữ tất cả, chỉ xếp thứ tự). **Lưu ý trung thực:** trên MNIST, Fashion-MNIST và hai bộ tổng hợp, xếp hạng theo data card chưa dự đoán được thứ hạng sau huấn luyện (`agent.md` §16.5), nên đừng đặt `--seeds` quá nhỏ.
 - `--seed-proxies`: thêm phiếu bầu của zero-cost proxy vào xếp hạng hạt giống.
 - `--scheduler hyperband`: thay một bracket successive halving bằng Hyperband (nhiều mức cắt sớm).
+- `--rungs 4,12,30` (mặc định): số epoch của từng vòng successive halving. `--rung-score val` (mặc định) xếp mỗi vòng theo điểm validation; `tse` theo tốc độ giảm loss huấn luyện (Ru et al. 2021); `val+tse` kết hợp hai cách. Đo ở v1.5: không cải thiện top-1 (xem `doc/algorithms.md`), nên chỉ nên thử khi vòng đầu rất ngắn (`--rungs 1,4,12,30`).
 
 ### Học ánh xạ dữ liệu → hạt giống từ các lần chạy (surrogate ZAP)
 

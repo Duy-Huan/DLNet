@@ -887,6 +887,12 @@ Chưa làm: epochs (hiện là công thức mặc định 100 epoch, cosine, ch�
 - **Kết luận**: học từ lần chạy trước là cách tốt nhất DLNet có để xếp hạng hạt giống, nên bật mặc định cho thứ tự (`--surrogate-weight 1`); `--seeds` vẫn mặc định 0 vì chưa đo việc **loại** ứng viên theo surrogate cùng ngân sách. Data card chưa tạo khác biệt về Spearman với 14 bộ: cần nhiều bộ hơn. Thứ hạng sau 4 epoch là mục tiêu học, chưa phải kết quả sau huấn luyện đầy đủ.
 - **AI advisor / MCP**: cài đặt và kiểm thử bằng advisor giả lập và test JSON-RPC; **chưa** chạy với Claude Code, Codex, Antigravity thật, chưa đo hiệu quả.
 
+### 16.7 Xếp hạng vòng successive halving bằng TSE (v1.5)
+- **Research**: TSE (Ru et al., NeurIPS 2021): tổng loss huấn luyện theo epoch dự đoán thứ hạng cuối tốt hơn điểm validation sớm. Port theo mã gốc rubinxin/TSE@5f55142 (TSE, TSE-E, TSE-EMA μ = 0,9).
+- **Áp dụng**: `--rung-score val|tse|val+tse` (Borda), `--rungs` tùy chỉnh (cho phép vòng sàng lọc 1 epoch), `Trainer.epoch_losses`; tool MCP `dlnet_design` có cùng tham số.
+- **Đo** (`qa/reports/v1.5.0/`): 7 lượt × 24 ứng viên, mục tiêu là val ở epoch 6. Spearman: val@1 0,44, TSE@1 0,60, val@2 0,70, val+TSE@2 0,72. Giữ được mạng tốt nhất khi giữ 1/3: val@2 5/7, TSE@2 4/7. Regret: val@2 thấp nhất (0,0029). Đầu-cuối (`scripts/bench_rungs.py`, 150 epoch, fashion3k / cifar10_3k / shapes, 1 seed): `val` và `val+tse` cho cùng top-1 và cùng finalist trên cả 3 bộ.
+- **Kết luận**: TSE xếp cả nhóm tốt hơn nhưng không giữ phần đầu tốt hơn; không có lợi ích đầu-cuối, **mặc định giữ `val`, `4,12,30`**. Đã rút kế hoạch đo (2 lần lặp, cách `screen`) vì mỗi lần chạy mất 15–23 phút trên CPU. Chưa đo HSI, bảng, ngân sách lớn.
+
 ## 17. Tài liệu người dùng `doc/` và quy tắc cập nhật theo phiên bản
 
 `doc/` là tài liệu cho người dùng và người phát triển; `agent.md` là kế hoạch, quy tắc và số đo chi tiết. Cấu trúc:

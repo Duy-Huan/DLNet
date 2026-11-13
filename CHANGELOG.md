@@ -6,7 +6,9 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
-- `dlnet design --rung-score val|tse|val+tse` và `--rungs 1,4,12,30`: xếp hạng mỗi vòng của successive halving bằng điểm validation, bằng TSE (ước lượng tốc độ huấn luyện: tổng loss huấn luyện các epoch, Ru et al., NeurIPS 2021, theo mã gốc rubinxin/TSE), hoặc cả hai; lịch vòng tùy chỉnh (vòng sàng lọc 1 epoch). Mặc định chưa đổi (`val`, `4,12,30`) cho tới khi có phép đo đầu-cuối. `core.Trainer.epoch_losses` ghi loss trung bình từng epoch.
+## [1.5.0] - 2026-11-13
+
+- `dlnet design --rung-score val|tse|val+tse` và `--rungs 1,4,12,30`: xếp hạng mỗi vòng của successive halving bằng điểm validation, bằng TSE (ước lượng tốc độ huấn luyện: tổng loss huấn luyện các epoch, Ru et al., NeurIPS 2021, theo mã gốc rubinxin/TSE), hoặc cả hai; lịch vòng tùy chỉnh (vòng sàng lọc 1 epoch). `core.Trainer.epoch_losses` ghi loss trung bình từng epoch. **Đo rồi, mặc định giữ `val`, `4,12,30`**: sau 1 epoch TSE tương quan với điểm cuối tốt hơn val (Spearman 0,60 so với 0,44) nhưng val giữ các mạng đầu bảng tốt hơn; đầu-cuối ở 150 epoch trên 3 bộ ảnh, `val` và `val+tse` cho cùng top-1. Số liệu và script: `qa/reports/v1.5.0/`.
 - `dlnet run-script <script.py> ...`: chạy `train.py` / `predict.py` của gói đầu ra bằng chính chương trình DLNet (dùng cho bản cài đặt không có Python riêng).
 - **Gói cài cho Windows, macOS, Linux trong mỗi bản phát hành**: `DLNet-<v>-windows-x64-setup.exe` (Inno Setup, thêm `dlnet` vào PATH, mục Start menu cho MCP server), `-macos-arm64.pkg`, `-linux-x64.deb`, bản chạy ngay `.zip`/`.tar.gz`, `SHA256SUMS`. Chứa sẵn Python và PyTorch CPU (`packaging/`, PyInstaller). Trên runner của từng hệ điều hành, `scripts/build_installer.py` chạy thử chương trình đã đóng gói (`selfcheck`, `design`, `run-script` train/predict, `serve`), rồi `scripts/test_install.py` cài thật gói vừa tạo, gọi `dlnet` từ PATH, gỡ và kiểm đã sạch. `release.yml` chỉ tạo tag khi đủ mọi gói (`scripts/release.py assets`). Hướng dẫn: `doc/install.md`. Chưa có: chữ ký số, macOS Intel, Linux ARM.
 - Sửa (bộ cài Windows): gỡ cài đặt không xóa được mục PATH khi DLNet đứng đầu danh sách.
@@ -493,7 +495,8 @@ Bản đầu tiên: prototype chạy được từ dữ liệu đến Top-K base
 - Chưa có zero-cost proxy, cost model FLOPs/VRAM, Tensor-LoRA, deep unfolding; chưa có plugin image và timeseries.
 - Kết quả trên Indian Pines và Pavia University là một lần chạy ngắn trên CPU: với chia theo khối, mạng sâu chưa vượt rõ baseline cổ điển.
 
-[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v1.4.0...HEAD
+[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v1.5.0...HEAD
+[1.5.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.5.0
 [1.4.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.4.0
 [1.3.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.3.0
 [1.2.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.2.0
