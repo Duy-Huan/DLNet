@@ -142,12 +142,53 @@ def annotate_noise(results, data):
     return results
 
 
-def _ranked(items, rank=None):
-    """Order trained candidates best first: by validation score, or by `rank` (an objective, see
-    dlnet/objectives.py) applied to [(cfg, val), ...]."""
-    if rank is None:
+RUNG_SCORES = ("val", "tse", "val+tse")
+
+
+def tse(tr) -> float:
+    """Training speed estimate (Ru et al., NeurIPS 2021, arXiv:2006.04492): the sum of the mean
+    training losses of every epoch so far, negated so that higher is better. As in the authors'
+    rank_correlation_comparison.py (rubinxin/TSE@5f55142, method `TSE`, E=None: the sum over all
+    epochs). Only comparable between candidates trained the same number of epochs on the same data
+    (a rung of successive halving)."""
+    losses = [x for x in tr.epoch_losses if math.isfinite(x)]
+    return -float(sum(losses)) if len(losses) == len(tr.epoch_losses) and losses else -math.inf
+
+
+def _rank_points(values) -> np.ndarray:
+    """0 for the worst ... n - 1 for the best; ties share the mean of their points."""
+    a = np.asarray(values, float)
+    a = np.where(np.isfinite(a), a, -np.inf)
+    pts = np.empty(len(a))
+    pts[np.argsort(a, kind="stable")] = np.arange(len(a), dtype=float)
+    for v in np.unique(a):
+        m = a == v
+        pts[m] = pts[m].mean()
+    return pts
+
+
+def _ranked(items, rank=None, score="val"):
+    """Order trained candidates of ONE rung best first.
+
+    score "val": by validation score; "tse": by the training speed estimate; "val+tse": Borda
+    count of the two (ties broken by validation). `rank` (an objective other than accuracy, see
+    dlnet/objectives.py) is applied to [(cfg, val), ...] and then decides alone: its trade-offs
+    are written in validation units."""
+    if rank is not None:
+        return [items[i] for i in rank([(a["cfg"], a["val0"]) for a in items])]
+    if score not in RUNG_SCORES:
+        raise ValueError(f"rung score {score!r}: one of {RUNG_SCORES}")
+    if score == "val" or len(items) < 2:
         return sorted(items, key=lambda a: -a["val0"])
-    return [items[i] for i in rank([(a["cfg"], a["val0"]) for a in items])]
+    t = [tse(a["tr"]) for a in items]
+    if score == "tse":
+        key = _rank_points(t)
+    else:
+        key = _rank_points([a["val0"] for a in items]) + _rank_points(t)
+    for a, k in zip(items, key, strict=True):
+        a["rung_score"] = float(k)
+    order = sorted(range(len(items)), key=lambda i: (-key[i], -items[i]["val0"]))
+    return [items[i] for i in order]
 
 
 def interleave(cands):
@@ -255,9 +296,12 @@ def summarize(vals, tests) -> dict:
 
 def run_search(
     data, cands, deadline, topk, build_fn, rungs=(4, 12, 30), eta=3, seeds=3, log=print, folds=None,
-    cache=None, trace=None, rank=None,
+    cache=None, trace=None, rank=None, rung_score="val",
 ):  # fmt: skip
     """`folds`: optional list of data dicts (repeated splits, folds[0] is `data`) for stage 2.
+
+    `rung_score`: how the candidates of a rung are ranked before the cut ("val", "tse",
+    "val+tse"; see `_ranked`). The finalists are always compared on validation (stage 2).
 
     `trace`: optional dict; receives "rung1" = [(cfg, val score)] of every candidate that finished
     the first rung (the real training signal zero-cost proxies are compared with).
@@ -311,7 +355,7 @@ def run_search(
         if r == 0 and trace is not None:
             trace["rung1"], trace["rung1_epochs"] = [(a["cfg"], a["val0"]) for a in finished], ep
         # Only candidates that completed THIS rung compete: never rank different epoch counts.
-        alive = _ranked(finished, rank)
+        alive = _ranked(finished, rank, rung_score)
         by_rung.append((ep, alive))
         keep = max(math.ceil(len(alive) / eta), min(len(alive), topk * 2))
         if r < len(rungs) - 1:
@@ -379,7 +423,7 @@ def hyperband_brackets(R: int, eta: int = 3, unit: int = 4) -> list[list[tuple[i
 
 def run_hyperband(
     data, cands, deadline, topk, build_fn, R=36, eta=3, unit=4, seeds=3, log=print, folds=None,
-    cache=None, trace=None, rank=None,
+    cache=None, trace=None, rank=None, rung_score="val",
 ):  # fmt: skip
     """Hyperband over a FIXED, ordered candidate pool, then the multi-seed stage of `run_search`.
 
@@ -425,7 +469,7 @@ def run_hyperband(
                     break
                 if ep == unit:
                     first_rung += [(a["cfg"], a["val0"]) for a in finished]
-                alive = _ranked(finished, rank)
+                alive = _ranked(finished, rank, rung_score)
                 if i < len(rungs) - 1:
                     alive = alive[: max(rungs[i + 1][0], 1)]
             alive = [
@@ -443,7 +487,7 @@ def run_hyperband(
         raise SystemExit(f"every candidate failed to train ({len(failures)} failures)")
     pool_final = []  # most-trained first; lower epochs only fill the Top-K (final_order ranks apart)
     for ep in sorted({a["tr"].epochs_done for a in done}, reverse=True):
-        pool_final += _ranked([a for a in done if a["tr"].epochs_done == ep], rank)
+        pool_final += _ranked([a for a in done if a["tr"].epochs_done == ep], rank, rung_score)
     finalists = pool_final[: max(topk * 2, topk + 2)]
     return stage2(finalists, folds, build_fn, seeds, deadline, cache)
 

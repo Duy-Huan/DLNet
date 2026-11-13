@@ -1,0 +1,8 @@
+#!/bin/sh
+# Runs after the .pkg copied DLNet to /Library/DLNet: put `dlnet` on the PATH.
+set -e
+mkdir -p /usr/local/bin
+ln -sf /Library/DLNet/dlnet /usr/local/bin/dlnet
+# the app is not notarised: clear the quarantine flag set on files from a downloaded package
+xattr -dr com.apple.quarantine /Library/DLNet 2>/dev/null || true
+exit 0

@@ -133,6 +133,9 @@ TOOLS = [
           "seeds": {**I, "description": "keep only the N best-ranked seed candidates (0 = all)"},
           "zoo": {**I, "description": "random zoo architectures added to the pool"},
           "evolve": {**I, "description": "children created by evolution"},
+          "rung_score": {**S, "enum": ["val", "tse", "val+tse"], "description": "how successive halving ranks "
+                         "a rung: validation, training speed estimate, or both"},
+          "rungs": {**S, "description": "epochs at the end of each rung, e.g. 1,4,12,30"},
           "per_family": I, "seed": I, "cv_splits": I, "max_params": I,
           "device": {**S, "description": "auto | cpu | cuda | cuda:1 | mps"}, "threads": I,
           "papers": {**A, "items": S, "description": "paper cards (.yaml) or folders of cards in the workspace"},
@@ -584,7 +587,7 @@ class Service:
         flags = {"objective": "--objective", "goal": "--goal", "context": "--context", "seeds": "--seeds",
                  "target": "--target", "plugin": "--plugin", "device": "--device", "threads": "--threads",
                  "zoo": "--zoo", "evolve": "--evolve", "per_family": "--per-family", "seed": "--seed",
-                 "cv_splits": "--cv-splits", "max_params": "--max-params", "task": "--task", "x_key": "--x-key",
+                 "cv_splits": "--cv-splits", "max_params": "--max-params", "rung_score": "--rung-score", "rungs": "--rungs", "task": "--task", "x_key": "--x-key",
                  "y_key": "--y-key", "cube_key": "--cube-key", "gt_key": "--gt-key", "patch": "--patch",
                  "pca": "--pca", "split": "--split"}  # fmt: skip
         for k, flag in flags.items():

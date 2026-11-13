@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import argparse
 import copy
+import itertools
 import re
+import sys
 import time
 
 from . import __version__
@@ -344,10 +346,13 @@ def _design(args, n_threads) -> int:
     t_search = clock.now()
     gens = args.evolve if any(c.get("spec") for c in cands) else 0
     gen0_deadline = t_search + (0.55 if gens else 1.0) * (search_deadline - t_search)
-    runner = search.run_hyperband if args.scheduler == "hyperband" else search.run_search
+    if args.scheduler == "hyperband":
+        runner, extra = search.run_hyperband, {}
+    else:
+        runner, extra = search.run_search, {"rungs": parse_rungs(args.rungs)}
     results = runner(
         data, cands, gen0_deadline, args.topk, plugin.build_model, folds=folds,
-        cache=cache, trace=trace, rank=rank,
+        cache=cache, trace=trace, rank=rank, rung_score=args.rung_score, **extra,
     )  # fmt: skip
     evolution = []
     seen = {zoo.signature(c["spec"]) for c in cands if c.get("spec")}
@@ -412,6 +417,8 @@ def _design(args, n_threads) -> int:
             cache=cache,
             trace=sub,
             rank=rank,
+            rung_score=args.rung_score,
+            rungs=parse_rungs(args.rungs),
         )
         results = results + res
         trace.setdefault("failed", []).extend(sub.get("failed", []))
@@ -530,6 +537,39 @@ def _design(args, n_threads) -> int:
     return 0
 
 
+def parse_rungs(text: str) -> tuple[int, ...]:
+    """'4,12,30' -> (4, 12, 30): strictly increasing positive epoch counts."""
+    try:
+        r = tuple(int(x) for x in str(text).split(","))
+    except ValueError:
+        raise SystemExit(f"--rungs {text!r}: comma-separated epoch counts, e.g. 4,12,30") from None
+    if not r or r[0] < 1 or any(b <= a for a, b in itertools.pairwise(r)):
+        raise SystemExit(f"--rungs {text!r}: epoch counts must be positive and increasing")
+    return r
+
+
+def run_script(path: str, argv: list[str]) -> int:
+    """`python <path> <argv>` inside this process: the script's folder first on sys.path, its own
+    argv and __main__, its exit code. The installed program (PyInstaller) has no separate python."""
+    import runpy
+    from pathlib import Path
+
+    script = Path(path).resolve()
+    if not script.is_file():
+        print(f"run-script: no such file {path}", file=sys.stderr)
+        return 2
+    old_argv, old_path = sys.argv[:], sys.path[:]
+    sys.argv = [str(script), *argv]
+    sys.path.insert(0, str(script.parent))
+    try:
+        runpy.run_path(str(script), run_name="__main__")
+    except SystemExit as e:
+        return e.code if isinstance(e.code, int) else (0 if e.code is None else 1)
+    finally:
+        sys.argv, sys.path[:] = old_argv, old_path
+    return 0
+
+
 def selfcheck() -> int:
     """Prove the installation works: design Top-1 on a tiny synthetic CSV, check the package files."""
     import json
@@ -642,6 +682,13 @@ def main(argv=None) -> int:
 
     mcp_http.add_parser(sub)
     sub.add_parser("zoo", help="list every module of the zoo with kinds, tags and sources")
+    rs = sub.add_parser(
+        "run-script",
+        help="run a Python script of an output package (train.py, predict.py) with DLNet's own "
+        "interpreter: what `python script.py` is for the installed DLNet program",
+    )
+    rs.add_argument("script")
+    rs.add_argument("script_args", nargs=argparse.REMAINDER)
     nb = sub.add_parser(
         "notebook",
         help="write baselines.ipynb (Jupyter / Colab: train, compare, reuse) and block diagrams for an output folder",
@@ -817,6 +864,18 @@ def main(argv=None) -> int:
         help="sh: one successive-halving bracket (4/12/30 epochs) | hyperband: Li et al. 2018",
     )  # fmt: skip
     d.add_argument(
+        "--rung-score",
+        default="val",
+        choices=["val", "tse", "val+tse"],
+        help="how successive halving ranks a rung before the cut: val (validation score), tse (training "
+        "speed estimate, Ru et al. 2021), val+tse (Borda of both); see doc/algorithms.md",
+    )
+    d.add_argument(
+        "--rungs", default="4,12,30",
+        help="epochs at the end of each successive-halving rung, e.g. 1,4,12,30 (a 1-epoch screening "
+        "rung, best with --rung-score tse); scheduler sh only",
+    )  # fmt: skip
+    d.add_argument(
         "--seed-order", default="data", choices=["data", "random"],
         help="random = control arm that keeps --seeds candidates at random (for measuring the selector)",
     )  # fmt: skip
@@ -860,6 +919,8 @@ def main(argv=None) -> int:
 
         print(zoo.describe())
         return 0
+    if args.cmd == "run-script":
+        return run_script(args.script, args.script_args)
     if args.cmd in ("serve", "mcp"):
         from . import mcp_http
 

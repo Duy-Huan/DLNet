@@ -99,6 +99,15 @@ run DLNet as a remote MCP server (Streamable HTTP) for Claude Code, Codex, Antig
 list every module of the zoo with kinds, tags and sources
 
 
+## `dlnet run-script`
+
+run a Python script of an output package (train.py, predict.py) with DLNet's own interpreter: what `python script.py` is for the installed DLNet program
+
+| Tùy chọn | Bắt buộc | Mặc định | Ý nghĩa |
+|---|---|---|---|
+| `script` | có |  |  |
+| `script_args` |  |  |  |
+
 ## `dlnet notebook`
 
 write baselines.ipynb (Jupyter / Colab: train, compare, reuse) and block diagrams for an output folder
@@ -191,6 +200,8 @@ propose Top-K deep learning baselines for a dataset
 | `--seeds` |  | `0` | keep only this many seed architectures (data-aware ranking); 0 = keep all, ranked |
 | `--seed-proxies` |  |  | let the zero-cost proxy vote (synflow, naswot, snip) rank the seeds too |
 | `--scheduler` |  | `sh` | sh: one successive-halving bracket (4/12/30 epochs) \| hyperband: Li et al. 2018 (một trong: sh, hyperband) |
+| `--rung-score` |  | `val` | how successive halving ranks a rung before the cut: val (validation score), tse (training speed estimate, Ru et al. 2021), val+tse (Borda of both); see doc/algorithms.md (một trong: val, tse, val+tse) |
+| `--rungs` |  | `4,12,30` | epochs at the end of each successive-halving rung, e.g. 1,4,12,30 (a 1-epoch screening rung, best with --rung-score tse); scheduler sh only |
 | `--seed-order` |  | `data` | random = control arm that keeps --seeds candidates at random (for measuring the selector) (một trong: data, random) |
 | `--recipe` |  | `modern` | training recipe: modern = image augmentation (shifts, flips for colour) + label smoothing 0.1 (một trong: modern, plain) |
 | `--hparams` |  | `auto` | lr/batch/wd estimation: auto = only for finalists run >= 2 times (noise measurable) (một trong: auto, on, off) |
