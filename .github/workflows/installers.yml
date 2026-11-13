@@ -29,7 +29,7 @@ jobs:
       matrix:
         include:
           - {os: windows-latest, name: windows}
-          - {os: macos-14, name: macos}
+          - {os: macos-latest, name: macos}  # Apple silicon (arm64)
           - {os: ubuntu-22.04, name: linux}  # an older glibc: the program runs on more distributions
     runs-on: ${{ matrix.os }}
     timeout-minutes: 75

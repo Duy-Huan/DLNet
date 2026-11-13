@@ -54,8 +54,8 @@ run DLNet as a remote MCP server (Streamable HTTP) for Claude Code, Codex, Antig
 | `--token` |  |  | bearer token the clients must send (or DLNET_TOKEN, or --token-file) |
 | `--token-file` |  |  | file holding the bearer token |
 | `--generate-token` |  |  | make a random token and print it once |
-| `--allow-origin` |  | `[]` | extra allowed Origin (browser clients) |
-| `--allow-host` |  | `[]` | extra allowed Host header (behind a proxy) |
+| `--allow-origin` |  |  | extra allowed Origin (browser clients) |
+| `--allow-host` |  |  | extra allowed Host header (behind a proxy) |
 | `--public-url` |  |  | URL the clients use (behind a proxy), for download links |
 | `--max-jobs` |  | `1` | jobs running at the same time (default 1) |
 | `--max-budget` |  | `12h` | largest wall-clock budget a design may ask for |
@@ -80,8 +80,8 @@ run DLNet as a remote MCP server (Streamable HTTP) for Claude Code, Codex, Antig
 | `--token` |  |  | bearer token the clients must send (or DLNET_TOKEN, or --token-file) |
 | `--token-file` |  |  | file holding the bearer token |
 | `--generate-token` |  |  | make a random token and print it once |
-| `--allow-origin` |  | `[]` | extra allowed Origin (browser clients) |
-| `--allow-host` |  | `[]` | extra allowed Host header (behind a proxy) |
+| `--allow-origin` |  |  | extra allowed Origin (browser clients) |
+| `--allow-host` |  |  | extra allowed Host header (behind a proxy) |
 | `--public-url` |  |  | URL the clients use (behind a proxy), for download links |
 | `--max-jobs` |  | `1` | jobs running at the same time (default 1) |
 | `--max-budget` |  | `12h` | largest wall-clock budget a design may ask for |
@@ -130,7 +130,7 @@ a published network from a card (YAML): check it, build its package, verify it a
 | Tùy chọn | Bắt buộc | Mặc định | Ý nghĩa |
 |---|---|---|---|
 | `action` | có |  |  (một trong: check, build, verify, import) |
-| `cards` |  | `[]` | card files (.yaml / .json) |
+| `cards` |  |  | card files (.yaml / .json) |
 | `--repo` |  |  | [import] the authors' repository (URL) |
 | `--commit` |  |  | [import] the commit of the checkout |
 | `--entry` |  |  | [import] path/to/file.py:ClassName of the model |

@@ -688,7 +688,7 @@ def main(argv=None) -> int:
         "interpreter: what `python script.py` is for the installed DLNet program",
     )
     rs.add_argument("script")
-    rs.add_argument("script_args", nargs=argparse.REMAINDER)
+    rs.add_argument("script_args", nargs=argparse.REMAINDER, default=[])
     nb = sub.add_parser(
         "notebook",
         help="write baselines.ipynb (Jupyter / Colab: train, compare, reuse) and block diagrams for an output folder",

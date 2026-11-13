@@ -939,6 +939,16 @@ Chưa làm: epochs (hiện là công thức mặc định 100 epoch, cosine, ch�
 - **Mốc 4 (P2, cutting edge)**: pretrained (timm/DINOv2, TabPFN v2); TabM/PLR, PatchTST/iTransformer, Mamba-HSI, graph transformer; DEHB/PriorBand/LC-PFN; đo trên GPU.
 Mỗi mốc kết thúc bằng một lần chạy lại đội kiểm định.
 
+### 18.2 Lộ trình v1.5 – v1.7 (người dùng đã duyệt)
+- **v1.5**: MCP server qua HTTP (`dlnet serve`, xong); nghiên cứu chọn hạt giống / xếp hạng vòng loại (TSE, đang đo đầu-cuối; chỉ đổi mặc định khi top-1 tốt hơn thật).
+- **v1.6**: gói cài Windows / macOS / Linux; mỗi tag phát hành bắt buộc có đủ gói cài (máy ép: `release.yml` → `installers.yml` → `release.py assets`).
+- **v1.7** (giao diện đã chốt: Artifact "DLNet UI tối giản", 6 màn: workspace, lần chạy, tệp, chạy mới, một lần chạy, AI/MCP):
+  - CLI vẫn là chính; giao diện là tùy chọn, chỉ đọc thư mục workspace trên đĩa và chạy đúng lệnh CLI (hiện lệnh tương ứng trên mọi màn).
+  - **Bắt buộc hai ngôn ngữ EN / VI, đồng bộ 100%**: một bộ khóa chung, test thất bại nếu một khóa thiếu ở một ngôn ngữ, chuỗi rỗng, hoặc chuỗi hiển thị nằm cứng trong HTML/JS ngoài bộ dịch.
+  - **Chế độ sáng / tối**: theo hệ điều hành mặc định, có nút chuyển, nhớ lựa chọn; mọi màu là token, kiểm tương phản ≥ 4.5:1 ở cả hai chế độ.
+  - So sánh 10–20 paper trong một lệnh: `dlnet plan` (ước lượng trước: tham số, FLOPs, VRAM, s/epoch đo thật, tổng thời gian, mức A/B/C, số paper báo, dự báo sớm thô), chạy chắc (lỗi một baseline không dừng cả lần chạy, tiếp tục được, nhiều GPU), kiểm định ý nghĩa thống kê, xuất bảng LaTeX.
+  - Thứ tự: phần CLI trước, giao diện sau.
+
 ## Tài liệu tham khảo
 Toàn bộ PDF nằm trong `ref/` (mục lục: `ref/README.md`); thuật toán ước lượng chất lượng và hyperparameter trong `ref/optimazeDL/` (§16).
 
