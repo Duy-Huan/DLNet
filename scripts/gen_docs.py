@@ -65,7 +65,9 @@ def cli_md() -> str:
             )
             choices = f" (một trong: {', '.join(map(str, a.choices))})" if a.choices else ""
             text = (a.help or "").replace("|", "\\|").replace("\n", " ")
-            rows.append(f"| {flags} | {'có' if a.required else ''} | {default} | {text}{choices} |")
+            # a positional that takes zero or more values is never required (3.11 says it is)
+            required = a.required and a.nargs not in (argparse.REMAINDER, "*", "?")
+            rows.append(f"| {flags} | {'có' if required else ''} | {default} | {text}{choices} |")
         if rows:
             out.append("| Tùy chọn | Bắt buộc | Mặc định | Ý nghĩa |\n|---|---|---|---|")
             out += rows
