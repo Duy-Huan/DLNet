@@ -162,7 +162,7 @@ def bump(new: str, today: str, root: Path = ROOT) -> None:
 # Every release ships the installable program for these platforms (agent.md sec. 11, doc/install.md).
 # scripts/build_installer.py writes exactly these names; the release workflow refuses to tag a
 # version when one is missing.
-PLATFORMS = (("windows", "x64"), ("macos", "arm64"), ("linux", "x64"))
+PLATFORMS = (("windows", "x64"), ("macos", "arm64"), ("linux", "x64"), ("linux", "arm64"))
 EXT = {"windows": ("setup.exe", "zip"), "macos": ("pkg", "tar.gz"), "linux": ("deb", "tar.gz")}
 
 

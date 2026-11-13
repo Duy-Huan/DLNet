@@ -6,6 +6,9 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+- **Gói cài cho Linux ARM64** (`DLNet-<v>-linux-arm64.deb` / `.tar.gz`): Raspberry Pi 4/5 với hệ điều hành 64-bit, AWS Graviton, CPU của Jetson. Build, chạy thử, cài thật và gỡ trên runner `ubuntu-22.04-arm` như các nền tảng khác. Từ v1.6 mỗi tag bắt buộc có 4 nền tảng (`scripts/release.py` `PLATFORMS`).
+- Hạn chế đã biết: không có gói cho macOS Intel (PyTorch không còn bản macOS x86_64 từ 2.3).
+
 ## [1.5.0] - 2026-11-13
 
 - `dlnet design --rung-score val|tse|val+tse` và `--rungs 1,4,12,30`: xếp hạng mỗi vòng của successive halving bằng điểm validation, bằng TSE (ước lượng tốc độ huấn luyện: tổng loss huấn luyện các epoch, Ru et al., NeurIPS 2021, theo mã gốc rubinxin/TSE), hoặc cả hai; lịch vòng tùy chỉnh (vòng sàng lọc 1 epoch). `core.Trainer.epoch_losses` ghi loss trung bình từng epoch. **Đo rồi, mặc định giữ `val`, `4,12,30`**: sau 1 epoch TSE tương quan với điểm cuối tốt hơn val (Spearman 0,60 so với 0,44) nhưng val giữ các mạng đầu bảng tốt hơn; đầu-cuối ở 150 epoch trên 3 bộ ảnh, `val` và `val+tse` cho cùng top-1. Số liệu và script: `qa/reports/v1.5.0/`.

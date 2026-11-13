@@ -15,13 +15,18 @@ import release
 from dlnet import cli
 
 
-def test_every_release_lists_installers_for_three_platforms(tmp_path):
+def test_every_release_lists_installers_for_every_platform(tmp_path):
     names = release.asset_names("1.6.0")
-    assert set(names) == {("windows", "x64"), ("macos", "arm64"), ("linux", "x64")}
+    assert set(names) == {
+        ("windows", "x64"),
+        ("macos", "arm64"),
+        ("linux", "x64"),
+        ("linux", "arm64"),
+    }
     flat = [n for d in names.values() for n in d.values()]
     assert "DLNet-1.6.0-windows-x64-setup.exe" in flat and "DLNet-1.6.0-macos-arm64.pkg" in flat
     assert "DLNet-1.6.0-linux-x64.deb" in flat and all(n.startswith("DLNet-1.6.0-") for n in flat)
-    assert len(release.missing_assets(tmp_path, "1.6.0")) == 9  # 6 files + 3 checksum lists
+    assert len(release.missing_assets(tmp_path, "1.6.0")) == 12  # 8 files + 4 checksum lists
     for n in flat + [f"SHA256SUMS-{o}-{a}.txt" for o, a in release.PLATFORMS]:
         (tmp_path / n).write_text("x")
     assert release.missing_assets(tmp_path, "1.6.0") == []

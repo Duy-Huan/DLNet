@@ -33,6 +33,7 @@ jobs:
           - {os: windows-latest, name: windows}
           - {os: macos-latest, name: macos}  # Apple silicon (arm64)
           - {os: ubuntu-22.04, name: linux}  # an older glibc: the program runs on more distributions
+          - {os: ubuntu-22.04-arm, name: linux-arm64}  # Raspberry Pi 4/5 (64-bit OS), AWS Graviton, Jetson CPU
     runs-on: ${{ matrix.os }}
     timeout-minutes: 75
     steps:
