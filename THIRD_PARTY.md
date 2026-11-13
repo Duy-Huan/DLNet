@@ -178,6 +178,8 @@ Rà kho 137 module so với timm, PyTorch Geometric, Time-Series-Library, FuxiCT
 | `simam` | ZjjConan/SimAM@ae98f43 `simam_module` | Yang et al., ICML 2021 |
 | `gem` | filipradenovic/cnnimageretrieval-pytorch@1e66a41 `GeM` | Radenovic et al., TPAMI 2018 |
 
+**Kết quả đối chiếu** (GitHub Actions `verify-more`, run 43351297903, torch CPU, trọng số chép từ module gốc, chế độ eval): 53/53 phép so khớp. Sai khác lớn nhất bằng 0 (trùng từng bit) với DLinear, TSMixer, TiDE, CIN, AutoInt, FiBiNET (cả bản V2 và bản lặp từng cặp), Set Transformer, và mọi khối timm, SimAM, GeM; các lớp đồ thị viết lại trên ma trận kề dày lệch ≤ 3,6e-7 so với PyG trên danh sách cạnh (GATv2 ≤ 3,6e-7; GCNII, APPNP, SGC ≤ 1,2e-7), là sai số làm tròn float32 do thứ tự cộng khác nhau.
+
 Không port: dropout / drop-path trong các khối (dùng `res` có `drop_path` của zoo), `use_post_norm` của FocalNet, `linear_attn` của PVTv2, cạnh có thuộc tính (`edge_dim`) và `share_weights` của GATv2, `weight2` (không dùng chung) của GCNII, lớp ra `fc` của CIN.
 
 ## Chưa port và lý do
