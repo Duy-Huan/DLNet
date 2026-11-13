@@ -638,3 +638,88 @@ def test_design_train_predict_and_download_over_http(server, tabular_csv):
     assert "refusing" in c.call("dlnet_archive", {"path": "."})[1]
     kinds = [(j["kind"], j["status"]) for j in c.call("dlnet_jobs")[1]["jobs"]]
     assert kinds == [("predict", "succeeded"), ("train", "succeeded"), ("design", "succeeded")]
+
+
+# --------------------------------------------------------------------- dlnet_fetch (network faked)
+
+
+class _Body(io.BytesIO):
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        self.close()
+
+
+def _fetch_svc(tmp_path, monkeypatch, ip="93.184.216.34", body=b"x" * 10):
+    svc = mcp_tools.Service(tmp_path / "ws", allow_fetch=True)
+    monkeypatch.setattr(mcp_tools.socket, "getaddrinfo", lambda h, p: [(0, 0, 0, "", (ip, p))])
+    monkeypatch.setattr(mcp_tools.urllib.request, "urlopen", lambda req, timeout: _Body(body))
+    return svc
+
+
+def test_fetch_is_off_unless_enabled(tmp_path):
+    svc = mcp_tools.Service(tmp_path / "ws")
+    with pytest.raises(mcp_tools.ServiceError, match="--allow-fetch"):
+        svc.tool_fetch({"url": "https://example.org/a.npz"}, lambda *a: None, lambda: False)
+
+
+def test_fetch_downloads_into_data(tmp_path, monkeypatch):
+    svc = _fetch_svc(tmp_path, monkeypatch)
+    seen = []
+    r = svc.tool_fetch({"url": "https://example.org/d/a%20b.npz", "name": "a.npz"},
+                       lambda *a: seen.append(a), lambda: False)  # fmt: skip
+    assert r == {"path": "data/a.npz", "bytes": 10} and seen
+    assert (tmp_path / "ws" / "data" / "a.npz").read_bytes() == b"x" * 10
+    with pytest.raises(mcp_tools.ServiceError, match="overwrite"):
+        svc.tool_fetch({"url": "https://example.org/a.npz"}, lambda *a: None, lambda: False)
+    svc.tool_fetch(
+        {"url": "https://example.org/a.npz", "overwrite": True}, lambda *a: None, lambda: False
+    )
+
+
+@pytest.mark.parametrize(
+    "url, ip, match",
+    [
+        ("http://example.org/a.npz", "93.184.216.34", "only https"),
+        ("https://intranet/a.npz", "10.0.0.5", "non-public"),
+        ("https://localhost/a.npz", "127.0.0.1", "non-public"),
+        ("https://example.org/a$b.npz", "93.184.216.34", "letters, digits"),
+    ],
+)
+def test_fetch_refuses(tmp_path, monkeypatch, url, ip, match):
+    svc = _fetch_svc(tmp_path, monkeypatch, ip=ip)
+    with pytest.raises(mcp_tools.ServiceError, match=match):
+        svc.tool_fetch({"url": url}, lambda *a: None, lambda: False)
+
+
+def test_fetch_unresolvable_cancelled_and_failed(tmp_path, monkeypatch):
+    svc = _fetch_svc(tmp_path, monkeypatch)
+
+    def nores(h, p):
+        raise OSError("no such host")
+
+    monkeypatch.setattr(mcp_tools.socket, "getaddrinfo", nores)
+    with pytest.raises(mcp_tools.ServiceError, match="cannot resolve"):
+        svc.tool_fetch({"url": "https://nowhere.example/a.npz"}, lambda *a: None, lambda: False)
+
+    svc = _fetch_svc(tmp_path, monkeypatch)
+    with pytest.raises(mcp_tools.ServiceError, match="cancelled"):
+        svc.tool_fetch({"url": "https://example.org/b.npz"}, lambda *a: None, lambda: True)
+    assert not (tmp_path / "ws" / "data" / "b.npz").exists()
+    assert not (tmp_path / "ws" / "data" / "b.npz.part").exists()
+
+    def down(req, timeout):
+        raise OSError("connection reset")
+
+    monkeypatch.setattr(mcp_tools.urllib.request, "urlopen", down)
+    with pytest.raises(mcp_tools.ServiceError, match="download failed"):
+        svc.tool_fetch({"url": "https://example.org/c.npz"}, lambda *a: None, lambda: False)
+
+
+def test_paper_tool_rejects_bad_arguments(tmp_path):
+    svc = mcp_tools.Service(tmp_path / "ws")
+    with pytest.raises(mcp_tools.ServiceError, match="check or build"):
+        svc.tool_paper({"action": "verify", "cards": ["x"]}, None, None)
+    with pytest.raises(mcp_tools.ServiceError, match="non-empty list"):
+        svc.tool_paper({"action": "check", "cards": []}, None, None)
