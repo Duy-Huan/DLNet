@@ -7,6 +7,7 @@ Từ v1.5, mỗi bản phát hành trên GitHub (trang **Releases**, tag `vX.Y.Z
 | Windows 10/11 x64 | `DLNet-<ver>-windows-x64-setup.exe` | `DLNet-<ver>-windows-x64.zip` |
 | macOS 14+ Apple silicon (M1–M4) | `DLNet-<ver>-macos-arm64.pkg` | `DLNet-<ver>-macos-arm64.tar.gz` |
 | Linux x64 (glibc ≥ 2.35: Ubuntu 22.04+, Debian 12+, ...) | `DLNet-<ver>-linux-x64.deb` | `DLNet-<ver>-linux-x64.tar.gz` |
+| Linux ARM64 (từ v1.6; Raspberry Pi 4/5 với hệ điều hành 64-bit, AWS Graviton, CPU của Jetson; glibc ≥ 2.35) | `DLNet-<ver>-linux-arm64.deb` | `DLNet-<ver>-linux-arm64.tar.gz` |
 
 Mỗi hệ điều hành có `SHA256SUMS-<os>-<arch>.txt` để kiểm tra tệp tải về.
 
@@ -19,7 +20,7 @@ Mỗi hệ điều hành có `SHA256SUMS-<os>-<arch>.txt` để kiểm tra tệp
 **Linux**:
 
 ```bash
-sudo apt install ./DLNet-<ver>-linux-x64.deb      # cài vào /opt/dlnet, lệnh /usr/bin/dlnet
+sudo apt install ./DLNet-<ver>-linux-x64.deb      # cài vào /opt/dlnet, lệnh /usr/bin/dlnet (ARM64: ...-linux-arm64.deb)
 sudo apt remove dlnet                              # gỡ
 ```
 
@@ -62,7 +63,7 @@ powershell -ExecutionPolicy Bypass -File scripts\setup_env.ps1 -Gpu   # Windows
 
 ## Quy trình phát hành (cho người phát triển)
 
-Mỗi tag phát hành **bắt buộc** có đủ gói cài cho ba hệ điều hành (agent.md §11). `release.yml` gọi `installers.yml`: trên runner Windows, macOS (arm64) và Linux, `scripts/build_installer.py` build chương trình bằng PyInstaller (`packaging/dlnet.spec`), **chạy thử chính chương trình đã đóng gói** (`--version`, `selfcheck`, một lần `design` rồi `run-script train.py` và `predict.py` của gói đầu ra, `serve` trả lời `/healthz` và MCP `initialize`), rồi mới tạo gói cài (Inno Setup trên Windows, `pkgbuild` trên macOS, `dpkg-deb` trên Linux). Sau đó `scripts/test_install.py` **cài thật gói vừa tạo** như người dùng (Windows `setup.exe /VERYSILENT /CURRENTUSER`, macOS `sudo installer -pkg`, Linux `sudo apt-get install ./*.deb`), kiểm `SHA256SUMS`, gọi `dlnet` từ PATH mới (`--version` khớp tên tệp, `selfcheck`, `serve` trả lời `/healthz`), rồi gỡ và kiểm chương trình cùng mục PATH đã bị xóa. Chỉ khi `python scripts/release.py assets` thấy đủ mọi tệp, tag và GitHub Release mới được tạo (kèm wheel và sdist). Một hệ điều hành build hoặc chạy thử thất bại thì phiên bản đó chưa được phát hành; sửa rồi đẩy lại, `release.yml` tự chạy lại.
+Mỗi tag phát hành **bắt buộc** có đủ gói cài cho mọi nền tảng trong `scripts/release.py` (`PLATFORMS`: Windows x64, macOS arm64, Linux x64, Linux arm64) (agent.md §11). `release.yml` gọi `installers.yml`: trên runner Windows, macOS (arm64) và Linux, `scripts/build_installer.py` build chương trình bằng PyInstaller (`packaging/dlnet.spec`), **chạy thử chính chương trình đã đóng gói** (`--version`, `selfcheck`, một lần `design` rồi `run-script train.py` và `predict.py` của gói đầu ra, `serve` trả lời `/healthz` và MCP `initialize`), rồi mới tạo gói cài (Inno Setup trên Windows, `pkgbuild` trên macOS, `dpkg-deb` trên Linux). Sau đó `scripts/test_install.py` **cài thật gói vừa tạo** như người dùng (Windows `setup.exe /VERYSILENT /CURRENTUSER`, macOS `sudo installer -pkg`, Linux `sudo apt-get install ./*.deb`), kiểm `SHA256SUMS`, gọi `dlnet` từ PATH mới (`--version` khớp tên tệp, `selfcheck`, `serve` trả lời `/healthz`), rồi gỡ và kiểm chương trình cùng mục PATH đã bị xóa. Chỉ khi `python scripts/release.py assets` thấy đủ mọi tệp, tag và GitHub Release mới được tạo (kèm wheel và sdist). Một hệ điều hành build hoặc chạy thử thất bại thì phiên bản đó chưa được phát hành; sửa rồi đẩy lại, `release.yml` tự chạy lại.
 
 Build thử trên máy của bạn (tạo gói của hệ điều hành đang dùng vào `dist/installers/`):
 
@@ -71,4 +72,4 @@ pip install ".[design]" "pyinstaller==6.22.0"     # torch CPU trước, nếu kh
 python scripts/build_installer.py
 ```
 
-Chưa có: chữ ký số (Windows Authenticode, Apple notarization), macOS Intel, Linux ARM, gói Homebrew / winget.
+Chưa có: chữ ký số (Windows Authenticode, Apple notarization), gói Homebrew / winget, Windows ARM. **macOS Intel không được hỗ trợ**: PyTorch ngừng phát hành bản cho macOS x86_64 từ 2.3, còn DLNet dùng PyTorch 2.15 và chưa được kiểm với PyTorch 2.2.

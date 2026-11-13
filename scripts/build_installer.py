@@ -202,7 +202,10 @@ def linux(version: str, names: dict) -> None:
         deb.mkdir()
         size = sum(f.stat().st_size for f in (pkg / "opt").rglob("*") if f.is_file()) // 1024
         control = (
-            (ROOT / "packaging" / "linux" / "control").read_text().replace("{version}", version)
+            (ROOT / "packaging" / "linux" / "control")
+            .read_text()
+            .replace("{version}", version)
+            .replace("{arch}", {"x64": "amd64", "arm64": "arm64"}[os_arch()[1]])
         )
         (deb / "control").write_text(control + f"Installed-Size: {size}\n")
         for s in ("postinst", "prerm"):
