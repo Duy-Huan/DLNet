@@ -6,6 +6,8 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-11-13
+
 - **So với 10–20 paper trong một lệnh** (`design --papers <thư mục>`):
   - các thẻ chạy lần lượt, có tiến độ `[papers] i/N`;
   - thẻ lỗi được ghi lại kèm lỗi (`leaderboard.json` `papers_failed`, cuối bảng Paper baselines), các thẻ khác chạy tiếp;
@@ -529,7 +531,8 @@ Bản đầu tiên: prototype chạy được từ dữ liệu đến Top-K base
 - Chưa có zero-cost proxy, cost model FLOPs/VRAM, Tensor-LoRA, deep unfolding; chưa có plugin image và timeseries.
 - Kết quả trên Indian Pines và Pavia University là một lần chạy ngắn trên CPU: với chia theo khối, mạng sâu chưa vượt rõ baseline cổ điển.
 
-[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v1.6.0...HEAD
+[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v1.7.0...HEAD
+[1.7.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.7.0
 [1.6.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.6.0
 [1.5.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.5.0
 [1.4.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.4.0
