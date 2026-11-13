@@ -36,7 +36,7 @@ def run(data, arm, rep, a, out):
         return summary(b, None)
     args = [sys.executable, "-m", "dlnet", "design", "--data", data, "--budget", a.budget, "--topk", "1",
             "--seed", str(rep), "--zoo", str(a.zoo), "--evolve", "0", "--out", str(d), "--no-cache",
-            "--device", "cpu", *ARMS[arm]]  # fmt: skip
+            "--device", "cpu", "--threads", str(a.threads), *ARMS[arm]]  # fmt: skip
     t0 = time.time()
     p = subprocess.run(args, capture_output=True, text=True, check=False)
     if p.returncode:
@@ -58,6 +58,12 @@ def main():
     ap.add_argument("--budget", default="240ep")
     ap.add_argument("--reps", type=int, default=2)
     ap.add_argument("--zoo", type=int, default=40)
+    ap.add_argument(
+        "--threads",
+        type=int,
+        default=4,
+        help="fixed: identical reruns, no slowdown when the machine is busy",
+    )
     ap.add_argument("--arms", default=",".join(ARMS))
     ap.add_argument("--out", default="bench_rungs")
     a = ap.parse_args()
