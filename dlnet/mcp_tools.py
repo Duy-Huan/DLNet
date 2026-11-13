@@ -73,6 +73,26 @@ def tool(name, title, description, props, required=(), annotations=RO):
                             "additionalProperties": False}}  # fmt: skip
 
 
+DESIGN_ARGS = {**DATA_ARGS,
+          "name": {**S, "description": "name of the run: results go to runs/<name> (default: made up)"},
+          "budget": {**S, "default": "5m", "description": "wall clock (90s, 10m, 2h) or training epochs (400ep: "
+                     "reproducible on any machine)"},
+          "topk": {**I, "default": 3}, "objective": {**S, "enum": ["accuracy", "params", "flops", "balanced", "pareto"]},
+          "goal": {**S, "enum": ["accuracy", "small", "balanced"]},
+          "context": {**S, "description": "what the data is, in words (e.g. 'satellite images of crops'): steers the seeds"},
+          "seeds": {**I, "description": "keep only the N best-ranked seed candidates (0 = all)"},
+          "zoo": {**I, "description": "random zoo architectures added to the pool"},
+          "evolve": {**I, "description": "children created by evolution"},
+          "rung_score": {**S, "enum": ["val", "tse", "val+tse"], "description": "how successive halving ranks "
+                         "a rung: validation, training speed estimate, or both"},
+          "rungs": {**S, "description": "epochs at the end of each rung, e.g. 1,4,12,30"},
+          "per_family": I, "seed": I, "cv_splits": I, "max_params": I,
+          "device": {**S, "description": "auto | cpu | cuda | cuda:1 | mps"}, "threads": I,
+          "papers": {**A, "items": S, "description": "paper cards (.yaml) or folders of cards in the workspace"},
+          "paper_recipe": {**B, "description": "also train each paper network with its authors' recipe"},
+          "extra_specs": {**A, "items": O, "description": "zoo specs to add to the candidates"},
+          "meta_store": S, "wait": {**WAIT, "default": 45}}  # fmt: skip
+
 TOOLS = [
     tool("dlnet_info", "DLNet service information",
          "Version, compute device, workspace layout, limits and the recommended order of the tools. Call it first.", {}),
@@ -123,25 +143,13 @@ TOOLS = [
          "plus leaderboard.md and a Colab notebook. Runs as a background job: returns the result when it ends "
          "within `wait` seconds, otherwise a job_id to poll with dlnet_job. `extra_specs` (zoo specs written by "
          "you) and `papers` (paper cards) join the comparison under the same protocol.",
-         {**DATA_ARGS,
-          "name": {**S, "description": "name of the run: results go to runs/<name> (default: made up)"},
-          "budget": {**S, "default": "5m", "description": "wall clock (90s, 10m, 2h) or training epochs (400ep: "
-                     "reproducible on any machine)"},
-          "topk": {**I, "default": 3}, "objective": {**S, "enum": ["accuracy", "params", "flops", "balanced", "pareto"]},
-          "goal": {**S, "enum": ["accuracy", "small", "balanced"]},
-          "context": {**S, "description": "what the data is, in words (e.g. 'satellite images of crops'): steers the seeds"},
-          "seeds": {**I, "description": "keep only the N best-ranked seed candidates (0 = all)"},
-          "zoo": {**I, "description": "random zoo architectures added to the pool"},
-          "evolve": {**I, "description": "children created by evolution"},
-          "rung_score": {**S, "enum": ["val", "tse", "val+tse"], "description": "how successive halving ranks "
-                         "a rung: validation, training speed estimate, or both"},
-          "rungs": {**S, "description": "epochs at the end of each rung, e.g. 1,4,12,30"},
-          "per_family": I, "seed": I, "cv_splits": I, "max_params": I,
-          "device": {**S, "description": "auto | cpu | cuda | cuda:1 | mps"}, "threads": I,
-          "papers": {**A, "items": S, "description": "paper cards (.yaml) or folders of cards in the workspace"},
-          "paper_recipe": {**B, "description": "also train each paper network with its authors' recipe"},
-          "extra_specs": {**A, "items": O, "description": "zoo specs to add to the candidates"},
-          "meta_store": S, "wait": {**WAIT, "default": 45}}, ["data"], RW),
+         DESIGN_ARGS, ["data"], RW),
+    tool("dlnet_plan", "Estimate a design run",
+         "What dlnet_design with the same arguments would do, before spending the budget: candidates, the "
+         "number reaching each rung, seconds per epoch (one timed step per network), the wall-clock time of "
+         "the search and of the paper comparison, the classical score to beat and which paper cards will be "
+         "skipped. Scores are not predicted. Takes the arguments of dlnet_design; a job (about 1-3 minutes).",
+         {**{k: v for k, v in DESIGN_ARGS.items() if k != "name"}, "wait": {**WAIT, "default": 120}}, ["data"]),
     tool("dlnet_job", "Status of a job",
          "Status, timing and the last log lines of a background job; when it has ended, its result (leaderboard "
          "of a design run, metrics of a training run, ...). `wait` blocks up to that many seconds for the end.",
@@ -513,6 +521,8 @@ class Service:
         ws = self.ws
         if job.kind == "design":
             return self._board(ws.path(job.out))
+        if job.kind == "plan":
+            return {"plan": json.loads(ws.path(job.extra["plan"]).read_text())}
         log = (
             (self.jobs.log_path(job).read_text(errors="replace"))
             if self.jobs.log_path(job).exists()
@@ -573,7 +583,8 @@ class Service:
                 "leaderboard_md": md.read_text()[:12000] if md.exists() else None,
                 "files": [e["path"] for e in self.ws.listing(self.ws.rel(out), 1, 60)["entries"]]}  # fmt: skip
 
-    def tool_design(self, a, progress, cancelled):
+    def _design_argv(self, a: dict, cmd: str, out: Path) -> list[str]:
+        """`dlnet design` (or `plan`) arguments for the tool arguments `a`."""
         ws = self.ws
         sec = _seconds(a.get("budget", "5m"))
         if sec is not None and self.max_seconds is not None and sec > self.max_seconds:
@@ -581,13 +592,13 @@ class Service:
                 f"budget {a['budget']} is over this server's limit ({self.max_budget})"
             )
         ns = self._namespace(a)
-        out = ws.run_dir(a.get("name"))
-        argv = [*service.python(), "design", "--data", ns.data, "--out", str(out),
+        argv = [*service.python(), cmd, "--data", ns.data, "--out", str(out),
                 "--budget", str(a.get("budget", "5m")), "--topk", str(int(a.get("topk", 3)))]  # fmt: skip
         flags = {"objective": "--objective", "goal": "--goal", "context": "--context", "seeds": "--seeds",
                  "target": "--target", "plugin": "--plugin", "device": "--device", "threads": "--threads",
                  "zoo": "--zoo", "evolve": "--evolve", "per_family": "--per-family", "seed": "--seed",
-                 "cv_splits": "--cv-splits", "max_params": "--max-params", "rung_score": "--rung-score", "rungs": "--rungs", "task": "--task", "x_key": "--x-key",
+                 "cv_splits": "--cv-splits", "max_params": "--max-params", "rung_score": "--rung-score",
+                 "rungs": "--rungs", "task": "--task", "x_key": "--x-key",
                  "y_key": "--y-key", "cube_key": "--cube-key", "gt_key": "--gt-key", "patch": "--patch",
                  "pca": "--pca", "split": "--split"}  # fmt: skip
         for k, flag in flags.items():
@@ -606,13 +617,30 @@ class Service:
             spec_file = out.parent / f"{out.name}.extra_specs.json"
             spec_file.write_text(json.dumps(a["extra_specs"]))
             argv += ["--extra-specs", str(spec_file)]
+        return argv
+
+    def tool_design(self, a, progress, cancelled):
+        ws = self.ws
+        out = ws.run_dir(a.get("name"))
+        argv = self._design_argv(a, "design", out)
         job = self.jobs.submit(
             "design",
             argv,
             out=out,
-            title=f"design {ws.rel(Path(ns.data))} ({a.get('budget', '5m')})",
+            title=f"design {ws.rel(Path(self._namespace(a).data))} ({a.get('budget', '5m')})",
         )
         return self._wait(job, a, progress, cancelled)
+
+    def tool_plan(self, a, progress, cancelled):
+        ws = self.ws
+        a = {k: v for k, v in a.items() if k != "name"}
+        save = ws.root / "jobs" / f"plan-{time.strftime('%m%d%H%M%S')}-{os.getpid()}.json"
+        argv = self._design_argv(a, "plan", ws.root / "runs" / "_plan") + ["--save", str(save)]
+        job = self.jobs.submit(
+            "plan", argv, title=f"plan {ws.rel(Path(self._namespace(a).data))} ({a.get('budget', '5m')})",
+            extra={"plan": ws.rel(save)},
+        )  # fmt: skip
+        return self._wait(job, {**a, "wait": a.get("wait", 120)}, progress, cancelled)
 
     def tool_job(self, a, progress, cancelled):
         job = self.jobs.get(a["job_id"])

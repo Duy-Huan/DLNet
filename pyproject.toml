@@ -20,7 +20,7 @@ dlnet = "dlnet.cli:main"
 include = ["dlnet*"]
 
 [tool.setuptools.package-data]
-dlnet = ["data/*.jsonl"]
+dlnet = ["data/*.jsonl", "ui/*.html", "ui/*.js", "ui/*.css", "ui/*.svg", "ui/i18n/*.json"]
 
 [tool.ruff]
 line-length = 100

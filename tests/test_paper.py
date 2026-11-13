@@ -302,6 +302,7 @@ def test_design_with_papers_trains_them_under_the_same_protocol(tmp_path):
     (cards / "other_input.yaml").write_text(
         SMALL.replace("[1, 12, 12]", "[3, 32, 32]").replace("Small", "Big")
     )
+    (cards / "zz_broken.yaml").write_text("paper: {name: Broken}\n")  # recorded, the others go on
     out = tmp_path / "o"
     argv = ["design", "--data", str(tmp_path / "img.npz"), "--budget", "60ep", "--topk", "2", "--per-family", "1",
             "--zoo", "2", "--evolve", "0", "--no-proxies", "--out", str(out), "--papers", str(cards),
@@ -315,6 +316,20 @@ def test_design_with_papers_trains_them_under_the_same_protocol(tmp_path):
     assert row["authors"]["epochs"] == 3 and row["authors"]["recipe"]["optimizer"] == "sgd"
     md = (out / "leaderboard.md").read_text()
     assert "## Paper baselines" in md and "somewhere else: accuracy 0.99" in md
+    # v1.7: failures recorded, per-run scores, paired comparison with the top-1, LaTeX table
+    assert [f["card"].endswith("zz_broken.yaml") for f in board["papers_failed"]] == [True]
+    assert "Not trained:" in md and "zz_broken.yaml" in md and "p (Holm)" in md
+    assert len(top["runs"]["test"]) == top["n_runs"] == len(row["common"]["runs"]["test"])
+    vs = row["vs_top1"]
+    assert vs["n"] == top["n_runs"] and vs["verdict"] in (
+        "better",
+        "worse",
+        "no significant difference",
+        "not tested",
+    )
+    assert abs(vs["diff"] - (row["common"]["test"]["score"] - top["test"]["score"])) < 2e-4
+    tex = (out / "results.tex").read_text()
+    assert r"\begin{tabular}" in tex and "Small Paper Net" in tex
     pkg = out / "paper_small_paper_net"
     assert (pkg / "train.py").exists() and (pkg / "architecture.svg").exists()
     assert "paper_small_paper_net" in (out / "baselines.ipynb").read_text()

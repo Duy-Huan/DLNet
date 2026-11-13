@@ -6,6 +6,33 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+- **So với 10–20 paper trong một lệnh** (`design --papers <thư mục>`):
+  - các thẻ chạy lần lượt, có tiến độ `[papers] i/N`;
+  - thẻ lỗi được ghi lại kèm lỗi (`leaderboard.json` `papers_failed`, cuối bảng Paper baselines), các thẻ khác chạy tiếp;
+  - mỗi mạng paper được so với top-1 theo từng lần chạy (cùng seed, cùng cách chia): cột Δ test và p của kiểm định t ghép cặp, hiệu chỉnh Holm trên mọi paper (`dlnet/stats.py`), kèm kết luận better / worse / no significant difference.
+- `leaderboard.json` ghi điểm từng lần chạy (`runs.val`, `runs.test`) cho mỗi baseline Top-K và mỗi paper.
+- **Bảng LaTeX**:
+  - `design` ghi `results.tex` (booktabs): Top-K, baseline cổ điển tốt nhất, các paper, mean ± std, điểm test tốt nhất in đậm, paper khác biệt có ý nghĩa đánh dấu † / ‡;
+  - `dlnet latex <run>` viết lại cho lần chạy cũ (`dlnet/latex.py`).
+- **`dlnet plan`**: ước lượng một lần `design` trước khi chạy (cùng tùy chọn; `--json`, `--save`). Đo một bước huấn luyện của 8 ứng viên và của từng mạng paper, rồi báo:
+  - số ứng viên mỗi vòng successive halving;
+  - thời gian tìm kiếm và thời gian so sánh paper;
+  - thẻ sẽ bị bỏ, kèm lý do;
+  - điểm cổ điển cần vượt.
+
+  Không dự đoán điểm. Có thêm tool MCP `dlnet_plan`, nên server có 20 tool.
+- **Giao diện web tùy chọn `dlnet ui`** (`dlnet/ui_server.py`, `dlnet/ui/`; tài liệu `doc/ui.md`). CLI vẫn là chính.
+  - Sáu màn hình: workspace, lần chạy, tệp, chạy mới (có Ước lượng trước), chi tiết lần chạy (Top-K + paper + Δ/p + sơ đồ + LaTeX + lệnh), AI/MCP (bật/tắt `dlnet serve`, LAN, token, cấu hình Claude Code / Codex / Antigravity, thử kết nối, danh sách tool, nhật ký).
+  - Mọi thao tác hiện lệnh CLI tương ứng.
+  - **Tiếng Anh / tiếng Việt đồng bộ 100%**, có test: cùng khóa, cùng chỗ thay thế, mọi khóa được dùng, không chữ viết cứng.
+  - **Sáng / tối** theo hệ điều hành hoặc chọn tay. Test kiểm mọi màu chữ đạt độ tương phản ≥ 4,5:1 ở cả hai chế độ.
+  - Bảo mật: chỉ 127.0.0.1, token mỗi phiên, kiểm `Host` và `Origin`, đường dẫn giữ trong workspace.
+  - Gói cài chạy thử cả `dlnet ui`.
+- Hạn chế đã biết:
+  - `dlnet plan` chưa ước lượng FLOPs/VRAM của paper và chưa có dự báo sớm điểm số;
+  - so sánh paper chưa tiếp tục được sau khi bị ngắt và chưa chia nhiều GPU;
+  - kiểm định với 3 lần chạy có lực yếu.
+
 ## [1.6.0] - 2026-11-13
 
 - **Gói cài cho Linux ARM64** (`DLNet-<v>-linux-arm64.deb` / `.tar.gz`): Raspberry Pi 4/5 với hệ điều hành 64-bit, AWS Graviton, CPU của Jetson. Build, chạy thử, cài thật và gỡ trên runner `ubuntu-22.04-arm` như các nền tảng khác. Từ v1.6 mỗi tag bắt buộc có 4 nền tảng (`scripts/release.py` `PLATFORMS`).

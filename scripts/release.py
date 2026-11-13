@@ -103,6 +103,7 @@ HAND_DOCS = (
     "doc/algorithms.md",
     "doc/mcp-server.md",
     "doc/install.md",
+    "doc/ui.md",
 )
 
 

@@ -278,6 +278,37 @@ python -m dlnet design --data cube.mat --gt gt.mat --patch 13 --pca 30 --budget 
 
 Sau khi tìm kiếm xong (ngoài `--budget`), mỗi thẻ có đầu vào khớp dữ liệu được huấn luyện theo **giao thức chung**: cùng các lần chia, số lần chạy, số epoch và hàm huấn luyện như baseline top-1, dùng lr / weight decay / batch của top-1, nên khác biệt duy nhất là kiến trúc. `--paper-recipe` thêm một lần chạy theo **công thức của tác giả** (`training` trong thẻ: `sgd` / `adam` / `adamw`, lr, weight decay, batch; số epoch bị chặn bởi `--paper-epochs`, mặc định 100). `leaderboard.md` có thêm bảng **Paper baselines**: mức trung thành, số tham số, *số paper báo* (chép từ paper, không so trực tiếp được), *giao thức chung* (val ± độ lệch, test), *công thức tác giả*. Gói `paper_<tên>/` nằm cạnh các `top<k>_*` và có mặt trong `baselines.ipynb`. Thẻ có đầu vào khác dữ liệu bị bỏ qua kèm lý do.
 
+**So với nhiều paper cùng lúc** (v1.7):
+
+Khi viết paper thường phải so 10–20 baseline. Đặt mọi thẻ vào một thư mục rồi truyền thư mục đó:
+
+```bash
+dlnet plan   --data cube.mat --gt gt.mat --budget 400ep --papers papers/    # ước lượng trước, 1-3 phút
+dlnet design --data cube.mat --gt gt.mat --budget 400ep --papers papers/ --out runs/hsi
+```
+
+**`dlnet plan`** báo trước khi tiêu ngân sách:
+- số ứng viên mỗi vòng;
+- thời gian tìm kiếm;
+- thời gian huấn luyện từng paper và tổng;
+- thẻ nào sẽ bị bỏ, kèm lý do;
+- điểm baseline cổ điển cần vượt.
+
+Nó không dự đoán điểm. Cách tính: [ui.md](ui.md#ước-lượng-trước-khi-chạy-dlnet-plan).
+
+**Trong `design`:**
+- Các thẻ chạy lần lượt (`[papers] 3/15 ...`). Thẻ lỗi được ghi lại cùng lỗi, các thẻ khác vẫn chạy tiếp.
+- Bảng **Paper baselines** có thêm hai cột:
+  - **Δ test**: test của paper trừ test của top-1, ghép cặp theo từng lần chạy. Hai mạng dùng cùng seed và cùng cách chia, nên ghép cặp được.
+  - **p (Holm)**: kiểm định t ghép cặp, hiệu chỉnh Holm trên mọi paper để giữ sai số loại I khi so nhiều baseline. Kèm kết luận *better* / *worse* / *no significant difference*.
+- Chỉ có 3 lần chạy thì kiểm định yếu. p lớn nghĩa là **chưa chứng minh được** khác biệt, không phải hai mạng bằng nhau. Cần chắc hơn thì tăng số lần chạy bằng ngân sách lớn hơn hoặc `--cv-splits`.
+
+**Bảng LaTeX:**
+- `design` ghi `results.tex` (booktabs) gồm Top-K, baseline cổ điển tốt nhất và các paper, dạng mean ± std.
+- Điểm test tốt nhất in đậm.
+- Paper kém hoặc tốt hơn top-1 có ý nghĩa thống kê được đánh dấu † / ‡.
+- Sinh lại cho một lần chạy cũ: `dlnet latex runs/hsi`. Cần `\usepackage{booktabs}`.
+
 **Mức trung thành** (ghi trong `report.md`, notebook và `<thẻ>.fidelity.json`), được đo chứ không giả định:
 
 | Mức | Nghĩa | Bằng chứng |
@@ -334,7 +365,12 @@ python -m dlnet zoo                                               # liệt kê m
 python -m dlnet unfold --data problem.npz --layers 4,8,16         # LISTA cho y = A x + nhiễu
 python -m dlnet gan --data images.npz --budget-s 300              # DCGAN, xếp hạng theo MMD²
 python -m dlnet serve --workspace ~/dlnet-workspace                 # MCP server qua HTTP cho AI client (doc/mcp-server.md)
+python -m dlnet ui                                                # giao diện web tùy chọn trên máy này (doc/ui.md)
+python -m dlnet plan --data d.npz --budget 10m --papers papers/   # ước lượng một lần design trước khi chạy
+python -m dlnet latex runs/my-run                                 # viết lại results.tex (bảng LaTeX) của một lần chạy
 ```
+
+**Giao diện web** (v1.7, tùy chọn): `dlnet ui` mở trang trên `http://127.0.0.1:8766` với sáu màn hình (workspace, lần chạy, tệp, chạy mới có ước lượng, chi tiết kết quả có bảng LaTeX, AI/MCP), tiếng Anh và tiếng Việt, sáng và tối. Mọi thao tác đều hiện lệnh CLI tương ứng. Xem [ui.md](ui.md).
 
 ## 12. Xử lý sự cố
 

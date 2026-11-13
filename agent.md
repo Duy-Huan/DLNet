@@ -959,6 +959,10 @@ Mỗi mốc kết thúc bằng một lần chạy lại đội kiểm định.
   - **Chế độ sáng / tối**: theo hệ điều hành mặc định, có nút chuyển, nhớ lựa chọn; mọi màu là token, kiểm tương phản ≥ 4.5:1 ở cả hai chế độ.
   - So sánh 10–20 paper trong một lệnh: `dlnet plan` (ước lượng trước: tham số, FLOPs, VRAM, s/epoch đo thật, tổng thời gian, mức A/B/C, số paper báo, dự báo sớm thô), chạy chắc (lỗi một baseline không dừng cả lần chạy, tiếp tục được, nhiều GPU), kiểm định ý nghĩa thống kê, xuất bảng LaTeX.
   - Thứ tự: phần CLI trước, giao diện sau.
+- **Đã làm ở v1.7**:
+  - CLI: `dlnet plan` (đo thật s/epoch, mô phỏng successive halving, thời gian paper, thẻ bị bỏ, điểm cổ điển cần vượt), `design --papers` chạy chắc (lỗi từng thẻ được ghi, tiến độ i/N), kiểm định t ghép cặp + Holm, `results.tex` và `dlnet latex`, tool MCP `dlnet_plan`.
+  - Giao diện `dlnet ui`: 6 màn; EN/VI đồng bộ bằng test (`tests/test_ui.py`); sáng/tối với test tương phản ≥ 4,5:1; bảo mật loopback + token + Host/Origin.
+  - **Chưa làm** (ghi rõ để không hiểu nhầm): FLOPs/VRAM của paper và dự báo sớm điểm số trong `plan`; tiếp tục so sánh paper sau khi bị ngắt; chia nhiều GPU.
 
 ## Tài liệu tham khảo
 Toàn bộ PDF nằm trong `ref/` (mục lục: `ref/README.md`); thuật toán ước lượng chất lượng và hyperparameter trong `ref/optimazeDL/` (§16).

@@ -86,6 +86,7 @@ Mọi đường dẫn là **tương đối so với workspace** (`data/iris.csv`
 | `dlnet_candidates` | pool hạt giống DLNet sẽ tìm, kèm spec của từng ứng viên |
 | `dlnet_zoo`, `dlnet_check_spec` | danh mục module; kiểm tra tĩnh một kiến trúc do AI viết (số tham số, shape, sơ đồ khối SVG) |
 | `dlnet_design` | chạy `dlnet design`: tìm kiếm, huấn luyện, đánh giá Top-K; nhận `extra_specs` (kiến trúc của AI) và `papers` (thẻ paper) để so sánh cùng giao thức |
+| `dlnet_plan` | (v1.7) ước lượng trước một lần `design` với cùng tham số: số ứng viên mỗi vòng, giây mỗi epoch, thời gian tìm kiếm và so sánh paper, điểm cổ điển cần vượt, thẻ paper nào sẽ bị bỏ; không dự đoán điểm |
 | `dlnet_job`, `dlnet_jobs`, `dlnet_cancel` | trạng thái, log, kết quả của job; danh sách; hủy |
 | `dlnet_leaderboard`, `dlnet_package` | kết quả một lần chạy; chi tiết một gói baseline |
 | `dlnet_train` | huấn luyện đầy đủ một gói (`train.py` của gói), trả điểm validation và test |
@@ -99,7 +100,7 @@ Lỗi do tham số sai (đường dẫn không có, tham số lạ, ngân sách 
 
 ## 4. Job chạy nền
 
-`dlnet_design`, `dlnet_train`, `dlnet_predict`, `dlnet_paper` chạy như **job**: một tiến trình con, tối đa `--max-jobs` cái cùng lúc, còn lại xếp hàng. Tool chờ job tối đa `wait` giây:
+`dlnet_design`, `dlnet_plan`, `dlnet_train`, `dlnet_predict`, `dlnet_paper` chạy như **job**: một tiến trình con, tối đa `--max-jobs` cái cùng lúc, còn lại xếp hàng. Tool chờ job tối đa `wait` giây:
 
 - job xong trong lúc chờ: tool trả luôn kết quả (bảng xếp hạng, điểm số, ...);
 - chưa xong: tool trả `job_id` và `status`; AI gọi `dlnet_job` (cũng có `wait`) cho tới khi xong.
