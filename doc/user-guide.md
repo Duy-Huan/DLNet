@@ -6,6 +6,8 @@ Mọi tùy chọn có trong [cli.md](cli.md).
 
 ## 1. Cài đặt
 
+**Không cần Python:** mỗi bản phát hành có gói cài cho Windows x64, macOS Apple silicon, Linux x64 và (từ v1.6) Linux ARM64 như Raspberry Pi 4/5, AWS Graviton. Cài xong gõ `dlnet` thay cho `python -m dlnet`; script của gói đầu ra chạy bằng `dlnet run-script train.py ...`. Xem [install.md](install.md). Cài từ mã nguồn như dưới đây khi cần GPU NVIDIA hoặc muốn sửa DLNet.
+
 Cần Python 3.10–3.13 (CI kiểm tra 3.10, 3.11, 3.12 trên Linux, macOS, Windows).
 
 ```bash

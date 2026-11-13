@@ -6,7 +6,10 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-11-13
+
 - **Gói cài cho Linux ARM64** (`DLNet-<v>-linux-arm64.deb` / `.tar.gz`): Raspberry Pi 4/5 với hệ điều hành 64-bit, AWS Graviton, CPU của Jetson. Build, chạy thử, cài thật và gỡ trên runner `ubuntu-22.04-arm` như các nền tảng khác. Từ v1.6 mỗi tag bắt buộc có 4 nền tảng (`scripts/release.py` `PLATFORMS`).
+- `doc/user-guide.md` mục Cài đặt chỉ tới gói cài; `doc/install.md` thuộc các tài liệu viết tay mà quy tắc tài liệu kiểm (`scripts/release.py docs`).
 - Hạn chế đã biết: không có gói cho macOS Intel (PyTorch không còn bản macOS x86_64 từ 2.3).
 
 ## [1.5.0] - 2026-11-13
@@ -499,7 +502,8 @@ Bản đầu tiên: prototype chạy được từ dữ liệu đến Top-K base
 - Chưa có zero-cost proxy, cost model FLOPs/VRAM, Tensor-LoRA, deep unfolding; chưa có plugin image và timeseries.
 - Kết quả trên Indian Pines và Pavia University là một lần chạy ngắn trên CPU: với chia theo khối, mạng sâu chưa vượt rõ baseline cổ điển.
 
-[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v1.5.0...HEAD
+[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v1.6.0...HEAD
+[1.6.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.6.0
 [1.5.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.5.0
 [1.4.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.4.0
 [1.3.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.3.0
