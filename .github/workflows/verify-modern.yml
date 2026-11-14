@@ -238,8 +238,8 @@ jobs:
       - name: Rebuild every torchvision classifier (must stay >= 95%)
         run: |
           python scripts/bench_import.py --source torchvision --out import-torchvision.json --min-rate 0.95
-      - name: Rebuild a fixed sample of 60 timm models (reported)
-        run: python scripts/bench_import.py --source timm --limit 60 --out import-timm.json
+      - name: Rebuild a fixed sample of 60 timm models (must stay >= 90%; 161/163 of 200 locally)
+        run: python scripts/bench_import.py --source timm --limit 60 --out import-timm.json --min-rate 0.90
       - uses: actions/upload-artifact@v4
         if: always()
         with:

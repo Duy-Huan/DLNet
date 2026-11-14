@@ -910,7 +910,17 @@ Chưa làm: epochs (hiện là công thức mặc định 100 epoch, cosine, ch�
     - Lần đo đầu với mã cuối là 106; thêm 9 nhờ: dropout trong phép tính trên trọng số, sin / cos, hằng tạo từ kích thước (`arange`), `~mask`, bộ lọc là buffer (BlurPool).
     - Còn hỏng: 26 vì `torch.fx` không dò được; phần còn lại là đuôi dài, mỗi lỗi 1–4 mạng (`unfold`, `repeat`, `tile`, `getattr` trên module, `batch_norm` hàm với `training`, `build_grid`, hằng 5,3 triệu giá trị, param dùng làm đầu vào của một phép).
     - Trên GitHub Actions (job `verify-v18`): torchvision 75/75; mẫu timm 60 mạng 32/54, đo trước nhóm sửa cuối.
-- **Lỗi lớn nhất còn lại**: `torch.fx` không dò được rẽ nhánh theo dữ liệu (if trên `x.shape` trong forward). Cần một importer ở mức ATen (`torch.export` / `make_fx`), chưa làm; các mạng đó dùng thẻ mức A.
+- **v1.8.1 (sửa phần tồn đọng), đo lại trên cùng mẫu 200 mạng timm: 161/163 (99 %)**, torchvision vẫn 75/75. Từng nhóm:
+  1. dò theo giá trị thật (`_ConcreteTracer`): mỗi phép chạy trên dữ liệu thật ngay khi ghi, nên `if` / `len` / `int` trên kích thước đi theo giá trị của lần chạy; đối số `mask=None` giữ mặc định; proxy mô hình tự lưu trong forward (thuộc tính, dict cache của EfficientViT) được gỡ ra sau khi dò. cả 26 mạng trước đây "torch.fx không dò được" giờ dựng lại;
+  2. mọi thứ chỉ tính từ kích thước, hằng, buffer thành hằng (lưới của Sapiens / Lingbot, mặt nạ của Swin v2 5,3 triệu giá trị qua `.constants.npz`);
+  3. bước tĩnh mới: tile / repeat, repeat_interleave, pad, interpolate, chunk / split / unbind, batch_norm (chuẩn hóa trọng số NF-Net), lớp conv (XCiT);
+  4. `unfold_axis`, `im2col`, `col2im` (HaloNet, TNT, VOLO);
+  5. đọc lại tensor sau phép tại chỗ (`out.mul_(skipinit_gain)` của NFNet: trước đó lệch 0,025);
+  6. `stack(xs, 0).sum(0)` (EfficientViM), param / hằng mở rộng hoặc lặp theo batch rồi qua Linear (PE-Core, NaFlexViT, ConViT, XCiT), tham số vô hướng, `F.rms_norm`.
+- **Bộ nhớ**: import chỉ giữ shape của activation (Swin v2 384 px: 9,9 → 3,3 GB); `Graph.forward` giải phóng đầu ra sau lần đọc cuối (forward 13,6 → 4,4 GB).
+- **Kiểm tra chặt hơn**: `rebuild_check` so trên batch 3, khác batch 2 của lần import, nên hằng lỡ phụ thuộc batch bị bắt (TinyViT `cls.expand(B, ...)` từng bị đóng băng trước khi sửa).
+- **Lỗi thật tìm thấy kèm theo**: head của đặc trưng `nd` một trục lấy trung bình cả trục batch (`x.mean(())`).
+- **Còn lại 2 mạng, không viết được thành thẻ theo từng mẫu**: CSATv2 (`q @ k.transpose(-1, -2)` trên tensor (B, N) trộn các mẫu trong batch, dù chú thích trong mã gốc ghi (B, N, N)); EfficientNet-CondConv (trọng số tính theo từng mẫu, gộp batch vào kênh rồi conv nhóm). Dùng thẻ mức A.
 - **Khối cho tìm kiếm** (`ops_v18.py`):
   - `pconv_block` (FasterNet), `gated_cnn_block` (MambaOut), `mobilevit_block`, `mobilevitv2_block` (MobileViT v1/v2), `sdta_block` (EdgeNeXt);
   - port từ timm 1.0.31, `scripts/verify_v18.py` 14/14 cấu hình trùng từng bit;

@@ -12,6 +12,7 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
   - phép tính trên trọng số thêm: tile / repeat, repeat_interleave, pad, interpolate, chunk / split / unbind, chuẩn hóa trọng số (NF-Net), lớp conv;
   - lớp cơ bản mới `unfold_axis`, `im2col`, `col2im` (`Tensor.unfold`, `F.unfold` / `F.fold`, `nn.Unfold` / `nn.Fold`; HaloNet, TNT, VOLO). Kho có 210 module;
   - `x.mul_(g)` rồi đọc lại `x`; `stack(xs, 0).sum(0)`; query học được mở rộng theo batch rồi qua Linear; `pos.repeat(B, ...)` trên trọng số (XCiT); `F.rms_norm`; tham số vô hướng.
+- **Đo lại** (`scripts/bench_import.py`, trọng số ngẫu nhiên): timm 1.0.31, mẫu cố định 200 mạng, **161/163 dựng lại trùng từng bit (99 %)**, trước là 115/163; torchvision vẫn 75/75. Hai mạng còn lại trộn các mẫu trong batch (CSATv2) hoặc dùng trọng số theo từng mẫu (CondConv). Job CI `verify-v18` giữ mẫu timm 60 mạng ≥ 90 %.
 - Import tốn ít bộ nhớ hơn: Swin v2 ở 384 px từ 9,9 GB xuống 3,3 GB. Mạng dựng từ thẻ (`graph`) giải phóng đầu ra của mỗi nút sau lần đọc cuối: forward của Swin v2 384 px từ hơn 13 GB xuống 4,4 GB.
 - `rebuild_check` so đầu ra trên một kích thước batch khác lần import, nên hằng lỡ phụ thuộc batch bị phát hiện.
 - Sửa: head của đặc trưng `nd` chỉ có một trục lấy trung bình cả trục batch.
