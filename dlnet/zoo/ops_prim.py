@@ -20,8 +20,6 @@ them; they exist to write networks exactly.
 
 from __future__ import annotations
 
-import math
-
 import torch
 import torch.nn.functional as F
 from torch import nn
@@ -969,22 +967,6 @@ def merge_module(how, args, in_dims):
 
 
 MERGES = (*MERGE_FNS, "mha")
-
-
-def meta_shape(module, in_dims, dtypes=None):
-    """Output shape (no batch) of a module / merge applied to inputs of these shapes, on meta tensors."""
-    xs = [
-        torch.zeros(2, *d, device="meta", dtype=(dtypes or {}).get(i, torch.float32))
-        for i, d in enumerate(in_dims)
-    ]
-    with torch.no_grad():
-        y = module(*xs)
-    return tuple(int(s) for s in y.shape[1:]), y.dtype
-
-
-def _check_math():
-    """Guard for the docs: these names are what torch calls them."""
-    assert math and F
 
 
 # ----------------------------------------------------------------------------- static sub-graphs
