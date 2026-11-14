@@ -6,6 +6,10 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+- **Container (Podman / Docker)**: `Containerfile` ở gốc repo (Python 3.12, PyTorch 2.15 CPU, DLNet); thư mục của máy gắn vào `/workspace`. Với Podman rootless, file ghi ra thuộc về user của bạn. Hướng dẫn: `doc/install.md`.
+  - `dlnet ui --bind ADDR` (hoặc biến `DLNET_UI_BIND`): địa chỉ nghe, mặc định vẫn 127.0.0.1; image đặt 0.0.0.0 để cổng publish tới được. UI vẫn chỉ trả lời request ghi `127.0.0.1` / `localhost` và có token của trang.
+  - `scripts/test_container.py`: build image rồi dùng thử như người dùng: `--version`, `selfcheck`, `design` → `train.py` → `predict.py` trên thư mục gắn vào, `serve` (từ chối 0.0.0.0 khi không có token) và `ui` qua cổng publish, request ghi host khác bị từ chối. Job CI `container` chạy script này bằng Podman.
+
 ## [1.8.1] - 2026-11-14
 
 - **`dlnet paper import` dựng lại được nhiều mạng hơn**:

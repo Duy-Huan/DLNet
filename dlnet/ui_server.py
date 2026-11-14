@@ -485,8 +485,8 @@ class Server(ThreadingHTTPServer):
     allow_reuse_address = True
 
 
-def make_server(workspace, port: int = 8766) -> Server:
-    srv = Server(("127.0.0.1", port), Handler)
+def make_server(workspace, port: int = 8766, bind: str = "127.0.0.1") -> Server:
+    srv = Server((bind, port), Handler)
     srv.app = App(Path(workspace), srv.server_address[1])  # type: ignore[attr-defined]
     return srv
 
@@ -499,6 +499,10 @@ def add_parser(sub):
                    "else ./dlnet-workspace)")  # fmt: skip
     p.add_argument("--port", type=int, default=8766)
     p.add_argument("--no-browser", action="store_true", help="do not open the browser")
+    p.add_argument("--bind", default=os.environ.get("DLNET_UI_BIND", "127.0.0.1"),
+                   help="address to listen on (default 127.0.0.1; 0.0.0.0 inside a container, published "
+                   "on the host with -p 127.0.0.1:8766:8766). Requests must still name 127.0.0.1 / "
+                   "localhost and carry the page's token")  # fmt: skip
     return p
 
 
@@ -506,9 +510,10 @@ def run(args) -> int:
     recent = load_state().get("recent") or []
     ws = args.workspace or next((p for p in recent if Path(p).is_dir()), None) or "dlnet-workspace"
     try:
-        srv = make_server(ws, args.port)
+        srv = make_server(ws, args.port, getattr(args, "bind", "127.0.0.1"))
     except OSError as e:
-        print(f"[ui] cannot listen on 127.0.0.1:{args.port}: {e} (use --port)", file=sys.stderr)
+        print(f"[ui] cannot listen on {getattr(args, 'bind', '127.0.0.1')}:{args.port}: {e} (use --port)",
+              file=sys.stderr)  # fmt: skip
         return 2
     url = f"http://127.0.0.1:{srv.server_address[1]}/"
     print(

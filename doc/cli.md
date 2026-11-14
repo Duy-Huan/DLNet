@@ -103,6 +103,7 @@ optional web interface on this machine (the CLI stays the main tool)
 | `--workspace` |  |  | folder with data/, runs/, papers/ (default: the last one used, else ./dlnet-workspace) |
 | `--port` |  | `8766` |  |
 | `--no-browser` |  |  | do not open the browser |
+| `--bind` |  | `127.0.0.1` | address to listen on (default 127.0.0.1; 0.0.0.0 inside a container, published on the host with -p 127.0.0.1:8766:8766). Requests must still name 127.0.0.1 / localhost and carry the page's token |
 
 ## `dlnet zoo`
 

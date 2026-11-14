@@ -67,6 +67,19 @@ jobs:
             echo "::error::tests were skipped (missing dependency?)"; exit 1
           fi
 
+  container:
+    name: container (podman build + use)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: podman --version
+      - name: Build the Containerfile image and use it (version, selfcheck, design -> train -> predict, serve, ui)
+        run: python scripts/test_container.py --engine podman
+
   regression:
     name: regression
     runs-on: ubuntu-latest

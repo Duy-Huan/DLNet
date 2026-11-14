@@ -8,6 +8,20 @@ Tu dong de xuat Top-K baseline deep learning (PyTorch) cho mot tap du lieu. Kien
 
 Mỗi bản phát hành (trang **Releases**) có gói cài cho Windows (`.exe`), macOS Apple silicon (`.pkg`) và Linux x64 / ARM64 (`.deb`), kèm bản chạy ngay `.zip`/`.tar.gz`. Cài xong dùng lệnh `dlnet` trong terminal (`dlnet --version`, `dlnet selfcheck`, `dlnet design ...`, `dlnet serve`). Mỗi gói được CI cài thật, chạy thử và gỡ trước khi tag được tạo. Chi tiết, GPU và cách gỡ: [doc/install.md](doc/install.md).
 
+## Chạy bằng container (Podman / Docker)
+
+Từ v1.8.2 repo có `Containerfile` (Python 3.12, PyTorch CPU, DLNet). Dữ liệu và kết quả nằm trong thư mục của máy bạn, gắn vào `/workspace`:
+
+```bash
+podman build -t dlnet -f Containerfile .
+```
+
+```bash
+podman run --rm -v ./work:/workspace:Z dlnet design --data data.csv --target y --budget 10m --out runs/a
+```
+
+Giao diện web: `podman run --rm -p 127.0.0.1:8766:8766 -v ./work:/workspace:Z dlnet ui --workspace /workspace`, rồi mở `http://127.0.0.1:8766/`. Chi tiết (MCP server, Docker, SELinux, quyền file): [`doc/install.md`](doc/install.md#chạy-bằng-container-podman--docker). Image được build và dùng thử bằng Podman trên CI mỗi commit (`scripts/test_container.py`).
+
 ## Cài đặt nhanh (môi trường Python)
 
 Môi trường ảo (`.venv`) **không** nằm trong git (nặng hàng GB, riêng từng máy, GitHub từ chối file trên 100 MB). Repo ghi lại **phiên bản Python** (`.python-version` = 3.12) và **danh sách package** (`requirements.txt`). Sau khi `git pull`, dùng Python 3.12:
