@@ -267,7 +267,32 @@ python -m dlnet paper import --official-root <checkout> --repo <URL> --commit <h
 python -m dlnet paper verify papers/starnet_s1_imported.yaml --official-root <checkout>
 ```
 
-`import` dò đồ thị của mô hình gốc bằng `torch.fx` và viết mỗi lớp thành một dòng của thẻ (Conv → `conv`, BatchNorm → `norm`, Linear → `linear`, activation → `act`, `x + y` → `add`, `x * y` → `mul`, `torch.cat` → `concat`, pooling toàn cục → `gap`; lớp Linear cuối thành `head`). Gặp phép toán không có tương đương (attention viết bằng einsum, phép tensor tùy biến) thì dừng và nêu tên chỗ đó: khi ấy viết khối đó bằng một module của kho, hoặc dùng thẻ mức A. Nháp chỉ là giả thuyết; `paper verify` mới là bằng chứng.
+`import` (viết lại ở v1.8) dò đồ thị của mô hình gốc bằng `torch.fx`, chạy nó một lần trên dữ liệu thật để biết giá trị cụ thể của mọi kích thước, rồi viết mỗi nút thành một dòng của thẻ bằng **thư viện lớp cơ bản** (`dlnet/zoo/ops_prim.py`).
+
+Thư viện gồm:
+- gần đủ `torch.nn`: conv / conv transpose với tham số riêng từng trục, mọi chuẩn hóa với đúng eps, khoảng 25 activation, pooling, upsample, pad, LSTM / GRU, MultiheadAttention;
+- các phép tensor giữa chúng: reshape, permute, `x[:, 0]`, chunk / split, reduce, phép toán với hằng, `roll`, einsum, scaled dot-product attention;
+- tham số học được như class token, position embedding, layer scale (nút `param`);
+- phép tính chỉ trên trọng số của mạng, như bảng relative position bias tra theo chỉ số (nút `static`).
+
+Importer còn xử lý được:
+- lớp dùng lại nhiều lần (`share`: cùng một bộ trọng số);
+- trục batch bị gộp rồi tách khi chia cửa sổ (Swin, DaViT);
+- `permute(2, 0, ...)` của qkv;
+- tensor time-major của LSTM;
+- hằng số lớn: lưu ra `<thẻ>.constants.npz` cạnh thẻ.
+
+Mỗi nút ghi tên lớp gốc (`ref`), nên `paper verify` chép trọng số **theo tên lớp** chứ không đoán theo thứ tự.
+
+Đo bằng `scripts/bench_import.py`:
+- **75/75 mạng phân loại của torchvision dựng lại trùng từng bit** (ResNet, ResNeXt, Wide ResNet, VGG, DenseNet, GoogLeNet, Inception v3, MobileNet v2/v3, EfficientNet v1/v2, MNASNet, ShuffleNet v2, SqueezeNet, RegNet, ConvNeXt, ViT-B, Swin v1/v2, MaxViT, AlexNet);
+- timm: mẫu cố định 200 mạng, 115/163 mạng đo được trùng từng bit (71 %). Chi tiết ở `agent.md` §16.8.
+
+Gặp phép toán không có tương đương thì dừng và nêu tên chỗ đó: khi ấy viết khối đó bằng một module của kho, hoặc dùng thẻ mức A. Hai giới hạn còn lại:
+- `torch.fx` không dò được mô hình có rẽ nhánh theo dữ liệu (CrossViT, ConViT, NFNet, EfficientViT): dùng thẻ mức A;
+- cũng dùng thẻ mức A cho mô hình trả về nhiều đầu ra, hoặc dùng phép như `~mask`.
+
+Nháp chỉ là giả thuyết; `paper verify` mới là bằng chứng.
 
 **So sánh trong cùng một lượt chạy** (v1.3):
 

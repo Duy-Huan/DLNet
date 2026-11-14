@@ -30,12 +30,15 @@ from . import (  # noqa: F401  (registers the ops)
     ops_graph2,
     ops_hsi,
     ops_img,
+    ops_lib,
     ops_modern,
     ops_more,
     ops_next,
     ops_paper,
+    ops_prim,
     ops_seq,
     ops_seq2,
+    ops_v18,
     ops_vec,
 )
 from .core import (

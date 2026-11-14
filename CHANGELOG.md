@@ -6,6 +6,41 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-11-14
+
+- **Thư viện lớp cơ bản** (`dlnet/zoo/ops_prim.py`): gần đủ `torch.nn` và các phép tensor của torch thành nút của thẻ paper, mỗi nút bọc đúng lớp / hàm torch cùng tên với cùng tham số.
+  - Lớp: conv và conv transpose với kernel / stride / padding / dilation riêng từng trục, `padding_mode`; BatchNorm / LayerNorm / GroupNorm / InstanceNorm / RMSNorm / LRN với eps, momentum, affine của tác giả; khoảng 25 activation (`activation fn: ...`) và PReLU; pooling max / avg / LP / adaptive với mọi tùy chọn; upsample; pixel (un)shuffle; channel shuffle; pad; embedding; LSTM / GRU / RNN.
+  - Phép tensor: reshape (kể cả khi trục batch gộp với trục khác), permute, transpose, flatten, unflatten, squeeze / unsqueeze, slice, select, chọn theo danh sách chỉ số, chunk / split, reduce, phép toán với hằng, các hàm một biến, clamp, normalize, roll, flip, cumsum, fft, fill, repeat_interleave.
+  - Kiểu tensor mới `nd` cho bố cục không thuộc kiểu nào có sẵn.
+  - Nút gộp nhiều đầu vào: add / sub / mul / div / maximum / minimum (có broadcast), concat / stack theo trục, matmul, scaled dot-product attention, `mha` (MultiheadAttention), einsum, `linear_fn` / `conv_fn` (trọng số tính từ tham số).
+  - `param`: tham số học được như class token, position embedding, layer scale.
+  - `static`: phép tính chỉ trên trọng số, như bảng relative position bias tra theo chỉ số hay MLP bias của Swin v2.
+  - `share`: dùng lại một lớp, cùng một bộ trọng số.
+  - Tag `primitive`: tìm kiếm không bao giờ chọn các lớp này.
+- **Swin v1 / v2**: `window_attention`, `patch_merge_pad` (`ops_lib.py`) port từ torchvision.
+- **`dlnet paper import` viết lại**:
+  - `torch.fx` cộng một lần chạy thật, nên mọi kích thước tính từ shape thành giá trị cụ thể.
+  - Mỗi nút ghi tên lớp gốc (`ref`); `paper verify` chép trọng số **theo tên lớp**.
+  - Xử lý được: lớp con của torch.nn có forward riêng (dò vào trong); permute qkv; tensor time-major của LSTM; trục batch gộp / tách khi chia cửa sổ; hằng số trong mô hình (lưu ra `<thẻ>.constants.npz` nếu lớn).
+  - Thẻ ghi ra YAML đọc lại đúng giá trị: `null`, `1.0e-05`, chuỗi được trích dẫn.
+- **Đo khả năng dựng lại mạng đã công bố** (`scripts/bench_import.py`, trọng số ngẫu nhiên, không tải gì):
+  - **torchvision: 75/75 mạng phân loại dựng lại trùng từng bit** (trước v1.8: 22/65). 5 mạng trên 160M tham số không đo.
+  - timm 1.0.31: mẫu cố định 200 mạng, **115/163 dựng lại trùng từng bit (71 %)**; 37 mạng quá lớn không đo. Chi tiết và danh sách lỗi còn lại: `agent.md` §16.8.
+  - Job CI `verify-v18` giữ mức torchvision ≥ 95 %.
+- **5 khối mới cho tìm kiếm** (`ops_v18.py`), port từ timm và đối chiếu trùng từng bit (`scripts/verify_v18.py`, 14/14 cấu hình):
+  - `pconv_block` (FasterNet);
+  - `gated_cnn_block` (MambaOut);
+  - `mobilevit_block`, `mobilevitv2_block` (MobileViT v1 / v2);
+  - `sdta_block` (EdgeNeXt).
+
+  Kho có 207 module.
+- Sửa:
+  - một op dựng với tham số sai giờ luôn báo `ValueError` thay vì `TypeError` / `RuntimeError` của torch;
+  - nút `concat` của thẻ cũ giữ đúng kiểu tensor.
+- Hạn chế đã biết:
+  - `torch.fx` không dò được mô hình rẽ nhánh theo dữ liệu (CrossViT, ConViT, NFNet, EfficientViT của timm, ...): dùng thẻ mức A;
+  - chưa có `~mask` (đảo bool) và đầu ra nhiều tensor.
+
 ## [1.7.0] - 2026-11-13
 
 - **So với 10–20 paper trong một lệnh** (`design --papers <thư mục>`):
@@ -531,7 +566,8 @@ Bản đầu tiên: prototype chạy được từ dữ liệu đến Top-K base
 - Chưa có zero-cost proxy, cost model FLOPs/VRAM, Tensor-LoRA, deep unfolding; chưa có plugin image và timeseries.
 - Kết quả trên Indian Pines và Pavia University là một lần chạy ngắn trên CPU: với chia theo khối, mạng sâu chưa vượt rõ baseline cổ điển.
 
-[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v1.7.0...HEAD
+[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v1.8.0...HEAD
+[1.8.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.8.0
 [1.7.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.7.0
 [1.6.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.6.0
 [1.5.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.5.0

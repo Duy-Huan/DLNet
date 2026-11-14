@@ -34,7 +34,16 @@ from dataclasses import dataclass, field
 import torch
 from torch import nn
 
-KINDS = ("vec", "seq", "map", "ser", "vol", "graph", "ids")
+KINDS = (
+    "vec",
+    "seq",
+    "map",
+    "ser",
+    "vol",
+    "graph",
+    "ids",
+    "nd",
+)  # nd: any other layout (v1.8, ops_prim)
 ND = {"ser": 1, "map": 2, "vol": 3}  # spatial dimensionality of the convolutional kinds
 OPS: dict[str, OpDef] = {}
 COMBINATORS = ("seq", "res", "par", "rep", "moe", "encdec", "graph")
@@ -77,6 +86,12 @@ def ops_with(tag: str, kind: str | None = None) -> list[str]:
 # ------------------------------------------------------------------ shape tracing
 
 
+PROBE = {
+    "n": 2,
+    "last": 2,
+}  # batch of the shape-tracing probe (a graph whose batch axis merges / splits)
+
+
 def probe(kind: str, dims, n: int = 2, device=None) -> torch.Tensor:
     """A zero tensor of batch n for the kind (integer ids for `ids`, whose dims are cardinalities)."""
     if kind == "ids":
@@ -91,13 +106,21 @@ def _trace(m: nn.Module, dims, kind: str = "vec") -> tuple[int, ...]:
     m.eval()
     try:
         with torch.no_grad():
-            y = m(probe(kind, dims, 2, dev))
-    except (RuntimeError, IndexError, AssertionError) as e:
+            y = m(probe(kind, dims, PROBE["n"], dev))
+    except (
+        RuntimeError,
+        IndexError,
+        AssertionError,
+        TypeError,
+        ZeroDivisionError,
+        NotImplementedError,
+    ) as e:
         raise ValueError(f"cannot apply to shape {tuple(dims)}: {e}") from e
     finally:
         m.train(was)
     if not isinstance(y, torch.Tensor):
         raise ValueError("a leaf module must return one tensor")  # noqa: TRY004
+    PROBE["last"] = int(y.shape[0])
     if y.numel() == 0 or min(y.shape[1:], default=1) < 1:
         raise ValueError(f"empty output {tuple(y.shape)} for input {tuple(dims)}")
     return tuple(int(s) for s in y.shape[1:])
@@ -117,10 +140,18 @@ def _leaf(node, kind, dims):
     kw = {"kind": kind}
     try:
         m = o.build(tuple(dims), **kw, **params)
-    except (TypeError, KeyError) as e:
+    except (TypeError, KeyError, RuntimeError, IndexError, ZeroDivisionError, AssertionError) as e:
         raise ValueError(f"{name}: bad parameters {params}: {e}") from e
     out_kind = o.kout or kind
-    return m, out_kind, _trace(m, dims, kind)
+    out_dims = _trace(m, dims, kind)
+    if name == "as_kind":
+        out_kind = params["to"]
+        want = {"vec": 1, "seq": 2, "ser": 2, "map": 3, "vol": 4}.get(out_kind)
+        if want is not None and len(out_dims) != want:
+            raise ValueError(f"as_kind {out_kind}: a {want}-axis tensor is needed, got {out_dims}")
+    elif out_kind == "nd" and len(out_dims) == 1:
+        out_kind = "vec"  # a layout op that ends with one axis: a vector
+    return m, out_kind, out_dims
 
 
 # -------------------------------------------------------------------- combinators
@@ -246,11 +277,14 @@ class MoE(nn.Module):
 
 class Graph(nn.Module):
     """A directed acyclic graph of blocks, as drawn in a paper: every node reads the output of one
-    earlier node, or merges several (`concat` on the channel axis, `add`). Written by
-    `{"op": "graph", "nodes": [{"id", "from", "op", ...}, ...], "out": id}` (dlnet/paper.py).
+    earlier node, or merges several. Written by `{"op": "graph", "nodes": [{"id", "from", "op", ...},
+    ...], "out": id}` (dlnet/paper.py). Merges (ops_prim.MERGES): add, mul, sub, div, maximum,
+    minimum (broadcasting), concat / stack on an axis, matmul, attention (scaled dot-product), mha
+    (torch.nn.MultiheadAttention), where. A `param` node has no input: a learned tensor.
 
-    `wiring[i] = (how, sources)`: how is "op" (apply mods[i] to the one source), "concat",
-    "add" or "mul"; a source is the index of an earlier node, -1 for the input of the graph."""
+    `wiring[i] = (how, sources)`: how is "op" (mods[i] applied to its one source), "merge"
+    (mods[i] applied to all its sources) or "param" (mods[i] alone); a source is the index of an
+    earlier node, -1 for the input of the graph."""
 
     def __init__(self, mods, wiring, axis=1, out=-1):
         super().__init__()
@@ -261,7 +295,11 @@ class Graph(nn.Module):
         ys = []
         for m, (how, src) in zip(self.mods, self.wiring, strict=True):
             xs = [x if i < 0 else ys[i] for i in src]
-            if how == "concat":
+            if how == "param":
+                ys.append(m())
+            elif how == "merge":
+                ys.append(m(*xs))
+            elif how == "concat":  # cards written before v1.8
                 ys.append(torch.cat(xs, self.axis))
             elif how == "add":
                 ys.append(sum(xs[1:], xs[0]))
@@ -276,49 +314,145 @@ class Graph(nn.Module):
 
 
 def _graph(node, kind, dims):
+    from .ops_prim import MERGES, merge_module, param_module, static_module
+
     known = {"input": (-1, kind, tuple(dims))}
-    mods, wiring, axis = [], [], 1
+    mult = {"input": 1}  # batch of each node / batch of the input (window partition multiplies it)
+    full = {}  # param node id -> its whole shape (with its leading broadcast axis)
+    pdtype = {}  # param node id -> dtype (an integer index table)
+    mods, wiring = [], []
     prev = "input"
     for i, n in enumerate(node["nodes"]):
         nid = str(n.get("id", f"n{i}"))
         if nid in known:
             raise ValueError(f"graph: node id {nid!r} is used twice")
+        body = {k: v for k, v in n.items() if k not in ("id", "from", "share")}
+        how = body.get("op")
+        if how == "static":  # a computation on the network's own tensors only (ops_prim.StaticExpr)
+            m = static_module({k: v for k, v in body.items() if k != "op"})
+            srcs = n.get("from") or []
+            srcs = [srcs] if isinstance(srcs, str | int) else list(srcs)
+            bad = [str(s) for s in srcs if str(s) not in full]
+            if bad:
+                raise ValueError(
+                    f"graph node {nid!r}: a static node reads param / static nodes only, not {bad}"
+                )
+            try:
+                with torch.no_grad():
+                    w = next(itertools.chain(m.parameters(), m.buffers()), None)
+                    dev = w.device if w is not None else "cpu"
+                    y = m(
+                        *[
+                            torch.zeros(
+                                full[str(s)], dtype=pdtype.get(str(s), torch.float32), device=dev
+                            )
+                            for s in srcs
+                        ]
+                    )
+            except (RuntimeError, IndexError, TypeError) as e:
+                raise ValueError(f"graph node {nid!r}: static program: {e}") from e
+            shape = tuple(int(s) for s in y.shape)
+            mods.append(m)
+            wiring.append(("merge", [known[str(s)][0] for s in srcs]) if srcs else ("param", []))
+            known[nid], full[nid], mult[nid] = (i, "param", shape[1:]), shape, 1
+            prev = nid
+            continue
+        if how == "param":  # a learned tensor (or a constant buffer): no input
+            shape = tuple(int(s) for s in body["shape"])
+            if not shape:
+                raise ValueError(
+                    f"graph node {nid!r}: a param needs a shape with a leading axis (1 to broadcast)"
+                )
+            mods.append(
+                param_module(
+                    shape,
+                    body.get("init", "normal"),
+                    body.get("learned", True),
+                    body.get("dtype", "float32"),
+                )
+            )
+            wiring.append(("param", []))
+            pdtype[nid] = getattr(torch, body.get("dtype", "float32"))
+            known[nid], full[nid], mult[nid] = (i, "param", shape[1:]), shape, 1
+            prev = nid
+            continue
         src = n.get("from", prev)
         src = [src] if isinstance(src, str | int) else list(src)
         missing = [str(s) for s in src if str(s) not in known]
         if missing:
             raise ValueError(f"graph node {nid!r}: 'from' names {missing}, not defined before it")
         ins = [known[str(s)] for s in src]
-        body = {k: v for k, v in n.items() if k not in ("id", "from")}
-        how = body.get("op")
-        if how in ("concat", "add", "mul"):
-            if len(ins) < 2 or len({k for _, k, _ in ins}) != 1:
-                raise ValueError(f"graph node {nid!r}: {how} needs >= 2 inputs of the same kind")
-            k2, ds = ins[0][1], [d for _, _, d in ins]
-            ax = 2 if k2 == "seq" else 1
-            if how in ("add", "mul"):
-                if len(set(ds)) != 1:
-                    raise ValueError(f"graph node {nid!r}: {how} needs identical shapes, got {ds}")
-                d2 = ds[0]
-            else:
-                if len({d[: ax - 1] + d[ax:] for d in ds}) != 1:
-                    raise ValueError(f"graph node {nid!r}: cannot concatenate shapes {ds}")
-                d2 = list(ds[0])
-                d2[ax - 1] = sum(d[ax - 1] for d in ds)
-                d2, axis = tuple(d2), ax
-            mods.append(None)
-        else:
-            if len(ins) != 1:
-                raise ValueError(
-                    f"graph node {nid!r}: {how} takes one input; merge with concat / add first"
-                )
+        if how in MERGES:
+            args = {k: v for k, v in body.items() if k != "op"}
+            if (
+                how == "concat" and "axis" not in args
+            ):  # pre-v1.8 cards: the feature axis of the kind
+                args["axis"] = 2 if ins[0][1] == "seq" else 1
+            if how not in ("mha", "einsum") and len(ins) < 2:
+                raise ValueError(f"graph node {nid!r}: {how} needs >= 2 inputs")
+            shapes = [
+                full[str(s)] if k == "param" else (2 * mult[str(s)], *d)
+                for (_, k, d), s in zip(ins, src, strict=True)
+            ]
             try:
-                m, k2, d2 = _build(body, ins[0][1], ins[0][2])
-            except ValueError as e:
-                raise ValueError(f"graph node {nid!r}: {e}") from e
+                m = merge_module(how, args, [sh[1:] for sh in shapes])
+                w = next(itertools.chain(m.parameters(), m.buffers()), None)
+                dev = w.device if w is not None else "meta"
+                with torch.no_grad():
+                    y = m(*[torch.zeros(sh, device=dev) for sh in shapes])
+                d2 = tuple(int(v) for v in y.shape[1:])
+            except (RuntimeError, ValueError, IndexError, TypeError) as e:
+                got = [list(sh[1:]) for sh in shapes]
+                need = (
+                    " needs identical shapes (or shapes that broadcast)"
+                    if how in ("add", "mul", "sub", "div")
+                    else ""
+                )
+                raise ValueError(f"graph node {nid!r}: {how}{need}, got {got}: {e}") from e
             mods.append(m)
-            how = "op"
-        wiring.append((how, [i_ for i_, _, _ in ins]))
+            wiring.append(("merge", [i_ for i_, _, _ in ins]))
+            real = [x for x in ins if x[1] != "param"] or ins
+            k0, d0 = real[0][1], real[0][2]
+            same = len({x[1] for x in real}) == 1 and len(d2) == len(
+                d0
+            )  # e.g. a channel concat of maps
+            known[nid] = (i, k0 if same else ("vec" if len(d2) == 1 else "nd"), d2)
+            mult[nid] = max(1, int(y.shape[0]) // 2)
+            prev = nid
+            continue
+        if len(ins) != 1:
+            raise ValueError(
+                f"graph node {nid!r}: {how} takes one input; merge with concat / add first"
+            )
+        if ins[0][1] == "param":
+            raise ValueError(
+                f"graph node {nid!r}: a param node is used through a merge (add, mul, concat, ...)"
+            )
+        mi = mult[str(src[0])]
+        PROBE["n"] = 2 * mi
+        try:
+            m, k2, d2 = _build(body, ins[0][1], ins[0][2])
+        except ValueError as e:
+            raise ValueError(f"graph node {nid!r}: {e}") from e
+        finally:
+            PROBE["n"] = 2
+        mult[nid] = max(1, PROBE["last"] // 2)
+        if (
+            n.get("share") is not None
+        ):  # the same layer called again: one module, one set of weights
+            first = str(n["share"])
+            if first not in known or known[first][0] < 0:
+                raise ValueError(
+                    f"graph node {nid!r}: share names {first!r}, not a node defined before it"
+                )
+            other = mods[known[first][0]]
+            if type(other) is not type(m) or [p.shape for p in other.parameters()] != [
+                p.shape for p in m.parameters()
+            ]:
+                raise ValueError(f"graph node {nid!r}: share {first!r} is a different layer")
+            m = other
+        mods.append(m)
+        wiring.append(("op", [i_ for i_, _, _ in ins]))
         known[nid] = (i, k2, tuple(d2))
         prev = nid
     if not mods:
@@ -326,7 +460,11 @@ def _graph(node, kind, dims):
     out = str(node.get("out", prev))
     if out not in known or out == "input":
         raise ValueError(f"graph: output node {out!r} is not defined")
-    return Graph(mods, wiring, axis, known[out][0]), known[out][1], known[out][2]
+    if mult.get(out, 1) != 1:
+        raise ValueError(
+            f"graph: the output's batch axis is still merged with another axis (x{mult[out]})"
+        )
+    return Graph(mods, wiring, 1, known[out][0]), known[out][1], known[out][2]
 
 
 def _build(node, kind, dims):
@@ -525,6 +663,30 @@ def count_params(model: nn.Module) -> int:
     return sum(p.numel() for p in model.parameters())
 
 
+_MERGE_NAMES = (
+    "concat",
+    "add",
+    "mul",
+    "sub",
+    "div",
+    "maximum",
+    "minimum",
+    "matmul",
+    "stack",
+    "attention",
+    "where",
+    "pow2",
+    "complex",
+    "mha",
+    "param",
+    "einsum",
+    "static",
+    "linear_fn",
+    "conv_fn",
+    "compare",
+)
+
+
 def leaf_ops(spec) -> list[str]:
     """Names of every leaf op in a spec, in order."""
     if isinstance(spec, list):
@@ -543,9 +705,7 @@ def leaf_ops(spec) -> list[str]:
         return leaf_ops(spec["stages"]) + [spec.get("dec", "unet")]
     if name == "graph":
         nodes = [{k: v for k, v in n.items() if k not in ("id", "from")} for n in spec["nodes"]]
-        return [
-            x for n in nodes if n.get("op") not in ("concat", "add", "mul") for x in leaf_ops(n)
-        ]
+        return [x for n in nodes if n.get("op") not in _MERGE_NAMES for x in leaf_ops(n)]
     return [name]
 
 

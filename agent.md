@@ -893,6 +893,33 @@ Chưa làm: epochs (hiện là công thức mặc định 100 epoch, cosine, ch�
 - **Đo** (`qa/reports/v1.5.0/`): 7 lượt × 24 ứng viên, mục tiêu là val ở epoch 6. Spearman: val@1 0,44, TSE@1 0,60, val@2 0,70, val+TSE@2 0,72. Giữ được mạng tốt nhất khi giữ 1/3: val@2 5/7, TSE@2 4/7. Regret: val@2 thấp nhất (0,0029). Đầu-cuối (`scripts/bench_rungs.py`, 150 epoch, fashion3k / cifar10_3k / shapes, 1 seed): `val` và `val+tse` cho cùng top-1 và cùng finalist trên cả 3 bộ.
 - **Kết luận**: TSE xếp cả nhóm tốt hơn nhưng không giữ phần đầu tốt hơn; không có lợi ích đầu-cuối, **mặc định giữ `val`, `4,12,30`**. Đã rút kế hoạch đo (2 lần lặp, cách `screen`) vì mỗi lần chạy mất 15–23 phút trên CPU. Chưa đo HSI, bảng, ngân sách lớn.
 
+### 16.8 Thư viện lớp cơ bản và dựng lại mạng đã công bố (v1.8)
+- **Mục tiêu (người dùng)**: dựng lại bất kỳ mạng nào từ paper với độ khớp cao, trước hết bằng các module cơ bản; làm dày kho để `design` tìm ra mạng tốt hơn.
+- **Cách đo**: `scripts/bench_import.py`, với mỗi mạng (trọng số ngẫu nhiên, không tải): `paper import` → thẻ → mạng DLNet → chép trọng số theo tên lớp → so đầu ra. "Dựng lại" = cùng số tham số và đầu ra lệch ≤ 1e-5 × max(1, |y|) (mức B).
+- **Trước v1.8**: 22/65 mạng torchvision. Importer chỉ biết conv / BN eps 1e-5 / linear / 7 activation / add / mul / cat / pooling, và dừng ở `permute`, `x.shape`, LayerNorm, attention.
+- **Thay đổi, từng bước đo lại**:
+  1. thư viện lớp cơ bản `ops_prim.py`, kiểu `nd`, nút gộp có tham số, nút `param`: 52/65;
+  2. dò vào lớp con có forward riêng (LayerNorm2d của torchvision), `param` chỉ tạo khi dùng làm dữ liệu: ConvNeXt;
+  3. Swin port từ torchvision (`ops_lib.py`), chép theo tên, concat một phần tử: 74/75;
+  4. nút `static` cho phép tính chỉ trên trọng số, chỉ tham số chưa dùng mới tính là thiếu: MaxViT → **75/75**.
+  5. Cho timm: thay kích thước tính từ shape bằng giá trị thật; permute qkv `(2, 0, ...)` + `unbind(0)` → select + permute; reshape để trục batch gộp / tách (theo dõi "hệ số batch" khi dò shape); lớp dùng lại (`share`); hằng số trong mô hình (`.constants.npz`); `linear_fn` với bias tính từ tham số (Swin v2 của timm); time-major của LSTM; fill / addcmul / repeat_interleave / norm.
+- **Kết quả**:
+  - torchvision 0.29: **75/75 trùng từng bit** (sai khác 0 trừ vài mạng ≤ 1e-6), 5 mạng trên 160M tham số không đo.
+  - timm 1.0.31 (mẫu cố định 200 mạng, seed 0):
+    - **115/163 mạng dựng lại trùng từng bit (71 %)**; 37 mạng trên 160M tham số không đo.
+    - Lần đo đầu với mã cuối là 106; thêm 9 nhờ: dropout trong phép tính trên trọng số, sin / cos, hằng tạo từ kích thước (`arange`), `~mask`, bộ lọc là buffer (BlurPool).
+    - Còn hỏng: 26 vì `torch.fx` không dò được; phần còn lại là đuôi dài, mỗi lỗi 1–4 mạng (`unfold`, `repeat`, `tile`, `getattr` trên module, `batch_norm` hàm với `training`, `build_grid`, hằng 5,3 triệu giá trị, param dùng làm đầu vào của một phép).
+    - Trên GitHub Actions (job `verify-v18`): torchvision 75/75; mẫu timm 60 mạng 32/54, đo trước nhóm sửa cuối.
+- **Lỗi lớn nhất còn lại**: `torch.fx` không dò được rẽ nhánh theo dữ liệu (if trên `x.shape` trong forward). Cần một importer ở mức ATen (`torch.export` / `make_fx`), chưa làm; các mạng đó dùng thẻ mức A.
+- **Khối cho tìm kiếm** (`ops_v18.py`):
+  - `pconv_block` (FasterNet), `gated_cnn_block` (MambaOut), `mobilevit_block`, `mobilevitv2_block` (MobileViT v1/v2), `sdta_block` (EdgeNeXt);
+  - port từ timm 1.0.31, `scripts/verify_v18.py` 14/14 cấu hình trùng từng bit;
+  - **chưa đo** chúng có giúp `design` tìm ra mạng tốt hơn trên dữ liệu thật không.
+- **Quy tắc rút ra**:
+  - op cơ bản không dùng `lambda` trong constructor, vì standalone `model.py` phải viết lại được;
+  - op dựng với tham số sai phải báo `ValueError`;
+  - lớp con của torch.nn có forward riêng không phải lá.
+
 ## 17. Tài liệu người dùng `doc/` và quy tắc cập nhật theo phiên bản
 
 `doc/` là tài liệu cho người dùng và người phát triển; `agent.md` là kế hoạch, quy tắc và số đo chi tiết. Cấu trúc:
