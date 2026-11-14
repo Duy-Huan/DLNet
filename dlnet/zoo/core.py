@@ -625,7 +625,7 @@ class Head(nn.Module):
                 if size is not None and y.shape[-2:] != size else y  # fmt: skip
         if self.kind == "seq":
             x = x.mean(1)
-        elif self.kind != "vec":
+        elif self.kind != "vec" and x.dim() > 2:  # mean(()) would reduce every axis, the batch too
             x = x.mean(tuple(range(2, x.dim())))
         return self.f(x)
 
