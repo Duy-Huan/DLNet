@@ -463,12 +463,6 @@ class SegformerDecoder(nn.Module):
 # ----------------------------------------------------------------- kept DLNet decoders
 
 
-def cbr(i, o, k=3, d=1):
-    from .ops_basic import ConvBNAct
-
-    return ConvBNAct(2, i, o, k, 1, 1, d, "relu", "batch")
-
-
 class FCNDecoder(nn.Module):
     """FCN-8s style: 1x1 score maps of every level, upsampled and added (from memory)."""
 

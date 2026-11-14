@@ -319,7 +319,7 @@ Nguyên tắc: lõi **tổng quát trước**, kiểm chứng end-to-end sớm t
 ---
 
 ### 9.1 Audit v0.17 (bao phủ toàn bộ dlnet) và các phát hiện
-Đo bằng `coverage` (cả lệnh CLI trong tiến trình con): **90% → 97%**, 590+ test; CI có job `coverage` với sàn 95%.
+Đo bằng `coverage` (cả lệnh CLI trong tiến trình con): **90% → 97%**, 590+ test; CI có job `coverage` với sàn 95%. **v1.9.0: 100 %, sàn 100 %** (2.170+ test); chỉ dòng cần GPU CUDA hoặc Windows được đánh `# pragma: no cover - <lý do>`. Code mới phải kèm test phủ hết, kể cả nhánh từ chối.
 - **Kết quả phụ thuộc tốc độ máy (đã sửa)**: mọi ngân sách là giây, nên 2 test e2e khẳng định chất lượng (chuỗi thời gian, phân đoạn) đỏ khi máy chậm (dưới coverage). Thêm ngân sách theo epoch `--budget 400ep` (`dlnet/clock.py`): cùng lệnh, cùng leaderboard trên mọi máy; test chất lượng chuyển sang epoch.
 - **Crash (đã sửa)**: advisor lỗi ở lần gọi đầu nhưng trả lời ở vòng tiến hóa làm `design` crash (`None.setdefault`).
 - **Sai lệch tài liệu/mã (đã sửa)**: trợ giúp CLI nói `autoencoder` nhưng alias không có.

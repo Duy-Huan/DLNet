@@ -6,6 +6,12 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-11-14
+
+- **Coverage 100 %** (trước là 97 %, sàn 95 %): job CI `coverage` giờ fail nếu dưới 100 % (`fail_under = 100`). Toàn bộ test chạy dưới coverage, kể cả CLI trong tiến trình con và e2e: 2.170+ test. Chỉ 4 dòng có `# pragma: no cover`, mỗi dòng ghi lý do: 2 dòng chỉ chạy khi có GPU CUDA (`channels_last`, `cuda.synchronize`), 2 dòng chỉ chạy trên Windows (dừng tiến trình con).
+  - Test mới cho các nhánh từ chối, nhánh dự phòng và giới hạn kích thước mà các lần chạy end-to-end không đi qua (`tests/test_cov_*.py`).
+  - Bỏ mã không bao giờ chạy: `Swish`, `ChannelLast`, `cbr`, `meta_shape`, nối dây cũ của concat/add/mul trong `zoo/core.py`, các nhánh chết trong `paper_import.py`.
+- **Regression test**: `tests/test_regression_v19.py` khóa 4 lỗi dưới đây; mỗi test đỏ trên v1.8.2, xanh sau khi sửa. Cùng `test_regression.py` và `test_regression_v18.py` chạy trong job `regression` (`pytest -m regression`).
 - **Sửa (tìm ra khi đưa coverage lên 100%)**:
   - `paper import`: `.float()` / `.to(dtype)` / `.type_as()` bị coi là phép đồng nhất, nên `(x > a).float() + (x > b).float()` trong thẻ thành phép cộng hai tensor bool (torch tính là OR: kết quả 1 thay vì 2). Giờ là lớp cơ bản mới `cast`.
   - `paper import`: `x[:, True]` bị đọc thành `x[:, 1]`; giờ báo không hỗ trợ.
@@ -595,7 +601,8 @@ Bản đầu tiên: prototype chạy được từ dữ liệu đến Top-K base
 - Chưa có zero-cost proxy, cost model FLOPs/VRAM, Tensor-LoRA, deep unfolding; chưa có plugin image và timeseries.
 - Kết quả trên Indian Pines và Pavia University là một lần chạy ngắn trên CPU: với chia theo khối, mạng sâu chưa vượt rõ baseline cổ điển.
 
-[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v1.8.2...HEAD
+[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v1.9.0...HEAD
+[1.9.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.9.0
 [1.8.2]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.8.2
 [1.8.1]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.8.1
 [1.8.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.8.0

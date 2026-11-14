@@ -157,3 +157,23 @@ def test_module_runs_as_a_script(monkeypatch, capsys):
     monkeypatch.setattr(sys, "argv", ["dlnet", "--version"])
     with pytest.raises(SystemExit):
         runpy.run_module("dlnet.cli", run_name="__main__")
+
+
+def test_evolution_stops_when_nothing_reached_rung_one(tabular_csv, tmp_path, monkeypatch, capsys):
+    """An empty population (every rung-1 result without a spec) ends the evolution loop at once."""
+    from dlnet import search
+
+    real_search = search.run_search
+
+    def run_search(*a, **k):
+        out = real_search(*a, **k)
+        if k.get("trace") is not None:
+            k["trace"]["rung1"] = []
+        return out
+
+    monkeypatch.setattr(search, "run_search", run_search)
+    rc = cli.main(["design", "--data", str(tabular_csv), "--target", "y", "--budget", "200ep", "--topk", "1",
+                   "--zoo", "2", "--per-family", "1", "--evolve", "3", "--no-proxies",
+                   "--threads", "1", "--out", str(tmp_path / "o")])  # fmt: skip
+    assert rc == 0
+    assert "[evolve] generation" not in capsys.readouterr().out

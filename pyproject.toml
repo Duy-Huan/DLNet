@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dlnet"
-version = "1.8.2"
+version = "1.9.0"
 description = "Framework tu dong thiet ke mang deep learning tu du lieu, dong goi baseline PyTorch"
 requires-python = ">=3.10"
 dependencies = []
@@ -42,6 +42,6 @@ parallel = true
 omit = ["dlnet/__main__.py"]
 
 [tool.coverage.report]
-fail_under = 95  # measured 97% on v0.17 (unit + regression + e2e); raise, never lower
+fail_under = 100  # 100% since v1.9.0 (unit + regression + e2e); a line only a CUDA GPU or Windows runs is marked `# pragma: no cover - <reason>`
 show_missing = true
 skip_covered = true
