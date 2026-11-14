@@ -277,7 +277,7 @@ class Jobs:
         with contextlib.suppress(OSError, ProcessLookupError):
             if os.name == "posix":
                 os.killpg(p.pid, signal.SIGTERM)
-            else:
+            else:  # pragma: no cover - Windows (coverage is measured on Linux)
                 p.terminate()
 
     def get(self, job_id: str) -> Job:
@@ -302,7 +302,7 @@ class Jobs:
             with contextlib.suppress(OSError, ProcessLookupError):
                 if os.name == "posix":
                     os.killpg(j.proc.pid, signal.SIGKILL)
-                else:
+                else:  # pragma: no cover - Windows (coverage is measured on Linux)
                     j.proc.kill()
             j.done.wait(5)
         return j
