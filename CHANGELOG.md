@@ -6,6 +6,12 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+- **Sửa (tìm ra khi đưa coverage lên 100%)**:
+  - `paper import`: `.float()` / `.to(dtype)` / `.type_as()` bị coi là phép đồng nhất, nên `(x > a).float() + (x > b).float()` trong thẻ thành phép cộng hai tensor bool (torch tính là OR: kết quả 1 thay vì 2). Giờ là lớp cơ bản mới `cast`.
+  - `paper import`: `x[:, True]` bị đọc thành `x[:, 1]`; giờ báo không hỗ trợ.
+  - `paper import`: `len(x.shape)`, `for d in x.shape`, `*x.shape` hỏng khi dò theo giá trị thật (proxy thuộc tính của torch.fx không biết giá trị). Giờ mọi proxy đều biết giá trị.
+  - `dlnet serve` với host IPv6 đổi `address_family` của cả lớp `Server`, nên mọi server IPv4 tạo sau đó trong cùng tiến trình hỏng.
+
 - Tài liệu: hướng dẫn Podman trong `doc/install.md` viết lại đầy đủ: cài Podman và `podman machine` (Windows / macOS, RAM ≥ 8 GB), lệnh gắn thư mục cho Linux / macOS / PowerShell / cmd, lệnh tắt `dlnet-c`, chạy nền, cập nhật bản mới, bảng lỗi thường gặp.
 
 ## [1.8.2] - 2026-11-14
