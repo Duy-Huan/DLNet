@@ -6,6 +6,8 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-11-14
+
 - **Coverage 100 %** (trước là 97 %, sàn 95 %): job CI `coverage` giờ fail nếu dưới 100 % (`fail_under = 100`). Toàn bộ test chạy dưới coverage, kể cả CLI trong tiến trình con và e2e: 2.170+ test. Chỉ 4 dòng có `# pragma: no cover`, mỗi dòng ghi lý do: 2 dòng chỉ chạy khi có GPU CUDA (`channels_last`, `cuda.synchronize`), 2 dòng chỉ chạy trên Windows (dừng tiến trình con).
   - Test mới cho các nhánh từ chối, nhánh dự phòng và giới hạn kích thước mà các lần chạy end-to-end không đi qua (`tests/test_cov_*.py`).
   - Bỏ mã không bao giờ chạy: `Swish`, `ChannelLast`, `cbr`, `meta_shape`, nối dây cũ của concat/add/mul trong `zoo/core.py`, các nhánh chết trong `paper_import.py`.
@@ -599,7 +601,8 @@ Bản đầu tiên: prototype chạy được từ dữ liệu đến Top-K base
 - Chưa có zero-cost proxy, cost model FLOPs/VRAM, Tensor-LoRA, deep unfolding; chưa có plugin image và timeseries.
 - Kết quả trên Indian Pines và Pavia University là một lần chạy ngắn trên CPU: với chia theo khối, mạng sâu chưa vượt rõ baseline cổ điển.
 
-[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v1.8.2...HEAD
+[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v1.9.0...HEAD
+[1.9.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.9.0
 [1.8.2]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.8.2
 [1.8.1]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.8.1
 [1.8.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.8.0
