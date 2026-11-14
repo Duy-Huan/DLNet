@@ -123,13 +123,7 @@ def zico(model: nn.Module, batches, task: str) -> float | None:
 
 def grad_norm(model: nn.Module, X, y, task: str) -> float:
     m = copy.deepcopy(model).train()
-    out, y = members(m, m(X), y)
-    if task == "reconstruction":
-        loss = nn.functional.mse_loss(out, y)
-    elif task == "regression":
-        loss = nn.functional.mse_loss(out.squeeze(-1), y)
-    else:
-        loss = nn.functional.cross_entropy(out, y)
+    loss = _loss(*members(m, m(X), y), task)
     m.zero_grad()
     loss.backward()
     return float(
