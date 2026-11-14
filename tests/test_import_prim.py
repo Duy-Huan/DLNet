@@ -764,3 +764,26 @@ def test_cache_dict_filled_during_tracing_is_cleaned():
     model = Cached().eval()
     roundtrip(model, (4,), 2)
     assert not any(isinstance(v, torch.fx.Proxy) for v in model.cache.values())
+
+
+def test_rebuild_check_levels_and_helpers():
+    import numpy as np
+
+    net = nn.Sequential(
+        nn.Conv2d(3, 4, 3), nn.ReLU(), nn.AdaptiveAvgPool2d(1), nn.Flatten(), nn.Linear(4, 5)
+    )
+    res = paper_import.rebuild_check(net.eval(), "map", (3, 8, 8), classes=5)
+    assert res["level"] == "B" and res["max_abs_diff"] <= 1e-6, res
+
+    # weights copied by shape when the card names no layer (a card written by hand)
+    a = nn.Sequential(nn.Linear(4, 3), nn.Linear(3, 2))
+    b = nn.Sequential(nn.Linear(4, 3), nn.Linear(3, 2))
+    assert paper_import.copy_weights(a, b) == {"unmatched_official": [], "unmatched_card": []}
+    assert torch.equal(a[1].weight, b[1].weight)
+    c = nn.Sequential(nn.Linear(4, 3))
+    got = paper_import.copy_weights(a, c)
+    assert got["unmatched_official"] and not got["unmatched_card"]
+
+    assert paper_import._flow(np.array([1.5, 2.0])) == "[1.5, 2.0]"
+    ids = paper_import.example_input("ids", (7, 3), batch=4)
+    assert ids.shape == (4, 2) and int(ids[:, 0].max()) < 7
