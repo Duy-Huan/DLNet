@@ -6,6 +6,8 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-11-14
+
 - **Thư viện lớp cơ bản** (`dlnet/zoo/ops_prim.py`): gần đủ `torch.nn` và các phép tensor của torch thành nút của thẻ paper, mỗi nút bọc đúng lớp / hàm torch cùng tên với cùng tham số.
   - Lớp: conv và conv transpose với kernel / stride / padding / dilation riêng từng trục, `padding_mode`; BatchNorm / LayerNorm / GroupNorm / InstanceNorm / RMSNorm / LRN với eps, momentum, affine của tác giả; khoảng 25 activation (`activation fn: ...`) và PReLU; pooling max / avg / LP / adaptive với mọi tùy chọn; upsample; pixel (un)shuffle; channel shuffle; pad; embedding; LSTM / GRU / RNN.
   - Phép tensor: reshape (kể cả khi trục batch gộp với trục khác), permute, transpose, flatten, unflatten, squeeze / unsqueeze, slice, select, chọn theo danh sách chỉ số, chunk / split, reduce, phép toán với hằng, các hàm một biến, clamp, normalize, roll, flip, cumsum, fft, fill, repeat_interleave.
@@ -564,7 +566,8 @@ Bản đầu tiên: prototype chạy được từ dữ liệu đến Top-K base
 - Chưa có zero-cost proxy, cost model FLOPs/VRAM, Tensor-LoRA, deep unfolding; chưa có plugin image và timeseries.
 - Kết quả trên Indian Pines và Pavia University là một lần chạy ngắn trên CPU: với chia theo khối, mạng sâu chưa vượt rõ baseline cổ điển.
 
-[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v1.7.0...HEAD
+[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v1.8.0...HEAD
+[1.8.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.8.0
 [1.7.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.7.0
 [1.6.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.6.0
 [1.5.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.5.0
