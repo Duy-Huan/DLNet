@@ -376,3 +376,218 @@ def test_every_primitive_builds_trains_and_is_written_as_standalone_source(spec,
     if out.dtype.is_floating_point:
         out.sum().backward()
     assert standalone.verified_source(cfg)[1] == "identical"
+
+
+# ----------------------------------------------------------------------------- every mapping of the importer
+
+
+class LayersZoo(nn.Module):
+    """One of (almost) every torch.nn layer the importer maps, in a 2-d network."""
+
+    def __init__(self):
+        super().__init__()
+        self.c = nn.Conv2d(3, 8, 3, padding="same", bias=False)
+        self.cv = nn.Conv2d(8, 8, 3, padding="valid")
+        self.ct = nn.ConvTranspose2d(8, 8, 2, stride=2)
+        self.rms = nn.RMSNorm([8, 8], eps=1e-5)  # last two axes
+        self.lrn = nn.LocalResponseNorm(3)
+        self.acts = nn.Sequential(nn.ReLU6(), nn.SELU(), nn.CELU(0.7), nn.Hardsigmoid(), nn.Softsign(), nn.Tanhshrink(),
+                                  nn.LogSigmoid(), nn.Hardshrink(0.3), nn.Softshrink(0.2), nn.Threshold(0.1, -1.0),
+                                  nn.Hardtanh(-2.0, 2.0), nn.SiLU(), nn.Tanh(), nn.Sigmoid(), nn.Identity(), nn.Dropout2d(0.5))  # fmt: skip
+        self.prelu = nn.PReLU(8)
+        self.lp = nn.LPPool2d(2, 2)
+        self.amax = nn.AdaptiveMaxPool2d((3, 3))
+        self.up = nn.Upsample(size=(6, 6), mode="nearest")
+        self.pu = nn.PixelUnshuffle(2)
+        self.cs = nn.ChannelShuffle(4)
+        self.zp, self.rp, self.cp = (
+            nn.ZeroPad2d(1),
+            nn.ReflectionPad2d(1),
+            nn.ReplicationPad2d((1, 0, 1, 0)),
+        )
+        self.circ = nn.CircularPad2d(1)
+        self.flat = nn.Flatten(1, 2)
+        self.unflat = nn.Unflatten(1, (8, 8))
+        self.ap = nn.AvgPool2d(2, divisor_override=3)
+        self.fc = nn.Linear(32 * 2 * 2, 6)
+
+    def forward(self, x):  # (B, 3, 16, 16)
+        x = self.cv(self.c(x))  # 14
+        x = self.ct(x)[:, :, :8, :8]  # 28 -> 8
+        x = self.prelu(self.acts(self.lrn(self.rms(x))))
+        x = self.up(self.amax(self.lp(x)))  # 4 -> 3 -> 6
+        x = self.circ(self.cp(self.rp(self.zp(x))))  # 6 -> 8 -> 10 -> 11 -> 13
+        x = self.cs(self.pu(x[..., :12, :12]))  # (32, 6, 6)
+        x = self.ap(F.max_pool2d(x, 2, 1, 0, ceil_mode=True))  # 6 -> 6 -> 3
+        x = self.unflat(self.flat(x[:, :, :2, :2]))  # (32*2, 2) -> (8, 4, 2) ... flat 1..2
+        return self.fc(torch.flatten(x, 1))
+
+
+class FunctionsZoo(nn.Module):
+    """The functional forms: activations, arithmetic with constants, reductions, indexing, functional
+    layers with the module's own weights, chunk / split / unbind, where, maximum, cumsum, roll, flip."""
+
+    def __init__(self):
+        super().__init__()
+        self.w, self.b = nn.Parameter(torch.randn(12, 8)), nn.Parameter(torch.randn(12))
+        self.cw = nn.Parameter(torch.randn(8, 4, 3))
+        self.gn_w, self.gn_b = nn.Parameter(torch.randn(8)), nn.Parameter(torch.randn(8))
+        self.register_buffer("rm", torch.randn(8))
+        self.register_buffer("rv", torch.rand(8) + 0.5)
+        self.out = nn.Linear(60, 4)
+
+    def forward(self, x):  # (B, 4, 10)
+        y = F.conv1d(x, self.cw, None, 1, 1)  # (B, 8, 10)
+        y = F.batch_norm(y, self.rm, self.rv, self.gn_w, self.gn_b, False, 0.1, 1e-4)
+        y = F.group_norm(y, 2, self.gn_w, self.gn_b, 1e-5)
+        y = F.leaky_relu(y, 0.3) + F.elu(y, 0.5) - F.softplus(y, 2.0, 15.0) * 0.5
+        y = F.hardtanh(y, -1.5, 1.5) / 2.0 + 1.0
+        y = torch.clamp_min(y, -0.5) + torch.clamp_max(y, 0.5) + torch.clamp(y, max=0.2)
+        y = torch.exp(-y.abs()) + torch.sqrt(y.square() + 1.0) + F.glu(torch.cat([y, y], 1), dim=1)
+        z = y.permute(0, 2, 1)  # (B, 10, 8)
+        z = F.linear(z, self.w, self.b)  # (B, 10, 12)
+        a, b = z.chunk(2, dim=-1)
+        c, d = torch.split(z, [5, 7], dim=2)
+        u = torch.unbind(z, dim=1)[3]  # (B, 12)
+        m = torch.maximum(a, b) + torch.where(a > 0, a, b)
+        s = (
+            m.std(dim=1, keepdim=True)
+            + m.var(dim=1, keepdim=True, unbiased=False)
+            + m.amax(1, keepdim=True)
+        )
+        r = torch.roll(torch.flip(m.cumsum(1), [2]), 2, 1) + s
+        r = (
+            r
+            - torch.logsumexp(r, dim=2, keepdim=True)
+            + torch.linalg.vector_norm(r, dim=2, keepdim=True)
+        )
+        q = F.normalize(r, dim=-1)[:, :, None, :].squeeze(2).unsqueeze(1)[:, 0]  # (B, 10, 6)
+        q = (
+            q[:, ::2, [0, 2, 4]] + 2.0 ** c[:, ::2, :3].sigmoid() + (1.0 - d[:, ::2, :3])
+        )  # (B, 5, 3)
+        v = torch.cat(
+            [q.reshape(q.shape[0], -1), u, u.new_zeros(u.shape[0], 33)], 1
+        )  # 15 + 12 + 33
+        return self.out(torch.addcmul(v, v, v, value=0.1).repeat_interleave(1, dim=1))
+
+
+def test_every_layer_mapping(tmp_path):
+    card = roundtrip(LayersZoo(), (3, 16, 16), 6, tmp_path, tol=1e-5)
+    acts = [n["args"]["fn"] for n in card["architecture"] if n["module"] == "activation"]
+    assert {"relu6", "selu", "celu", "hardsigmoid", "threshold", "hardtanh", "hardshrink"} <= set(
+        acts
+    )
+
+
+def test_every_function_mapping(tmp_path):
+    model = FunctionsZoo().eval()
+    card = paper_import.card_of(model, "ser", (4, 10), 4)
+    mods = {n["module"] for n in card["architecture"]}
+    assert {"conv", "batch_norm", "group_norm", "linear", "chunk_part", "split_part", "select", "maximum", "where",
+            "reduce", "cumsum", "roll", "flip", "normalize", "index_axis", "fill", "scalar", "clamp", "unary"} <= mods  # fmt: skip
+    arch = paper.to_arch(card, 4)
+    mine = zoo.build_model(arch).eval()
+    assert not any(paper_import.copy_weights(model, mine, card).values())
+    x = torch.randn(3, 4, 10)
+    with torch.no_grad():
+        assert torch.allclose(model(x), mine(x), atol=1e-5, rtol=1e-5)
+
+
+@pytest.mark.parametrize(
+    "forward, match",
+    [
+        (lambda self, x: torch.stack([x, x]).sum(0).mean(), "every axis"),
+        (lambda self, x: x[0], "batch axis"),
+        (lambda self, x: F.softmax(x.flatten(1)), "without dim"),
+        (lambda self, x: (x, x), "several outputs"),
+        (lambda self, x: {"y": x}, "dict"),
+        (lambda self, x: x.sort(1)[1].float(), "indices"),
+        (lambda self, x: x[:, torch.tensor([0, 1])], "tensor"),
+    ],
+)
+def test_unsupported_patterns_are_named(forward, match):
+    class M(nn.Module):
+        pass
+
+    M.forward = forward
+    with pytest.raises(paper_import.ImportUnsupported, match=match):
+        paper_import.card_of(M(), "map", (3, 4, 4))
+
+
+def test_layers_without_card_equivalent_are_named():
+    class Odd(nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.e = nn.EmbeddingBag(10, 4)
+
+        def forward(self, x):
+            return x
+
+    for m, match in ((nn.Conv2d(3, 3, 2, padding="same"), "even kernel"), (nn.Softmax(dim=None), "None"),
+                     (nn.Embedding(5, 3, max_norm=1.0), "max_norm")):  # fmt: skip
+        with pytest.raises(paper_import.ImportUnsupported, match=match):
+            paper_import._module(m, "x", (2, 3, 8, 8))
+    with pytest.raises(paper_import.ImportUnsupported, match="no card equivalent"):
+        paper_import._module(nn.EmbeddingBag(10, 4), "e", (2, 3))
+
+
+class StaticZoo(nn.Module):
+    """Computations on the network's own tensors only, of every kind the static node writes."""
+
+    def __init__(self):
+        super().__init__()
+        self.table = nn.Parameter(torch.randn(9, 2))
+        self.register_buffer("idx", torch.tensor([0, 4, 8, 1, 3, 5]))
+        self.coords = nn.Parameter(torch.randn(1, 3, 4))
+        self.mlp = nn.Sequential(nn.Linear(4, 6), nn.GELU(), nn.Dropout(0.1), nn.Linear(6, 2))
+        self.scale = nn.Parameter(torch.randn(2, 1, 1))
+        self.fc = nn.Linear(12, 3)
+
+    def forward(self, x):  # (B, 2, 3, 2)
+        bias = self.table[self.idx].view(3, 2, 2).permute(2, 0, 1).contiguous()  # (2, 3, 2)
+        mlp = self.mlp(self.coords).transpose(1, 2).flatten(0, 1)[None]  # (1, 2, 3)
+        mlp = (
+            torch.clamp(mlp, max=4.0).sigmoid() * 16.0
+            + torch.exp(self.scale.clamp(max=2.0))[:, :, 0][None]
+        )
+        w = torch.softmax(torch.cat([mlp, mlp], 0).sum(0, keepdim=True), dim=-1).unsqueeze(
+            -1
+        )  # (1, 2, 3, 1)
+        w = (
+            w.expand(1, 2, 3, 2)
+            - torch.zeros_like(bias)[None]
+            + torch.stack([bias, bias]).mean(0)[None] / 2.0
+        )
+        return self.fc((x * w + bias).flatten(1))
+
+
+def test_static_computations(tmp_path):
+    card = roundtrip(StaticZoo(), (2, 3, 2), 3, tmp_path, tol=1e-5)
+    progs = [
+        s["op"]
+        for n in card["architecture"]
+        if n["module"] == "static"
+        for s in n["args"]["program"]
+    ]
+    assert {"index", "reshape", "permute", "layer", "transpose", "flatten", "clamp", "softmax", "cat", "stack",
+            "expand", "zeros_like", "mul"} <= set(progs), progs  # fmt: skip
+
+
+def test_static_expr_every_step():
+    from dlnet.zoo.ops_prim import StaticExpr, static_module
+
+    prog = [{"op": "item", "in": [0], "index": [[0, 2], "...", None]}, {"op": "squeeze", "in": [2], "axis": -1},
+            {"op": "transpose", "in": [3], "a": 0, "b": 1}, {"op": "flatten", "in": [4]},
+            {"op": "long", "in": [1]}, {"op": "float", "in": [6]}, {"op": "rdiv", "in": [7], "value": 1.0},
+            {"op": "rsub", "in": [8], "value": 2.0}, {"op": "pow", "in": [9], "value": 2.0},
+            {"op": "matmul", "in": [5, 5]}, {"op": "ones_like", "in": [11]}, {"op": "add", "in": [11, 12]},
+            {"op": "neg", "in": [13]}]  # fmt: skip
+    m = StaticExpr([{"shape": [3, 4]}, {"shape": [2], "learned": False, "value": [2.0, 4.0]}], prog)
+    y = m()
+    t = m.t0
+    x5 = t[0:2].transpose(0, 1).flatten()
+    assert torch.allclose(y, -(x5 @ x5 + 1))
+    with pytest.raises(ValueError, match="static step"):
+        static_module({"tensors": [{"shape": [1]}], "program": [{"op": "svd", "in": [0]}]})
+    with pytest.raises(ValueError, match="linear or activation"):
+        StaticExpr([{"shape": [1]}], [], [{"op": "conv"}])

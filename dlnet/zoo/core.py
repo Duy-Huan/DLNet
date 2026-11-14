@@ -319,6 +319,7 @@ def _graph(node, kind, dims):
     known = {"input": (-1, kind, tuple(dims))}
     mult = {"input": 1}  # batch of each node / batch of the input (window partition multiplies it)
     full = {}  # param node id -> its whole shape (with its leading broadcast axis)
+    pdtype = {}  # param node id -> dtype (an integer index table)
     mods, wiring = [], []
     prev = "input"
     for i, n in enumerate(node["nodes"]):
@@ -329,14 +330,30 @@ def _graph(node, kind, dims):
         how = body.get("op")
         if how == "static":  # a computation on the network's own tensors only (ops_prim.StaticExpr)
             m = static_module({k: v for k, v in body.items() if k != "op"})
+            srcs = n.get("from") or []
+            srcs = [srcs] if isinstance(srcs, str | int) else list(srcs)
+            bad = [str(s) for s in srcs if str(s) not in full]
+            if bad:
+                raise ValueError(
+                    f"graph node {nid!r}: a static node reads param / static nodes only, not {bad}"
+                )
             try:
                 with torch.no_grad():
-                    y = m()
-            except (RuntimeError, IndexError) as e:
+                    w = next(itertools.chain(m.parameters(), m.buffers()), None)
+                    dev = w.device if w is not None else "cpu"
+                    y = m(
+                        *[
+                            torch.zeros(
+                                full[str(s)], dtype=pdtype.get(str(s), torch.float32), device=dev
+                            )
+                            for s in srcs
+                        ]
+                    )
+            except (RuntimeError, IndexError, TypeError) as e:
                 raise ValueError(f"graph node {nid!r}: static program: {e}") from e
             shape = tuple(int(s) for s in y.shape)
             mods.append(m)
-            wiring.append(("param", []))
+            wiring.append(("merge", [known[str(s)][0] for s in srcs]) if srcs else ("param", []))
             known[nid], full[nid], mult[nid] = (i, "param", shape[1:]), shape, 1
             prev = nid
             continue
@@ -355,6 +372,7 @@ def _graph(node, kind, dims):
                 )
             )
             wiring.append(("param", []))
+            pdtype[nid] = getattr(torch, body.get("dtype", "float32"))
             known[nid], full[nid], mult[nid] = (i, "param", shape[1:]), shape, 1
             prev = nid
             continue
@@ -665,6 +683,7 @@ _MERGE_NAMES = (
     "static",
     "linear_fn",
     "conv_fn",
+    "compare",
 )
 
 

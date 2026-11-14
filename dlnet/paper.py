@@ -53,6 +53,7 @@ MERGES = (
     "einsum",
     "linear_fn",
     "conv_fn",
+    "compare",
 )  # nodes with several inputs (dlnet/zoo/ops_prim.py)
 TOP = {
     "paper",

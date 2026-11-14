@@ -381,8 +381,8 @@ def nodes_of(model: nn.Module, classes: int | None = None, x=None):
             args, ref = pending.pop(a.name)
             add(a, "param", [], args, ref=ref)
         elif a.name in static and a.op != "get_attr" and a.name not in done_static:
-            args, refs = _static_program(a, mods, vals, params, buffers)
-            add(a, "static", [], args, ref=refs)
+            args, refs, ins = _static_program(a, mods, vals, params, buffers, src)
+            add(a, "static", ins, args, ref=refs or None)
             done_static.add(a.name)
         return alias.get(a.name, a.name)
 
@@ -396,7 +396,9 @@ def nodes_of(model: nn.Module, classes: int | None = None, x=None):
     def add(n, module, sources, args=None, ref=None):
         node = {"id": getattr(n, "name", n), "module": module}
         prev = nodes[-1]["id"] if nodes else "input"
-        if module in ("param", "static"):
+        if module == "static" and sources:
+            node["from"] = sources
+        elif module in ("param", "static"):
             pass
         elif len(sources) > 1 or module in ("mha",):
             node["from"] = sources
@@ -463,12 +465,12 @@ def nodes_of(model: nn.Module, classes: int | None = None, x=None):
                 pending[n.name] = ({"shape": list(params[t].shape) or [1]}, t)
             elif t in buffers:
                 b = buffers[t]
-                if b.dtype not in (torch.float32, torch.float64, torch.float16, torch.bfloat16):
-                    alias[n.name] = (
-                        None  # an integer index table: only usable by the ops that read it
-                    )
-                    continue
-                pending[n.name] = ({"shape": list(b.shape) or [1], "learned": False}, t)
+                bargs = {"shape": list(b.shape) or [1], "learned": False}
+                if b.dtype != torch.float32:
+                    bargs["dtype"] = str(b.dtype).replace(
+                        "torch.", ""
+                    )  # e.g. an integer index table
+                pending[n.name] = (bargs, t)
             elif isinstance(
                 v, torch.Tensor
             ):  # a plain tensor attribute (not a weight): its values go into the card
@@ -615,6 +617,15 @@ def nodes_of(model: nn.Module, classes: int | None = None, x=None):
             scalar_or_merge(n, "pow", n.args[0], n.args[1], "rpow") if not (
                 is_t(n.args[0]) and is_t(n.args[1])
             ) else add(n, "pow2", [src(n.args[0]), src(n.args[1])])
+        elif f in ("gt", "lt", "ge", "le", "eq", "ne"):
+            a, b = n.args[:2]
+            if is_t(a) and is_t(b):
+                add(n, "compare", [src(a), src(b)], {"fn": f})
+            elif is_t(a):
+                add(n, "scalar", [src(a)], {"fn": f, "value": _num(b)})
+            else:  # constant < x  ==  x > constant
+                flip = {"gt": "lt", "lt": "gt", "ge": "le", "le": "ge", "eq": "eq", "ne": "ne"}[f]
+                add(n, "scalar", [src(b)], {"fn": flip, "value": _num(a)})
         elif f in ("matmul", "bmm"):
             add(n, "matmul", [src(n.args[0]), src(n.args[1])])
         elif f in ("cat", "concat", "concatenate") and len(n.args[0]) == 1:
@@ -783,7 +794,9 @@ def nodes_of(model: nn.Module, classes: int | None = None, x=None):
                     add(n, "squeeze", [src(n.args[0])], {"axis": d})
                 else:
                     alias[n.name] = src(n.args[0])
-        elif f in ("norm", "vector_norm") and _arg(n, 1, "p" if f == "norm" else "ord", 2) in (
+        elif f in ("norm", "vector_norm", "linalg_vector_norm") and _arg(
+            n, 1, "p" if f == "norm" else "ord", 2
+        ) in (
             2,
             2.0,
             "fro",
@@ -1022,7 +1035,7 @@ def _static_nodes(graph) -> set:
     return out
 
 
-def _static_program(node, mods, vals, params, buffers):
+def _static_program(node, mods, vals, params, buffers, src_fn):
     """The `static` card node (ops_prim.StaticExpr) computing `node` from the network's tensors."""
     order, seen = [], set()
 
@@ -1035,29 +1048,34 @@ def _static_program(node, mods, vals, params, buffers):
 
     visit(node)
     attrs = [n for n in order if n.op == "get_attr"]
-    learned = [n for n in attrs if n.target in params]
-    consts = [n for n in attrs if n.target in buffers]
+    weights = [
+        n for n in attrs if n.target in params or n.target in buffers
+    ]  # read as graph inputs (shared)
     inline = [
         n for n in attrs if n.target not in params and n.target not in buffers
     ]  # plain tensor attributes
-    pos, tensors, refs = {}, [], []
-    for n in learned + consts + inline:
-        t = params.get(n.target, buffers.get(n.target, vals.get(n.name)))
+    pos, tensors, inputs = {}, [], []
+    for n in weights:
+        pos[n.name] = len(inputs)
+        inputs.append(src_fn(n))
+    for n in inline:
+        t = vals.get(n.name)
         if not isinstance(t, torch.Tensor):
             raise ImportUnsupported(f"{n.target}: a constant that is not a tensor")
-        pos[n.name] = len(tensors)
-        entry = {"shape": list(t.shape), "learned": n.target in params}
+        if t.numel() > INLINE_MAX:
+            raise ImportUnsupported(
+                f"{n.target}: a constant tensor of {t.numel():,} values is not a parameter or buffer"
+            )
+        pos[n.name] = len(inputs) + len(tensors)
+        entry = {
+            "shape": list(t.shape),
+            "learned": False,
+            "value": t.tolist(),
+        }  # written into the card
         if t.dtype != torch.float32:
             entry["dtype"] = str(t.dtype).replace("torch.", "")
-        if n in inline:
-            if t.numel() > INLINE_MAX:
-                raise ImportUnsupported(
-                    f"{n.target}: a constant tensor of {t.numel():,} values is not a parameter or buffer"
-                )
-            entry["value"] = t.tolist()  # written into the card: not a weight of the model
-        else:
-            refs.append(n.target)
         tensors.append(entry)
+    base = len(inputs) + len(tensors)
     program, layers, layer_refs = [], [], []
 
     def ref_of(a):
@@ -1065,7 +1083,7 @@ def _static_program(node, mods, vals, params, buffers):
 
     def step(n, op_, ins, **kw):
         program.append({"op": op_, "in": [ref_of(a) for a in ins], **kw})
-        pos[n.name] = len(tensors) + len(program) - 1
+        pos[n.name] = base + len(program) - 1
 
     for n in order:
         if n.op == "get_attr":
@@ -1114,11 +1132,9 @@ def _static_program(node, mods, vals, params, buffers):
             nn_ = int(window[0]) * int(window[1])
             step(n, "index", [table, index])
             program.append({"op": "reshape", "in": [pos[n.name]], "shape": [nn_, nn_, -1]})
-            program.append(
-                {"op": "permute", "in": [len(tensors) + len(program) - 1], "order": [2, 0, 1]}
-            )
-            program.append({"op": "unsqueeze", "in": [len(tensors) + len(program) - 1], "axis": 0})
-            pos[n.name] = len(tensors) + len(program) - 1
+            program.append({"op": "permute", "in": [base + len(program) - 1], "order": [2, 0, 1]})
+            program.append({"op": "unsqueeze", "in": [base + len(program) - 1], "axis": 0})
+            pos[n.name] = base + len(program) - 1
         elif f in ("view", "reshape"):
             step(n, "reshape", [a0], shape=list(v.shape))
         elif f == "permute":
@@ -1191,15 +1207,21 @@ def _static_program(node, mods, vals, params, buffers):
             )
         elif f in ("zeros_like", "ones_like"):
             step(n, f, [a0])
+        elif f in ("sum", "mean", "amax", "amin") and _arg(n, 1, "dim") is not None:
+            d = _arg(n, 1, "dim")
+            step(n, "reduce", [a0], fn=f, dim=[int(d)] if isinstance(d, int) else [int(x) for x in d],
+                 keepdim=bool(_arg(n, 2, "keepdim", False)))  # fmt: skip
         else:
             raise ImportUnsupported(
                 f"{n.name}: operation {f!r} on the weights has no static equivalent"
             )
-    if pos[node.name] != len(tensors) + len(program) - 1:
+    if pos[node.name] != base + len(program) - 1:
         program.append({"op": "contiguous", "in": [pos[node.name]]})
-    return {"tensors": tensors, "program": program} | (
-        {"layers": layers} if layers else {}
-    ), refs + layer_refs
+    return (
+        {"tensors": tensors, "program": program} | ({"layers": layers} if layers else {}),
+        layer_refs,
+        inputs,
+    )
 
 
 def _getitem_tuple(n, base, idx, tuples, mods, vals, add, src, axis, shape):

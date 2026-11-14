@@ -183,6 +183,8 @@ class Scalar(nn.Module):
             return torch.clamp(x, max=v)
         if f == "fmod":
             return torch.fmod(x, v)
+        if f in ("gt", "lt", "ge", "le", "eq", "ne"):
+            return getattr(torch, f)(x, v)
         return torch.remainder(x, v)
 
 
@@ -661,6 +663,7 @@ SCALAR = {
     "div": lambda x, v: x / v, "rdiv": lambda x, v: v / x, "pow": lambda x, v: x**v, "rpow": lambda x, v: v**x,
     "floordiv": lambda x, v: torch.div(x, v, rounding_mode="floor"), "max": lambda x, v: torch.clamp(x, min=v),
     "min": lambda x, v: torch.clamp(x, max=v), "fmod": torch.fmod, "remainder": torch.remainder,
+    "gt": torch.gt, "lt": torch.lt, "ge": torch.ge, "le": torch.le, "eq": torch.eq, "ne": torch.ne,
 }  # fmt: skip
 
 
@@ -858,6 +861,7 @@ MERGE_FNS = {
     "complex": lambda xs, a: torch.complex(xs[0], xs[1]),
     "einsum": lambda xs, a: torch.einsum(a["equation"], *xs),
     "linear_fn": lambda xs, a: F.linear(xs[0], xs[1], xs[2] if len(xs) > 2 else None),
+    "compare": lambda xs, a: getattr(torch, a["fn"])(xs[0], xs[1]),
     "conv_fn": lambda xs, a: _conv_fn(xs, a),
 }  # fmt: skip
 
@@ -1031,8 +1035,10 @@ class StaticExpr(nn.Module):
             else:
                 raise ValueError(f"static layer {spec['op']!r}: linear or activation")
 
-    def forward(self, x=None):
-        vals = [getattr(self, f"t{i}") for i in range(self.n)]
+    def forward(self, *inputs):
+        # inputs: the param / static nodes it reads (the network's weights, shared with other nodes);
+        # then its own constants; then one value per step
+        vals = [*inputs, *(getattr(self, f"t{i}") for i in range(self.n))]
         for s in self.program:
             a = [vals[i] for i in s["in"]]
             o = s["op"]
@@ -1068,6 +1074,8 @@ class StaticExpr(nn.Module):
                 y = torch.cat(a, s.get("dim", 0))
             elif o == "stack":
                 y = torch.stack(a, s.get("dim", 0))
+            elif o == "reduce":
+                y = getattr(a[0], s["fn"])(s["dim"], keepdim=bool(s.get("keepdim", False)))
             elif o == "zeros_like":
                 y = torch.zeros_like(a[0])
             elif o == "ones_like":
@@ -1081,7 +1089,7 @@ class StaticExpr(nn.Module):
 def static_module(args):
     for s in args["program"]:
         known = {"index", "item", "reshape", "permute", "transpose", "unsqueeze", "squeeze", "flatten", "expand",
-                 "clamp", "softmax", "layer", "cat", "stack", "zeros_like", "ones_like", *STATIC_BINARY, *STATIC_UNARY}  # fmt: skip
+                 "clamp", "softmax", "layer", "cat", "stack", "reduce", "zeros_like", "ones_like", *STATIC_BINARY, *STATIC_UNARY}  # fmt: skip
         if s.get("op") not in known:
             raise ValueError(f"static step {s.get('op')!r}; one of {sorted(known)}")
     return StaticExpr(args["tensors"], args["program"], args.get("layers") or ())
