@@ -6,6 +6,16 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+- **`dlnet paper import` dựng lại được nhiều mạng hơn**:
+  - dò theo giá trị thật khi `torch.fx` thường thất bại: `if` / `len` / `int` trên kích thước, đối số `mask=None` giữ mặc định, tensor mô hình tự lưu trong forward (ConViT, CrossViT, NFNet, EfficientViT, MobileViT, TinyViT, Hiera, VGG của timm, ...);
+  - mọi thứ chỉ tính từ kích thước, hằng và buffer được ghi thành hằng (lưới tọa độ, mặt nạ);
+  - phép tính trên trọng số thêm: tile / repeat, repeat_interleave, pad, interpolate, chunk / split / unbind, chuẩn hóa trọng số (NF-Net), lớp conv;
+  - lớp cơ bản mới `unfold_axis`, `im2col`, `col2im` (`Tensor.unfold`, `F.unfold` / `F.fold`, `nn.Unfold` / `nn.Fold`; HaloNet, TNT, VOLO). Kho có 210 module;
+  - `x.mul_(g)` rồi đọc lại `x`; `stack(xs, 0).sum(0)`; query học được mở rộng theo batch rồi qua Linear; tham số vô hướng.
+- Import tốn ít bộ nhớ hơn: Swin v2 ở 384 px từ 9,9 GB xuống 3,3 GB.
+- `rebuild_check` so đầu ra trên một kích thước batch khác lần import, nên hằng lỡ phụ thuộc batch bị phát hiện.
+- Sửa: head của đặc trưng `nd` chỉ có một trục lấy trung bình cả trục batch.
+
 ## [1.8.0] - 2026-11-14
 
 - **Thư viện lớp cơ bản** (`dlnet/zoo/ops_prim.py`): gần đủ `torch.nn` và các phép tensor của torch thành nút của thẻ paper, mỗi nút bọc đúng lớp / hàm torch cùng tên với cùng tham số.
