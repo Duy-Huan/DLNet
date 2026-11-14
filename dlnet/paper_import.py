@@ -313,7 +313,9 @@ class _ConcreteTracer(_Tracer):
         self.concrete = dict(concrete_args)
         # forward may cache tensors on the model (self.rel_indices = ...): a value computed from the
         # trace (a proxy) is taken back after; a real tensor stays, as after a first forward call
-        saved = [(m, dict(m.__dict__), dict(m._buffers), dict(m._parameters)) for m in root.modules()]
+        saved = [
+            (m, dict(m.__dict__), dict(m._buffers), dict(m._parameters)) for m in root.modules()
+        ]
         try:
             return super().trace(root, concrete_args)
         finally:
