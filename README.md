@@ -88,5 +88,7 @@ Ket qua: `dlnet_out/leaderboard.md` va `dlnet_out/top1_*/ ...` (moi goi doc lap:
 ## Phát triển
 Trước khi push: `python scripts/ci_local.py` chạy các cổng của CI trên máy (`--quick` vài giây, `--full` toàn bộ test). Cài hook một lần: `python scripts/ci_local.py --install`, từ đó mọi `git push` tự kiểm trước.
 
+Kiểm thử: **coverage 100 %** (từ v1.9.0; job CI `coverage` fail nếu dưới 100 %). Mỗi lỗi đã sửa có regression test (`pytest -m regression`). Vài dòng chỉ chạy được khi có GPU CUDA hoặc trên Windows được đánh dấu `# pragma: no cover` kèm lý do.
+
 ## Phiên bản
 Xem [CHANGELOG.md](CHANGELOG.md) và trang Releases (tag `vX.Y.Z`). Quy trình phát hành: `agent.md` §11.2.
