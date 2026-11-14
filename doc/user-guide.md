@@ -280,7 +280,9 @@ Importer còn xử lý được:
 - trục batch bị gộp rồi tách khi chia cửa sổ (Swin, DaViT);
 - `permute(2, 0, ...)` của qkv;
 - tensor time-major của LSTM;
-- hằng số lớn: lưu ra `<thẻ>.constants.npz` cạnh thẻ.
+- hằng số lớn: lưu ra `<thẻ>.constants.npz` cạnh thẻ;
+- (v1.8.1) `if` / `len` / `int` trên kích thước trong forward: khi `torch.fx` thường không dò được, importer dò lại và chạy từng phép trên dữ liệu thật, nên nhánh rẽ theo kích thước đi theo giá trị của lần chạy (thẻ viết cho một kích thước đầu vào);
+- (v1.8.1) cửa sổ trượt (`unfold` / `fold`), phép tại chỗ (`x.mul_(g)`), chuẩn hóa trọng số.
 
 Mỗi nút ghi tên lớp gốc (`ref`), nên `paper verify` chép trọng số **theo tên lớp** chứ không đoán theo thứ tự.
 
@@ -289,8 +291,8 @@ Mỗi nút ghi tên lớp gốc (`ref`), nên `paper verify` chép trọng số 
 - timm: mẫu cố định 200 mạng, 115/163 mạng đo được trùng từng bit (71 %). Chi tiết ở `agent.md` §16.8.
 
 Gặp phép toán không có tương đương thì dừng và nêu tên chỗ đó: khi ấy viết khối đó bằng một module của kho, hoặc dùng thẻ mức A. Hai giới hạn còn lại:
-- `torch.fx` không dò được mô hình có rẽ nhánh theo dữ liệu (CrossViT, ConViT, NFNet, EfficientViT): dùng thẻ mức A;
-- cũng dùng thẻ mức A cho mô hình trả về nhiều đầu ra, hoặc dùng phép như `~mask`.
+- mô hình trộn các mẫu trong batch (CSATv2 của timm: `q @ k.T` trên tensor (B, N)) hoặc trọng số theo từng mẫu (CondConv) không viết được thành thẻ theo từng mẫu: dùng thẻ mức A;
+- cũng dùng thẻ mức A cho mô hình trả về nhiều đầu ra.
 
 Nháp chỉ là giả thuyết; `paper verify` mới là bằng chứng.
 

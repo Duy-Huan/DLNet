@@ -343,6 +343,9 @@ PRIM = [
         (8, 8, 6),
     ),
     ({"op": "window_attention", "heads": 2, "window": [4, 4], "shift": [0, 0]}, "nd", (8, 8, 6)),
+    ({"op": "unfold_axis", "axis": 2, "size": 3, "step": 2}, *M),
+    ({"op": "im2col", "k": 3, "pad": 1, "s": 2}, *M),
+    ({"op": "col2im", "size": [8, 8], "k": 3, "pad": 1, "s": 2}, "nd", (54, 16)),
 ]
 
 
@@ -589,5 +592,218 @@ def test_static_expr_every_step():
     assert torch.allclose(y, -(x5 @ x5 + 1))
     with pytest.raises(ValueError, match="static step"):
         static_module({"tensors": [{"shape": [1]}], "program": [{"op": "svd", "in": [0]}]})
-    with pytest.raises(ValueError, match="linear or activation"):
-        StaticExpr([{"shape": [1]}], [], [{"op": "conv"}])
+    with pytest.raises(ValueError, match="linear, conv or activation"):
+        StaticExpr([{"shape": [1]}], [], [{"op": "lstm"}])
+
+
+class SlidingZoo(nn.Module):
+    """v1.8.1: sliding windows (Tensor.unfold, F.unfold / F.fold, nn.Unfold / nn.Fold), stack(xs, 0).sum(0),
+    constants made from sizes (a grid from the input's shape) and computations on the weights with
+    repeat / tile / pad / interpolate / chunk / a conv layer / batch statistics (weight
+    standardisation, NF-Nets)."""
+
+    def __init__(self):
+        super().__init__()
+        self.w = nn.Parameter(torch.randn(6, 6, 3, 3))
+        self.gain = nn.Parameter(torch.rand(6, 1, 1, 1) + 0.5)
+        self.pos = nn.Parameter(torch.randn(1, 6, 2, 2))
+        self.pe = nn.Conv2d(4, 6, 1)
+        self.unf, self.fold = nn.Unfold(2, stride=2), nn.Fold((8, 8), 2, stride=2)
+        self.fc = nn.Linear(6 * 4 * 4 * 2, 3)
+
+    def forward(self, x):  # (B, 6, 8, 8)
+        _, _, h, w = x.shape
+        ws = F.batch_norm(self.w.reshape(1, 6, -1), None, None, weight=None, bias=None, training=True,
+                          momentum=0.0, eps=1e-5).reshape_as(self.w) * self.gain  # fmt: skip
+        x = F.conv2d(x, ws, padding=1)
+        ys, xs = torch.meshgrid(torch.arange(h, dtype=torch.float32), torch.arange(w, dtype=torch.float32),
+                                indexing="ij")  # fmt: skip
+        grid = torch.stack([ys, xs, ys * 0 + 1, xs / w]).unsqueeze(
+            0
+        )  # (1, 4, H, W) from sizes only
+        pos = F.interpolate(self.pos, size=(h, w), mode="bilinear", align_corners=False)
+        pos = pos + self.pos.tile(1, 1, h // 2, w // 2) + self.pe(grid)
+        pa, pb = pos.chunk(2, dim=1)
+        pos = torch.cat([pa, pb.repeat(1, 1, 1, 1)], 1) + F.pad(self.pos, (3, 3, 3, 3))
+        x = x + pos
+        cols = F.unfold(x, 3, padding=1, stride=2)  # (B, 54, 16)
+        x = F.fold(cols, (8, 8), 3, padding=1, stride=2) + self.fold(self.unf(x))
+        win = x.unfold(2, 2, 2).unfold(3, 2, 2).mean((-1, -2))  # (B, 6, 4, 4)
+        y = torch.stack([win, win * 2.0, -win], 0).sum(0)
+        return self.fc(torch.cat([y, win], 1).flatten(1))
+
+
+def test_sliding_windows_and_size_constants(tmp_path):
+    card = roundtrip(SlidingZoo(), (6, 8, 8), 3, tmp_path, tol=1e-5)
+    mods = {n["module"] for n in card["architecture"]}
+    assert {"unfold_axis", "im2col", "col2im", "static"} <= mods, mods
+    progs = {
+        s["op"]
+        for n in card["architecture"]
+        if n["module"] == "static"
+        for s in n["args"]["program"]
+    }
+    assert {"batch_norm", "tile", "pad", "interpolate", "chunk", "layer"} <= progs, progs
+    consts = [t["shape"] for n in card["architecture"] if n["module"] == "static" for t in n["args"]["tensors"]
+              if "value" in t or "npz" in t]  # fmt: skip
+    assert [1, 4, 8, 8] in consts, consts  # the grid made from sizes: a constant read by the conv
+
+
+def test_static_expr_new_steps():
+    from dlnet.zoo.ops_prim import StaticExpr
+
+    t = torch.randn(2, 3, 4, 4)
+    prog = [{"op": "split", "in": [0], "size": [1, 2], "dim": 1}, {"op": "item", "in": [1], "index": [1]},
+            {"op": "unbind", "in": [2], "dim": 1}, {"op": "item", "in": [3], "index": [0]},
+            {"op": "repeat_interleave", "in": [4], "repeats": 2, "dim": 0},
+            {"op": "batch_norm", "in": [5, 0], "affine": [False, False]}]  # fmt: skip
+    m = StaticExpr([{"shape": [2, 3, 4, 4], "learned": False, "value": t.tolist()}], prog)
+    want = t[:, 1:3][:, 0].repeat_interleave(2, 0)
+    want = F.batch_norm(want, None, None, training=True, momentum=0.0)
+    assert torch.allclose(m(), want, atol=1e-6)
+    sf = StaticExpr(
+        [{"shape": [1, 1, 2, 2], "learned": False, "value": [[[[1.0, 2.0], [3.0, 4.0]]]]}],
+        [{"op": "interpolate", "in": [0], "size": [4, 4], "scale_factor": 2.0, "mode": "nearest"}],
+    )
+    assert sf().shape == (1, 1, 4, 4)
+    conv = StaticExpr(
+        [{"shape": [1, 2, 5]}],
+        [{"op": "layer", "in": [0], "layer": 0}],
+        [{"op": "conv", "dims": 1, "in": 2, "out": 3, "kernel": [3], "padding": "same"}],
+    )
+    assert conv().shape == (1, 3, 5)
+
+
+def test_batch_mixing_is_refused():
+    """q @ k.transpose(-1, -2) on (B, N) tensors mixes the samples of a batch: not a per-sample card."""
+
+    class Mix(nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.fc = nn.Linear(4, 4)
+
+        def forward(self, x):
+            q = self.fc(x)
+            return (q @ q.transpose(-1, -2)).softmax(-1) @ q
+
+    with pytest.raises(paper_import.ImportUnsupported):
+        paper_import.card_of(Mix().eval(), "nd", (4,), None)
+
+
+class ControlFlowZoo(nn.Module):
+    """v1.8.1: Python control flow on sizes (if / len / int / range), a None argument with a default,
+    a tensor cached on the model in forward, in-place ops whose input is read again (x.mul_(g)),
+    a scalar parameter, and a learned query expanded to the batch and given to a Linear."""
+
+    def __init__(self):
+        super().__init__()
+        self.proj = nn.Linear(6, 6)
+        self.gain = nn.Parameter(torch.tensor(0.7))
+        self.query = nn.Parameter(torch.randn(1, 2, 6))
+        self.q = nn.Linear(6, 6)
+        self.register_buffer("cache", torch.zeros(1), persistent=False)
+        self.fc = nn.Linear(8 * 6, 3)
+
+    def forward(self, x, mask=None):  # (B, 4, 6)
+        b, n, _ = x.shape
+        if mask is not None:
+            x = x * mask
+        if n % 2 == 0:  # control flow on a size: plain torch.fx cannot follow it
+            x = torch.cat([x, x[:, : int(n / 2)]], 1)
+        steps = len(x[0])
+        if self.cache.shape[0] != steps:
+            self.cache = torch.arange(steps, dtype=torch.float32)[None, :, None] / steps
+        out = self.proj(x + self.cache)
+        out.mul_(self.gain)  # in place: `out` below is the scaled value
+        y = out * 0.5 + x
+        q = self.q(self.query.expand(b, -1, -1))
+        return self.fc(torch.cat([y, q], 1).flatten(1))
+
+
+def test_control_flow_in_place_and_cached_state(tmp_path):
+    model = ControlFlowZoo().eval()
+    with pytest.raises(Exception):  # noqa: B017  plain torch.fx cannot trace it
+        paper_import._Tracer().trace(model)
+    card = roundtrip(model, (4, 6), 3, tmp_path, tol=1e-5)
+    # a tensor forward caches on the model is kept (as after a first call), never a trace proxy
+    assert isinstance(model.cache, torch.Tensor) and not isinstance(model.cache, torch.fx.Proxy)
+    assert model.cache.shape == (1, 6, 1)
+    assert any(n["module"] == "fill" for n in card["architecture"])  # the query made batch-sized
+
+
+def test_copy_weights_scalar_parameter():
+    class Scalar(nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.g = nn.Parameter(torch.tensor(2.5))
+            self.fc = nn.Linear(4, 2)
+
+        def forward(self, x):
+            return self.fc(x * self.g)
+
+    roundtrip(Scalar(), (4,), 2)
+
+
+def test_cache_dict_filled_during_tracing_is_cleaned():
+    """EfficientViT keeps attention biases in a dict filled in forward: no trace proxy may stay there."""
+
+    class Cached(nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.bias = nn.Parameter(torch.randn(4))
+            self.cache = {}
+            self.fc = nn.Linear(4, 2)
+
+        def forward(self, x):
+            if x.shape[1] == 4:  # control flow on a size
+                if "b" not in self.cache:
+                    self.cache["b"] = self.bias * 2.0
+                x = x + self.cache["b"]
+            return self.fc(x)
+
+    model = Cached().eval()
+    roundtrip(model, (4,), 2)
+    assert not any(isinstance(v, torch.fx.Proxy) for v in model.cache.values())
+
+
+def test_rebuild_check_levels_and_helpers():
+    import numpy as np
+
+    net = nn.Sequential(
+        nn.Conv2d(3, 4, 3), nn.ReLU(), nn.AdaptiveAvgPool2d(1), nn.Flatten(), nn.Linear(4, 5)
+    )
+    res = paper_import.rebuild_check(net.eval(), "map", (3, 8, 8), classes=5)
+    assert res["level"] == "B" and res["max_abs_diff"] <= 1e-6, res
+
+    # weights copied by shape when the card names no layer (a card written by hand)
+    a = nn.Sequential(nn.Linear(4, 3), nn.Linear(3, 2))
+    b = nn.Sequential(nn.Linear(4, 3), nn.Linear(3, 2))
+    assert paper_import.copy_weights(a, b) == {"unmatched_official": [], "unmatched_card": []}
+    assert torch.equal(a[1].weight, b[1].weight)
+    c = nn.Sequential(nn.Linear(4, 3))
+    got = paper_import.copy_weights(a, c)
+    assert got["unmatched_official"] and not got["unmatched_card"]
+
+    assert paper_import._flow(np.array([1.5, 2.0])) == "[1.5, 2.0]"
+    ids = paper_import.example_input("ids", (7, 3), batch=4)
+    assert ids.shape == (4, 2) and int(ids[:, 0].max()) < 7
+
+
+def test_weights_repeated_to_the_batch_and_functional_rms_norm(tmp_path):
+    """XCiT: pos.repeat(B, 1, 1, 2) on a computed position encoding; F.rms_norm with a weight."""
+
+    class Rep(nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.pos = nn.Parameter(torch.randn(1, 3, 2))
+            self.w = nn.Parameter(torch.rand(4) + 0.5)
+            self.fc = nn.Linear(4, 4)
+
+        def forward(self, x):  # (B, 3, 4)
+            p = self.pos.repeat(x.shape[0], 1, 2)
+            y = self.fc(p) + x  # a Linear reads the batch-sized tensor
+            return F.rms_norm(y, (4,), self.w, 1e-6)
+
+    card = roundtrip(Rep(), (3, 4), None, tmp_path)
+    mods = [n["module"] for n in card["architecture"]]
+    assert "fill" in mods and "rms_norm" in mods, mods

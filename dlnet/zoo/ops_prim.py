@@ -987,6 +987,10 @@ def _idx(spec, vals=()):
     return tuple(out)
 
 
+def _tup(v):
+    return tuple(int(x) for x in v) if isinstance(v, tuple | list) else int(v)
+
+
 class StaticExpr(nn.Module):
     """A computation on the network's own tensors only (no input): e.g. a relative position bias
     gathered from a learned table with a constant index, or Swin v2's bias MLP. `tensors` are the
@@ -1001,6 +1005,9 @@ class StaticExpr(nn.Module):
         {"op": "sigmoid", "in": [4]}                      exp, sigmoid, log, sign, abs, sqrt, ...
         {"op": "clamp", "in": [4], "min": null, "max": 4.6}   softmax {"dim"}
         {"op": "linear", "in": [4], "layer": 0}           the layer `layers[0]` (linear / activation)
+        {"op": "tile", "in": [0], "reps": [1, 2]}         Tensor.repeat; repeat_interleave {"repeats", "dim"};
+        chunk {"chunks", "dim"} / split {"size", "dim"} / unbind {"dim"} (parts read with item [i]);
+        pad {"pad", "value"}; interpolate {"size", "mode", "align_corners"}; batch_norm {"eps", "affine": [has weight, has bias]} (batch statistics)
 
     The value of the last step is the node's output."""
 
@@ -1032,8 +1039,15 @@ class StaticExpr(nn.Module):
                 )
             elif spec["op"] == "activation":
                 self.layers.append(ACT[spec["fn"]](spec.get("a"), spec.get("b")))
+            elif spec["op"] == "conv":
+                conv = {1: nn.Conv1d, 2: nn.Conv2d, 3: nn.Conv3d}[int(spec.get("dims", 2))]
+                pad = spec.get("padding", 0)
+                self.layers.append(conv(int(spec["in"]), int(spec["out"]), _tup(spec["kernel"]),
+                                        stride=_tup(spec.get("stride", 1)), dilation=_tup(spec.get("dilation", 1)),
+                                        padding=pad if isinstance(pad, str) else _tup(pad),
+                                        groups=int(spec.get("groups", 1)), bias=bool(spec.get("bias", True))))  # fmt: skip
             else:
-                raise ValueError(f"static layer {spec['op']!r}: linear or activation")
+                raise ValueError(f"static layer {spec['op']!r}: linear, conv or activation")
 
     def forward(self, *inputs):
         # inputs: the param / static nodes it reads (the network's weights, shared with other nodes);
@@ -1045,7 +1059,14 @@ class StaticExpr(nn.Module):
             if o == "index":
                 y = a[0][a[1]]
             elif o == "item":
-                y = a[0][_idx(s["index"], a)]
+                ix = _idx(s["index"], a)
+                y = a[0][ix[0]] if isinstance(a[0], tuple | list) else a[0][ix]  # a tuple: one part
+            elif o == "chunk":
+                y = torch.chunk(a[0], int(s["chunks"]), int(s.get("dim", 0)))
+            elif o == "split":
+                y = torch.split(a[0], s["size"], int(s.get("dim", 0)))
+            elif o == "unbind":
+                y = torch.unbind(a[0], int(s.get("dim", 0)))
             elif o == "reshape":
                 y = a[0].reshape(*s["shape"])
             elif o == "permute":
@@ -1076,6 +1097,35 @@ class StaticExpr(nn.Module):
                 y = torch.stack(a, s.get("dim", 0))
             elif o == "reduce":
                 y = getattr(a[0], s["fn"])(s["dim"], keepdim=bool(s.get("keepdim", False)))
+            elif o == "tile":
+                y = a[0].repeat(*s["reps"])
+            elif o == "repeat_interleave":
+                y = a[0].repeat_interleave(int(s["repeats"]), int(s["dim"]))
+            elif (
+                o == "interpolate"
+            ):  # the size of the import run (or its scale factor, as the original computed it)
+                sf = s.get("scale_factor")
+                y = F.interpolate(a[0], size=None if sf is not None else list(s["size"]), scale_factor=sf,
+                                  mode=s.get("mode", "nearest"), align_corners=s.get("align_corners"),
+                                  antialias=bool(s.get("antialias", False)))  # fmt: skip
+            elif o == "pad":
+                y = F.pad(a[0], list(s["pad"]), value=float(s.get("value", 0.0)))
+            elif (
+                o == "batch_norm"
+            ):  # batch statistics over axis 1 (weight standardisation, NF-Nets)
+                has = list(s.get("affine", [len(a) > 1, len(a) > 2]))
+                wb = iter(a[1:])
+                w, b = (next(wb) if has[0] else None), (next(wb) if has[1] else None)
+                y = F.batch_norm(
+                    a[0],
+                    None,
+                    None,
+                    w,
+                    b,
+                    training=True,
+                    momentum=0.0,
+                    eps=float(s.get("eps", 1e-5)),
+                )
             elif o == "zeros_like":
                 y = torch.zeros_like(a[0])
             elif o == "ones_like":
@@ -1089,7 +1139,61 @@ class StaticExpr(nn.Module):
 def static_module(args):
     for s in args["program"]:
         known = {"index", "item", "reshape", "permute", "transpose", "unsqueeze", "squeeze", "flatten", "expand",
-                 "clamp", "softmax", "layer", "cat", "stack", "reduce", "zeros_like", "ones_like", *STATIC_BINARY, *STATIC_UNARY}  # fmt: skip
+                 "clamp", "softmax", "layer", "cat", "stack", "reduce", "zeros_like", "ones_like", "tile",
+                 "repeat_interleave", "pad", "batch_norm", "interpolate", "chunk", "split", "unbind", *STATIC_BINARY, *STATIC_UNARY}  # fmt: skip
         if s.get("op") not in known:
             raise ValueError(f"static step {s.get('op')!r}; one of {sorted(known)}")
     return StaticExpr(args["tensors"], args["program"], args.get("layers") or ())
+
+
+# ----------------------------------------------------------------------------- sliding windows (v1.8.1)
+
+
+class UnfoldAxis(nn.Module):
+    """Tensor.unfold: windows of `size` every `step` along `axis`, as a new last axis."""
+
+    def __init__(self, axis, size, step):
+        super().__init__()
+        self.axis, self.size, self.step = int(axis), int(size), int(step)
+
+    def forward(self, x):
+        return x.unfold(self.axis, self.size, self.step)
+
+    def extra_repr(self):
+        return f"axis={self.axis}, size={self.size}, step={self.step}"
+
+
+@op("unfold_axis", KINDS, "nd", space={"axis": [2], "size": [2], "step": [1]}, tags=P,
+    source="torch.Tensor.unfold (HaloNet's halo windows)")  # fmt: skip
+def _unfold_axis(dims, kind, axis, size, step):
+    """Sliding windows along one axis (not the batch): (..., L, ...) -> (..., n, ..., size)."""
+    ax = _norm_axis(axis, len(dims) + 1)
+    if ax == 0:
+        raise ValueError("unfold_axis cannot slide over the batch axis")
+    if not 0 < int(size) <= dims[ax - 1] or int(step) < 1:
+        raise ValueError(f"unfold_axis: window {size} step {step} on an axis of {dims[ax - 1]}")
+    return UnfoldAxis(ax, size, step)
+
+
+@op("im2col", KINDS, "nd", space={"k": [3], "dilation": [1], "pad": [0], "s": [1]}, tags=P,
+    source="torch.nn.functional.unfold (TNT, VOLO outlook attention)")  # fmt: skip
+def _im2col(dims, kind, k, dilation, pad, s):
+    """(C, H, W) -> (C*kh*kw, L): every k x k patch as a column."""
+    if len(dims) != 3:
+        raise ValueError(f"im2col takes a (C, H, W) map, got {tuple(dims)}")
+    return Fn("im2col", F.unfold, kernel_size=_pair(k), dilation=_pair(dilation), padding=_pair(pad),
+              stride=_pair(s))  # fmt: skip
+
+
+@op("col2im", KINDS, "map", space={"size": [[8, 8]], "k": [3], "dilation": [1], "pad": [0], "s": [1]}, tags=P,
+    source="torch.nn.functional.fold (VOLO outlook attention)")  # fmt: skip
+def _col2im(dims, kind, size, k, dilation, pad, s):
+    """(C*kh*kw, L) -> (C, H, W): columns summed back into an H x W map (the inverse layout of im2col)."""
+    if len(dims) != 2:
+        raise ValueError(f"col2im takes (C*kh*kw, L), got {tuple(dims)}")
+    return Fn("col2im", F.fold, output_size=_pair(size), kernel_size=_pair(k), dilation=_pair(dilation),
+              padding=_pair(pad), stride=_pair(s))  # fmt: skip
+
+
+def _pair(v):
+    return tuple(int(x) for x in v) if isinstance(v, tuple | list) else (int(v), int(v))

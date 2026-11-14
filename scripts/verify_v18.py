@@ -39,8 +39,6 @@ def perturb(m: nn.Module) -> None:
         for t in m.state_dict().values():
             if t.is_floating_point():
                 t.add_(torch.randn_like(t) * 0.1)
-            if t.dim() == 1 and t.is_floating_point() and (t < 0).any():
-                pass
         for mod in m.modules():
             if isinstance(mod, nn.BatchNorm2d):
                 mod.running_var.abs_().add_(0.5)
