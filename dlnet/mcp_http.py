@@ -329,9 +329,7 @@ class Handler(BaseHTTPRequestHandler):
             and ((one.get("params") or {}).get("_meta") or {}).get("progressToken") is not None
         )
         if streaming:
-            self._stream(
-                one, sid if not modern else object(), headers
-            )  # modern: a scope of its own
+            self._stream(one, sid if not modern else object())  # modern: a scope of its own
             return
         out = [r for r in (self.proto.handle(m, scope=sid) for m in msgs) if r is not None]
         if not out:  # every request was cancelled meanwhile
@@ -375,7 +373,7 @@ class Handler(BaseHTTPRequestHandler):
 
     # ------------------------------------------------------------------ SSE
 
-    def _stream(self, msg: dict, sid, headers: dict):
+    def _stream(self, msg: dict, sid):
         """Answer one tools/call as an SSE stream: priming event, progress notifications, keep-alive
         comments, the response; then the stream (and the connection) ends."""
         self.send_response(200)
@@ -383,8 +381,6 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-cache, no-store")
         self.send_header("Connection", "close")
         self.send_header("X-Accel-Buffering", "no")
-        for k, v in headers.items():
-            self.send_header(k, v)
         self.end_headers()
         self.close_connection = True
         lock, stream, n, alive = threading.Lock(), secrets.token_hex(6), [0], [True]
@@ -521,12 +517,14 @@ def make_server(svc: mcp_tools.Service, cfg: Config, certfile=None, keyfile=None
             f"refusing to listen on {cfg.host} without authentication: give --token / --token-file / "
             "DLNET_TOKEN (or --generate-token), or bind to 127.0.0.1"
         )
-    family_v6 = ":" in cfg.host
-    if family_v6:
+    cls = Server
+    if (
+        ":" in cfg.host
+    ):  # IPv6: a subclass, so the IPv4 servers made later in this process stay IPv4
         import socket
 
-        Server.address_family = socket.AF_INET6
-    httpd = Server((cfg.host, cfg.port), Handler)
+        cls = type("Server6", (Server,), {"address_family": socket.AF_INET6})
+    httpd = cls((cfg.host, cfg.port), Handler)
     httpd.cfg, httpd.proto, httpd.sessions = cfg, mcp_server.Protocol(svc), Sessions()
     scheme = "http"
     if certfile:
