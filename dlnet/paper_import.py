@@ -263,6 +263,35 @@ class _Tracer(torch.fx.Tracer):
         return is_leaf(m)
 
 
+class _no_proxies_left:
+    """Tracing runs forward, which may cache a value on the model (self.rel_indices = ...): a proxy
+    left there is taken back afterwards (a real tensor stays, as after a first forward call)."""
+
+    def __init__(self, root):
+        self.root = root
+
+    def __enter__(self):
+        self.saved = [
+            (m, dict(m.__dict__), dict(m._buffers), dict(m._parameters))
+            for m in self.root.modules()
+        ]
+        return self
+
+    def __exit__(self, *exc):
+        for m, *before in self.saved:
+            for now, old in zip((m.__dict__, m._buffers, m._parameters), before, strict=True):
+                for k in [k for k, v in now.items() if isinstance(v, torch.fx.Proxy)]:
+                    if k in old:
+                        now[k] = old[k]
+                    else:
+                        del now[k]
+            for v in m.__dict__.values():  # a cache dict (EfficientViT's attention_bias_cache)
+                if isinstance(v, dict) and not isinstance(v, nn.Module):
+                    for k in [k for k, x in v.items() if isinstance(x, torch.fx.Proxy)]:
+                        del v[k]
+        return False
+
+
 class _ConcreteProxy(torch.fx.Proxy):
     """A proxy that also knows its value in the import run: `if`, len(), int(), range() on sizes
     use that value (the card is written for one input size anyway)."""
@@ -313,20 +342,11 @@ class _ConcreteTracer(_Tracer):
         self.concrete = dict(concrete_args)
         # forward may cache tensors on the model (self.rel_indices = ...): a value computed from the
         # trace (a proxy) is taken back after; a real tensor stays, as after a first forward call
-        saved = [
-            (m, dict(m.__dict__), dict(m._buffers), dict(m._parameters)) for m in root.modules()
-        ]
         try:
-            return super().trace(root, concrete_args)
+            with _no_proxies_left(root):
+                return super().trace(root, concrete_args)
         finally:
             self.values.clear()
-            for m, *before in saved:
-                for now, old in zip((m.__dict__, m._buffers, m._parameters), before, strict=True):
-                    for k in [k for k, v in now.items() if isinstance(v, torch.fx.Proxy)]:
-                        if k in old:
-                            now[k] = old[k]
-                        else:
-                            del now[k]
 
     def proxy(self, node):
         return _ConcreteProxy(node, self)
@@ -496,7 +516,8 @@ def nodes_of(model: nn.Module, classes: int | None = None, x=None):
     if x is None:
         raise ImportUnsupported("an example input is needed to read the shapes")
     try:
-        gm = torch.fx.GraphModule(model, _Tracer().trace(model))
+        with _no_proxies_left(model):
+            gm = torch.fx.GraphModule(model, _Tracer().trace(model))
     except ImportUnsupported:
         raise
     except Exception as e:  # noqa: BLE001  control flow on sizes, len(), int(): follow the values of this run

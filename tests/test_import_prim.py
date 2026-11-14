@@ -742,3 +742,25 @@ def test_copy_weights_scalar_parameter():
             return self.fc(x * self.g)
 
     roundtrip(Scalar(), (4,), 2)
+
+
+def test_cache_dict_filled_during_tracing_is_cleaned():
+    """EfficientViT keeps attention biases in a dict filled in forward: no trace proxy may stay there."""
+
+    class Cached(nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.bias = nn.Parameter(torch.randn(4))
+            self.cache = {}
+            self.fc = nn.Linear(4, 2)
+
+        def forward(self, x):
+            if x.shape[1] == 4:  # control flow on a size
+                if "b" not in self.cache:
+                    self.cache["b"] = self.bias * 2.0
+                x = x + self.cache["b"]
+            return self.fc(x)
+
+    model = Cached().eval()
+    roundtrip(model, (4,), 2)
+    assert not any(isinstance(v, torch.fx.Proxy) for v in model.cache.values())
