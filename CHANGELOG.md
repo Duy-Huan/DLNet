@@ -6,6 +6,8 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+- Tài liệu: hướng dẫn Podman trong `doc/install.md` viết lại đầy đủ: cài Podman và `podman machine` (Windows / macOS, RAM ≥ 8 GB), lệnh gắn thư mục cho Linux / macOS / PowerShell / cmd, lệnh tắt `dlnet-c`, chạy nền, cập nhật bản mới, bảng lỗi thường gặp.
+
 ## [1.8.2] - 2026-11-14
 
 - Sửa: test e2e dự đoán từ CSV (tabular) huấn luyện 30 epoch thay vì 5. Với 5 epoch, độ chính xác trên một máy CI đúng bằng ngưỡng 0,6.
