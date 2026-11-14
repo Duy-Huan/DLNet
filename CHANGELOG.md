@@ -6,6 +6,8 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+## [1.8.1] - 2026-11-14
+
 - **`dlnet paper import` dựng lại được nhiều mạng hơn**:
   - dò theo giá trị thật khi `torch.fx` thường thất bại: `if` / `len` / `int` trên kích thước, đối số `mask=None` giữ mặc định, tensor mô hình tự lưu trong forward (ConViT, CrossViT, NFNet, EfficientViT, MobileViT, TinyViT, Hiera, VGG của timm, ...);
   - mọi thứ chỉ tính từ kích thước, hằng và buffer được ghi thành hằng (lưới tọa độ, mặt nạ);
@@ -577,7 +579,8 @@ Bản đầu tiên: prototype chạy được từ dữ liệu đến Top-K base
 - Chưa có zero-cost proxy, cost model FLOPs/VRAM, Tensor-LoRA, deep unfolding; chưa có plugin image và timeseries.
 - Kết quả trên Indian Pines và Pavia University là một lần chạy ngắn trên CPU: với chia theo khối, mạng sâu chưa vượt rõ baseline cổ điển.
 
-[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v1.8.0...HEAD
+[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v1.8.1...HEAD
+[1.8.1]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.8.1
 [1.8.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.8.0
 [1.7.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.7.0
 [1.6.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.6.0
