@@ -855,6 +855,30 @@ def nodes_of(model: nn.Module, classes: int | None = None, x=None):
                 )
                 add(n, "add", [z, src(n.args[0])])
             continue
+        if (
+            f in ("repeat", "tile")
+            and isinstance(n.args[0], torch.fx.Node)
+            and (n.args[0].op == "get_attr" or n.args[0].name in static)
+            and v.dim() > 0
+            and v.shape[0] == x.shape[0]
+            and shape(n.args[0])[:1] == (1,)
+            and len(shape(n.args[0])) == v.dim()
+        ):  # pos.repeat(B, 1, 1, 1): the other axes repeated on the weights, then made batch-sized (+ 0)
+            reps = (
+                n.args[1]
+                if len(n.args) == 2 and isinstance(n.args[1], tuple | list)
+                else n.args[1:]
+            )
+            reps = [1, *(int(r) for r in reps[1:])]
+            base = src(n.args[0])
+            if any(r != 1 for r in reps):
+                base = add(f"{n.name}_tile", "static", [base],
+                           {"tensors": [], "program": [{"op": "tile", "in": [0], "reps": reps}]})  # fmt: skip
+            z = add(
+                f"{n.name}_zeros", "fill", ["input"], {"shape": list(v.shape[1:]), "value": 0.0}
+            )
+            add(n, "add", [z, base])
+            continue
         if f in ALIAS_F:
             alias[n.name] = src(n.args[0])
             continue
@@ -1154,6 +1178,7 @@ def nodes_of(model: nn.Module, classes: int | None = None, x=None):
             add(n, f, [src(a) for a in n.args[:2]])
         elif f in (
             "layer_norm",
+            "rms_norm",
             "linear",
             "conv1d",
             "conv2d",
@@ -1729,6 +1754,12 @@ def _functional_layer(n, f, add, src, shape, vals, params=None):
         w, b = name(_arg(n, 2, "weight")), name(_arg(n, 3, "bias"))
         add(n, "layer_norm", [src(x0)], {"axes": len(ns), "eps": float(_arg(n, 4, "eps", 1e-5)), "affine": w is not None,
                                          "bias": b is not None}, ref=[r for r in (w, b) if r])  # fmt: skip
+    elif f == "rms_norm":
+        ns = _arg(n, 1, "normalized_shape")
+        w = name(_arg(n, 2, "weight"))
+        eps = _arg(n, 3, "eps")
+        add(n, "rms_norm", [src(x0)], {"axes": len(ns), "eps": None if eps is None else float(eps),
+                                       "affine": w is not None}, ref=[w] if w else None)  # fmt: skip
     elif f == "linear":
         w, b = name(_arg(n, 1, "weight")), name(_arg(n, 2, "bias"))
         out = vals[n.name].shape[-1]

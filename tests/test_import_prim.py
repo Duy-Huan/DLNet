@@ -787,3 +787,23 @@ def test_rebuild_check_levels_and_helpers():
     assert paper_import._flow(np.array([1.5, 2.0])) == "[1.5, 2.0]"
     ids = paper_import.example_input("ids", (7, 3), batch=4)
     assert ids.shape == (4, 2) and int(ids[:, 0].max()) < 7
+
+
+def test_weights_repeated_to_the_batch_and_functional_rms_norm(tmp_path):
+    """XCiT: pos.repeat(B, 1, 1, 2) on a computed position encoding; F.rms_norm with a weight."""
+
+    class Rep(nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.pos = nn.Parameter(torch.randn(1, 3, 2))
+            self.w = nn.Parameter(torch.rand(4) + 0.5)
+            self.fc = nn.Linear(4, 4)
+
+        def forward(self, x):  # (B, 3, 4)
+            p = self.pos.repeat(x.shape[0], 1, 2)
+            y = self.fc(p) + x  # a Linear reads the batch-sized tensor
+            return F.rms_norm(y, (4,), self.w, 1e-6)
+
+    card = roundtrip(Rep(), (3, 4), None, tmp_path)
+    mods = [n["module"] for n in card["architecture"]]
+    assert "fill" in mods and "rms_norm" in mods, mods

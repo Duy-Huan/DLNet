@@ -11,7 +11,7 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
   - mọi thứ chỉ tính từ kích thước, hằng và buffer được ghi thành hằng (lưới tọa độ, mặt nạ);
   - phép tính trên trọng số thêm: tile / repeat, repeat_interleave, pad, interpolate, chunk / split / unbind, chuẩn hóa trọng số (NF-Net), lớp conv;
   - lớp cơ bản mới `unfold_axis`, `im2col`, `col2im` (`Tensor.unfold`, `F.unfold` / `F.fold`, `nn.Unfold` / `nn.Fold`; HaloNet, TNT, VOLO). Kho có 210 module;
-  - `x.mul_(g)` rồi đọc lại `x`; `stack(xs, 0).sum(0)`; query học được mở rộng theo batch rồi qua Linear; tham số vô hướng.
+  - `x.mul_(g)` rồi đọc lại `x`; `stack(xs, 0).sum(0)`; query học được mở rộng theo batch rồi qua Linear; `pos.repeat(B, ...)` trên trọng số (XCiT); `F.rms_norm`; tham số vô hướng.
 - Import tốn ít bộ nhớ hơn: Swin v2 ở 384 px từ 9,9 GB xuống 3,3 GB. Mạng dựng từ thẻ (`graph`) giải phóng đầu ra của mỗi nút sau lần đọc cuối: forward của Swin v2 384 px từ hơn 13 GB xuống 4,4 GB.
 - `rebuild_check` so đầu ra trên một kích thước batch khác lần import, nên hằng lỡ phụ thuộc batch bị phát hiện.
 - Sửa: head của đặc trưng `nd` chỉ có một trục lấy trung bình cả trục batch.
