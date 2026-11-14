@@ -21,7 +21,6 @@ model.py + zoo/ pair and says so.
 from __future__ import annotations
 
 import ast
-import builtins
 import contextlib
 import functools
 import importlib
@@ -231,9 +230,11 @@ class Collector:
             v.visit(node)
             if strip:
                 node.decorator_list = decos
-            for used in sorted(v.used):
-                if used != name and not self.need(module, used) and not hasattr(builtins, used):
-                    pass  # an attribute-less local name, or a name bound at run time
+            for used in sorted(
+                v.used
+            ):  # a builtin or a name bound at run time is not found: skipped
+                if used != name:
+                    self.need(module, used)
             src = m.segment(node, strip_op=strip)
             if (key, src) not in self.items:
                 self.items.append((key, src))
