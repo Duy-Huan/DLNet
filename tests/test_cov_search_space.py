@@ -176,7 +176,7 @@ def test_candidates_need_a_head_they_can_use():
 @pytest.mark.parametrize("domain", ["tabular", "image", "segmentation", "timeseries", "graph", "recsys",
                                     "reconstruction"])  # fmt: skip
 def test_unknown_family_names_are_refused(domain):
-    fams, recipe, *_ = families.DOMAINS[domain]
+    _, recipe, *_ = families.DOMAINS[domain]
     with pytest.raises(ValueError, match="unknown"):
         recipe({"family": "nope", "width": 8, "depth": 1, "dropout": 0.0, "latent": 4}, (3, 8, 8))
     with pytest.raises(ValueError, match="unknown"):
