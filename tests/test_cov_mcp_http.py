@@ -16,7 +16,7 @@ import time
 import types
 
 import pytest
-from test_mcp_http import TOKEN, V, Client, _py
+from test_mcp_http import TOKEN, Client, V, _py
 
 from dlnet import mcp_http, mcp_tools
 
