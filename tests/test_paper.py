@@ -242,7 +242,10 @@ def test_import_drafts_a_card_from_the_authors_code_and_verify_proves_it(tmp_pat
     card = paper.load(out)
     mods = [n["module"] for n in card["architecture"]]
     assert mods.count("add") == 2 and "concat" in mods and "pooling" in mods
-    assert mods[-2:] == ["adaptive_pool", "flatten_axes"]  # avg pool to 1x1 then flatten, as the authors wrote it
+    assert mods[-2:] == [
+        "adaptive_pool",
+        "flatten_axes",
+    ]  # avg pool to 1x1 then flatten, as the authors wrote it
     assert all(n.get("ref") for n in card["architecture"] if n["module"] in ("conv", "batch_norm"))
     assert "linear" not in mods  # the classifier became the card's head
     r = paper.verify(card, repo)

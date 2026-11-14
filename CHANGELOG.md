@@ -31,7 +31,7 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
   - `mobilevit_block`, `mobilevitv2_block` (MobileViT v1 / v2);
   - `sdta_block` (EdgeNeXt).
 
-  Kho có 206 module.
+  Kho có 207 module.
 - Sửa:
   - một op dựng với tham số sai giờ luôn báo `ValueError` thay vì `TypeError` / `RuntimeError` của torch;
   - nút `concat` của thẻ cũ giữ đúng kiểu tensor.

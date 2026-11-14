@@ -125,7 +125,9 @@ def main() -> int:
     ap.add_argument("--only", help="comma-separated model names")
     ap.add_argument("--out", help="JSON report")
     ap.add_argument("-v", action="store_true")
-    ap.add_argument("--min-rate", type=float, default=0.0, help="exit 1 when fewer are rebuilt (CI floor)")
+    ap.add_argument(
+        "--min-rate", type=float, default=0.0, help="exit 1 when fewer are rebuilt (CI floor)"
+    )
     a = ap.parse_args()
     torch.set_num_threads(4)
     models = torchvision_models() if a.source == "torchvision" else timm_models(a.limit)

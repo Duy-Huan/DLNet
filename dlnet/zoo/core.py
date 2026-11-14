@@ -107,7 +107,14 @@ def _trace(m: nn.Module, dims, kind: str = "vec") -> tuple[int, ...]:
     try:
         with torch.no_grad():
             y = m(probe(kind, dims, PROBE["n"], dev))
-    except (RuntimeError, IndexError, AssertionError, TypeError, ZeroDivisionError, NotImplementedError) as e:
+    except (
+        RuntimeError,
+        IndexError,
+        AssertionError,
+        TypeError,
+        ZeroDivisionError,
+        NotImplementedError,
+    ) as e:
         raise ValueError(f"cannot apply to shape {tuple(dims)}: {e}") from e
     finally:
         m.train(was)
