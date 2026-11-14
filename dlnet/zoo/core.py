@@ -292,9 +292,21 @@ class Graph(nn.Module):
         self.wiring, self.axis, self.out = [(h, tuple(s)) for h, s in wiring], axis, out
 
     def forward(self, x):
+        n = len(self.wiring)
+        last = list(
+            range(n)
+        )  # the node after which each output is no longer read (memory: free it then)
+        for i, (_, src) in enumerate(self.wiring):
+            for j in src:
+                if j >= 0:
+                    last[j] = i
+        last[self.out if self.out >= 0 else n + self.out] = n
         ys = []
-        for m, (how, src) in zip(self.mods, self.wiring, strict=True):
+        for k, (m, (how, src)) in enumerate(zip(self.mods, self.wiring, strict=True)):
             xs = [x if i < 0 else ys[i] for i in src]
+            for i in src:
+                if i >= 0 and last[i] == k:
+                    ys[i] = None
             if how == "param":
                 ys.append(m())
             elif how == "merge":
@@ -310,6 +322,8 @@ class Graph(nn.Module):
                 ys.append(y)
             else:
                 ys.append(m(xs[0]))
+            if last[k] == k:  # read by no later node (and not the output)
+                ys[k] = None
         return ys[self.out]
 
 
