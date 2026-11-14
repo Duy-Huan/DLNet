@@ -20,7 +20,7 @@ podman build -t dlnet -f Containerfile .
 podman run --rm -v ./work:/workspace:Z dlnet design --data data.csv --target y --budget 10m --out runs/a
 ```
 
-Giao diện web: `podman run --rm -p 127.0.0.1:8766:8766 -v ./work:/workspace:Z dlnet ui --workspace /workspace`, rồi mở `http://127.0.0.1:8766/`. Chi tiết (MCP server, Docker, SELinux, quyền file): [`doc/install.md`](doc/install.md#chạy-bằng-container-podman--docker). Image được build và dùng thử bằng Podman trên CI mỗi commit (`scripts/test_container.py`).
+Giao diện web: `podman run --rm -p 127.0.0.1:8766:8766 -v ./work:/workspace:Z dlnet ui --workspace /workspace`, rồi mở `http://127.0.0.1:8766/`. Windows / macOS cần `podman machine` với ít nhất 8 GB RAM, và cách viết đường dẫn gắn thư mục khác Linux. Hướng dẫn đầy đủ gồm cài Podman, lệnh cho từng hệ điều hành, lệnh tắt, MCP server, cập nhật bản mới và bảng lỗi thường gặp: [`doc/install.md`](doc/install.md#chạy-bằng-container-podman--docker). Image được build và dùng thử bằng Podman trên CI mỗi commit (`scripts/test_container.py`).
 
 ## Cài đặt nhanh (môi trường Python)
 

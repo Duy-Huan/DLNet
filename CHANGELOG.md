@@ -6,6 +6,12 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+- Tài liệu: hướng dẫn Podman trong `doc/install.md` viết lại đầy đủ: cài Podman và `podman machine` (Windows / macOS, RAM ≥ 8 GB), lệnh gắn thư mục cho Linux / macOS / PowerShell / cmd, lệnh tắt `dlnet-c`, chạy nền, cập nhật bản mới, bảng lỗi thường gặp.
+
+## [1.8.2] - 2026-11-14
+
+- Sửa: test e2e dự đoán từ CSV (tabular) huấn luyện 30 epoch thay vì 5. Với 5 epoch, độ chính xác trên một máy CI đúng bằng ngưỡng 0,6.
+
 - **Container (Podman / Docker)**: `Containerfile` ở gốc repo (Python 3.12, PyTorch 2.15 CPU, DLNet); thư mục của máy gắn vào `/workspace`. Với Podman rootless, file ghi ra thuộc về user của bạn. Hướng dẫn: `doc/install.md`.
   - `dlnet ui --bind ADDR` (hoặc biến `DLNET_UI_BIND`): địa chỉ nghe, mặc định vẫn 127.0.0.1; image đặt 0.0.0.0 để cổng publish tới được. UI vẫn chỉ trả lời request ghi `127.0.0.1` / `localhost` và có token của trang.
   - `scripts/test_container.py`: build image rồi dùng thử như người dùng: `--version`, `selfcheck`, `design` → `train.py` → `predict.py` trên thư mục gắn vào, `serve` (từ chối 0.0.0.0 khi không có token) và `ui` qua cổng publish, request ghi host khác bị từ chối. Job CI `container` chạy script này bằng Podman.
@@ -583,7 +589,8 @@ Bản đầu tiên: prototype chạy được từ dữ liệu đến Top-K base
 - Chưa có zero-cost proxy, cost model FLOPs/VRAM, Tensor-LoRA, deep unfolding; chưa có plugin image và timeseries.
 - Kết quả trên Indian Pines và Pavia University là một lần chạy ngắn trên CPU: với chia theo khối, mạng sâu chưa vượt rõ baseline cổ điển.
 
-[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v1.8.1...HEAD
+[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v1.8.2...HEAD
+[1.8.2]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.8.2
 [1.8.1]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.8.1
 [1.8.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.8.0
 [1.7.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.7.0
