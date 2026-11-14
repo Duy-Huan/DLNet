@@ -212,3 +212,30 @@ jobs:
           pip install -e . numpy "timm==1.0.31" "torch_geometric==2.6.1"
       - name: Compare outputs
         run: python scripts/verify_more.py --root /tmp/more
+
+  verify-v18:
+    # v1.8: the search blocks of dlnet/zoo/ops_v18.py against timm, and how many published networks
+    # the importer rebuilds exactly (paper import + verify in memory, random weights, no download)
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install DLNet (CPU torch), torchvision, timm
+        run: |
+          pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+          pip install -e . numpy pyyaml "timm==1.0.31"
+      - name: v1.8 blocks equal timm
+        run: python scripts/verify_v18.py
+      - name: Rebuild every torchvision classifier (must stay >= 95%)
+        run: |
+          python scripts/bench_import.py --source torchvision --out import-torchvision.json --min-rate 0.95
+      - name: Rebuild a fixed sample of 60 timm models (reported)
+        run: python scripts/bench_import.py --source timm --limit 60 --out import-timm.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: import-coverage
+          path: import-*.json

@@ -632,7 +632,7 @@ def _paper(args) -> int:
         dims = [int(x) for x in args.dims.split(",")]
         try:
             text = paper_import.draft(
-                off, args.official_root, args.kind, dims, args.name, args.classes
+                off, args.official_root, args.kind, dims, args.name, args.classes, out_path=args.out
             )
         except paper_import.ImportUnsupported as e:
             print(f"[paper] cannot draft a card: {e}\n        use the authors' class as it is: a card with "

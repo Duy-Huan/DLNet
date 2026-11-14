@@ -22,6 +22,7 @@ PROBE = {
     "vol": (4, 8, 8, 8),
     "graph": (8, 12),
     "ids": (5, 7),
+    "nd": (6, 8, 8),  # v1.8: a tensor of no named layout (basic layers of paper cards)
 }
 PROBE_OVERRIDE = {
     ("gmf", "seq"): (2, 16),  # ops with a fixed arity
@@ -49,7 +50,13 @@ def _input(kind, dims, n=2):
     return torch.randn(n, *dims)
 
 
-CASES = [(n, k) for n, o in sorted(zoo.OPS.items()) for k in o.kin]
+# every op on every kind it declares, with its default arguments. The basic layers of paper cards
+# (tag "primitive", v1.8: reshape, permute, select, ...) need arguments that fit the tensor: they are
+# tested with such arguments in tests/test_import_prim.py; the four older ones stay here on their kinds.
+OLD_PRIMITIVES = {"conv": ("ser", "map", "vol"), "linear": ("vec", "seq"), "maxpool": ("ser", "map", "vol"),
+                  "avgpool": ("ser", "map", "vol")}  # fmt: skip
+CASES = [(n, k) for n, o in sorted(zoo.OPS.items()) for k in o.kin
+         if "primitive" not in o.tags or k in OLD_PRIMITIVES.get(n, ())]  # fmt: skip
 
 
 def _cfg(spec, kind, dims, head="cls", out=3):

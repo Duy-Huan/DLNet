@@ -35,7 +35,25 @@ import types
 from pathlib import Path
 
 HERE = Path(__file__).parent
-MERGES = ("concat", "add", "mul")
+MERGES = (
+    "concat",
+    "add",
+    "mul",
+    "sub",
+    "div",
+    "maximum",
+    "minimum",
+    "matmul",
+    "stack",
+    "attention",
+    "where",
+    "pow2",
+    "complex",
+    "mha",
+    "einsum",
+    "linear_fn",
+    "conv_fn",
+)  # nodes with several inputs (dlnet/zoo/ops_prim.py)
 TOP = {
     "paper",
     "official",
@@ -47,8 +65,17 @@ TOP = {
     "blocks",
     "training",
     "tolerance",
+    "head_ref",
 }
-NODE = {"id", "from", "module", "repeats", "args"}
+NODE = {
+    "id",
+    "from",
+    "module",
+    "repeats",
+    "args",
+    "ref",
+    "share",
+}  # ref: the layer name in the authors' model (import)
 
 
 class CardError(ValueError):
@@ -73,7 +100,32 @@ def load(path) -> dict:
         raise CardError(f"{path}: a card is a mapping with the keys {sorted(TOP)}")
     card["_path"] = str(path)
     validate(card)
+    _load_constants(card, path)
     return card
+
+
+def _load_constants(card, path) -> None:
+    """Large constants of `static` nodes stored next to the card (<card>.constants.npz)."""
+    import numpy as np
+
+    cache = {}
+    for nodes in [card.get("architecture") or [], *(card.get("blocks") or {}).values()]:
+        for n in nodes:
+            if n.get("module") != "static":
+                continue
+            for t in (n.get("args") or {}).get("tensors", []):
+                ref = t.get("npz")
+                if ref is None:
+                    continue
+                f = Path(path).parent / ref["file"]
+                if f not in cache:
+                    if not f.exists():
+                        raise CardError(
+                            f"{f} not found: the constants of this card are stored there"
+                        )
+                    cache[f] = np.load(f)
+                t["value"] = cache[f][ref["key"]]
+                del t["npz"]
 
 
 def _nodes(nodes, where, blocks):
@@ -96,7 +148,11 @@ def _nodes(nodes, where, blocks):
                 raise CardError(f"{at} ({nid}): `from: {s}` is not a node defined above it")
         if not isinstance(n.get("args", {}), dict):
             raise CardError(f"{at} ({nid}): `args` is a mapping of the module's parameters")
-        if n["module"] in MERGES and (src is None or isinstance(src, str | int) or len(src) < 2):
+        if (
+            n["module"] in MERGES
+            and n["module"] not in ("mha", "einsum")
+            and (src is None or isinstance(src, str | int) or len(src) < 2)
+        ):
             raise CardError(f"{at} ({nid}): {n['module']} needs `from: [a, b, ...]`")
         seen.add(nid)
 
@@ -158,8 +214,8 @@ def fidelity(card) -> dict | None:
 
 def _node_spec(n, blocks, stack=()):
     module, args, reps = n["module"], dict(n.get("args") or {}), int(n.get("repeats", 1))
-    if module in MERGES:
-        body = {"op": module}
+    if module in MERGES or module in ("param", "static"):
+        body = {"op": module, **args}
     elif module in blocks:
         if module in stack:
             raise CardError(f"block {module!r} uses itself")
@@ -170,7 +226,7 @@ def _node_spec(n, blocks, stack=()):
         body = {"op": module, **args}
     if reps > 1:
         body = {"op": "rep", "n": reps, "body": body}
-    out = {k: n[k] for k in ("id", "from") if k in n}
+    out = {k: n[k] for k in ("id", "from", "share") if k in n}
     return {**out, **body}
 
 
@@ -382,20 +438,29 @@ def verify(card: dict, official_root, tol: float = 1e-5, seed: int = 0) -> dict:
            "compared": "features (without the classifier)" if features else "the whole network",
         "ignored_official_params": list(ignore),
         "params_official": n_ref, "params_card": n_mine, "params_match": n_ref == n_mine}  # fmt: skip
-    free, mapping, unmatched = list(b), {}, []
-    for k, v in a.items():  # the first unused tensor of the same shape, in order
-        hit = next((m for m in free if b[m].shape == v.shape), None)
-        if hit is None:
-            unmatched.append(k)
-        else:
-            mapping[hit] = v
-            free.remove(hit)
+    from .paper_import import copy_weights
+
+    if any("ref" in n for n in card.get("architecture") or []):
+        # imported card: every node names the authors' layer it was written from -> copied by name
+        got = copy_weights(ref, mine, card, ignore)
+        unmatched = got["unmatched_official"]
+        free = got["unmatched_card"]
+    else:  # hand-written card: the first unused tensor of the same shape, in order
+        free, mapping, unmatched = list(b), {}, []
+        for k, v in a.items():
+            hit = next((m for m in free if b[m].shape == v.shape), None)
+            if hit is None:
+                unmatched.append(k)
+            else:
+                mapping[hit] = v
+                free.remove(hit)
+        if not unmatched and not free:
+            mine.load_state_dict({**mine.state_dict(), **mapping})
     res["unmatched_official"], res["unmatched_card"] = unmatched[:10], free[:10]
     if unmatched or free:
         res.update(level="C", max_abs_diff=None,
                    note="the two networks do not hold the same tensors; see unmatched_*")  # fmt: skip
     else:
-        mine.load_state_dict({**mine.state_dict(), **mapping})
         kind, dims = card["input"]["kind"], tuple(card["input"]["dims"])
         x = (
             torch.stack([torch.randint(0, c, (4,)) for c in dims], 1)

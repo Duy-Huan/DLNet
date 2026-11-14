@@ -241,7 +241,9 @@ def test_import_drafts_a_card_from_the_authors_code_and_verify_proves_it(tmp_pat
     assert cli.main(argv) == 0
     card = paper.load(out)
     mods = [n["module"] for n in card["architecture"]]
-    assert mods.count("add") == 2 and "concat" in mods and "maxpool" in mods and mods[-1] == "gap"
+    assert mods.count("add") == 2 and "concat" in mods and "pooling" in mods
+    assert mods[-2:] == ["adaptive_pool", "flatten_axes"]  # avg pool to 1x1 then flatten, as the authors wrote it
+    assert all(n.get("ref") for n in card["architecture"] if n["module"] in ("conv", "batch_norm"))
     assert "linear" not in mods  # the classifier became the card's head
     r = paper.verify(card, repo)
     assert r["level"] == "B" and r["params_match"] and r["max_abs_diff"] < 1e-5
@@ -251,7 +253,7 @@ def test_import_refuses_what_it_cannot_write(tmp_path):
     repo = tmp_path / "authors"
     repo.mkdir()
     (repo / "net.py").write_text(
-        AUTHORS_RESNET.replace("return torch.relu(x +", "return torch.sin(x +")
+        AUTHORS_RESNET.replace("return torch.relu(x +", "return torch.special.i0(x +")
     )
     argv = ["paper", "import", "--official-root", str(repo), "--repo", "u", "--commit", "c", "--entry", "net.py:Net",
             "--dims", "3,16,16", "--classes", "5", "--name", "X", "--out", str(tmp_path / "x.yaml")]  # fmt: skip

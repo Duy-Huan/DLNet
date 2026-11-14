@@ -182,6 +182,20 @@ Rà kho 137 module so với timm, PyTorch Geometric, Time-Series-Library, FuxiCT
 
 Không port: dropout / drop-path trong các khối (dùng `res` có `drop_path` của zoo), `use_post_norm` của FocalNet, `linear_attn` của PVTv2, cạnh có thuộc tính (`edge_dim`) và `share_weights` của GATv2, `weight2` (không dùng chung) của GCNII, lớp ra `fc` của CIN.
 
+### v1.8: lớp cơ bản và khối hiệu quả (`ops_prim.py`, `ops_lib.py`, `ops_v18.py`)
+
+**Lớp cơ bản** (`dlnet/zoo/ops_prim.py`, tag `primitive`, không được tìm kiếm chọn): bọc chính lớp `torch.nn` hoặc hàm `torch` cùng tên với cùng tham số. Gồm conv / conv transpose (tham số riêng từng trục, padding_mode), BatchNorm / LayerNorm / GroupNorm / InstanceNorm / RMSNorm / LRN, khoảng 25 activation, pooling (max / avg / LP / adaptive), upsample, pixel shuffle, pad, embedding, LSTM / GRU / RNN, MultiheadAttention, scaled dot-product attention, và các phép tensor (reshape, permute, transpose, slice, select, chunk, split, reduce, phép toán với hằng, roll, flip, fft, tham số học được, hằng số). Không có mã bên thứ ba ngoài torch.
+
+| Module DLNet | Nguồn | Giấy phép |
+|---|---|---|
+| `window_attention`, `patch_merge_pad` (`ops_lib.py`) | torchvision 0.29 `models/swin_transformer.py`: `shifted_window_attention`, `ShiftedWindowAttention` / `V2`, `_patch_merging_pad` | BSD-3-Clause |
+| `pconv_block` | timm 1.0.31 `models/fasternet.py` `MLPBlock` + `Partial_conv3` (FasterNet, arXiv:2303.03667) | Apache-2.0 |
+| `gated_cnn_block` | timm 1.0.31 `models/mambaout.py` `GatedConvBlock` (MambaOut, arXiv:2405.07992) | Apache-2.0 |
+| `mobilevit_block`, `mobilevitv2_block` | timm 1.0.31 `models/mobilevit.py` `MobileVitBlock`, `MobileVitV2Block`, `LinearSelfAttention` (arXiv:2110.02178, 2206.02680) | Apache-2.0 |
+| `sdta_block` | timm 1.0.31 `models/edgenext.py` `SplitTransposeBlock`, `CrossCovarianceAttn`, `PositionalEncodingFourier` (EdgeNeXt, arXiv:2206.10589) | Apache-2.0 |
+
+Kiểm chứng: `scripts/verify_v18.py` (job CI `verify-v18`) chép trọng số timm (đã nhiễu) sang khối DLNet theo thứ tự, so đầu ra: **14/14 cấu hình trùng từng bit** (sai khác 0), kể cả kích thước lẻ buộc MobileViT nội suy. `window_attention` được kiểm qua việc dựng lại Swin v1/v2 của torchvision (sai khác 0, `scripts/bench_import.py`).
+
 ## Chưa port và lý do
 
 | Nguồn | Lớp / phần chưa có | Lý do |

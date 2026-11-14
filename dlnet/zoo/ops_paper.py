@@ -14,23 +14,33 @@ from .core import ND, op
 from .ops_basic import CONV
 
 
-@op("conv", ("ser", "map", "vol"), space={"out": [16, 32, 64], "k": [3, 1, 5, 7], "s": [1, 2], "pad": ["same", 0, 1],
-                                          "groups": [1, "depthwise"], "dilation": [1, 2], "bias": [True, False]},
+@op("conv", ("ser", "map", "vol", "nd"), space={"out": [16, 32, 64], "k": [3, 1, 5, 7], "s": [1, 2], "pad": ["same", 0, 1],
+                                                 "groups": [1, "depthwise"], "dilation": [1, 2], "bias": [True, False],
+                                                 "padding_mode": ["zeros", "reflect", "replicate", "circular"]},
     tags={"primitive"}, source="torch.nn.Conv1d/2d/3d, for paper cards")  # fmt: skip
-def _conv(dims, kind, out, k, s, pad, groups, dilation, bias):
-    """A plain convolution: no norm, no activation. pad "same" = dilation * (k - 1) // 2."""
+def _conv(dims, kind, out, k, s, pad, groups, dilation, bias, padding_mode):
+    """A plain convolution: no norm, no activation. k / s / pad / dilation: one value, or one per
+    axis. pad "same" = dilation * (k - 1) // 2 per axis; padding_mode as torch.nn."""
+    from .ops_prim import nd_of, tup
+
+    n = nd_of(kind, dims)
     c = dims[0]
     g = c if groups == "depthwise" else int(groups)
     if c % g or out % g:
         raise ValueError(f"conv: {c} -> {out} channels cannot be split into {g} groups")
-    p = dilation * (k - 1) // 2 if pad == "same" else pad
-    return CONV[ND[kind]](c, out, k, s, p, dilation, g, bias=bool(bias))
+    kk, dd = tup(k, n), tup(dilation, n)
+    p = (
+        tuple(d * (q - 1) // 2 for q, d in zip(kk, dd, strict=True))
+        if pad == "same"
+        else tup(pad, n)
+    )
+    return CONV[n](c, out, kk, tup(s, n), p, dd, g, bias=bool(bias), padding_mode=padding_mode)
 
 
-@op("linear", ("vec", "seq"), space={"out": [64, 32, 128, 256], "bias": [True, False]}, tags={"primitive"},
+@op("linear", ("vec", "seq", "ser", "map", "vol", "nd"), space={"out": [64, 32, 128, 256], "bias": [True, False]}, tags={"primitive"},
     source="torch.nn.Linear, for paper cards")  # fmt: skip
 def _linear(dims, kind, out, bias):
-    """A plain linear layer on the last axis: no activation."""
+    """A plain linear layer on the last axis (of any tensor, as torch.nn.Linear): no activation."""
     return nn.Linear(dims[-1], out, bias=bool(bias))
 
 
