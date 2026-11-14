@@ -178,13 +178,11 @@ def _projection(kind, din, dout):
             f"residual projection is not defined for kind {kind}: the body must keep the shape"
         )
     if kind in ("vec",):
-        return nn.Linear(din[0], dout[0]) if din != dout else None
+        return nn.Linear(din[0], dout[0])
     if kind == "seq":
         if din[0] != dout[0]:
             raise ValueError("residual body changed the sequence length")
-        return nn.Linear(din[1], dout[1]) if din[1] != dout[1] else None
-    if din == dout:
-        return None
+        return nn.Linear(din[1], dout[1])
     nd = ND[kind]
     stride = []
     for a, b in zip(din[1:], dout[1:], strict=True):
@@ -311,15 +309,6 @@ class Graph(nn.Module):
                 ys.append(m())
             elif how == "merge":
                 ys.append(m(*xs))
-            elif how == "concat":  # cards written before v1.8
-                ys.append(torch.cat(xs, self.axis))
-            elif how == "add":
-                ys.append(sum(xs[1:], xs[0]))
-            elif how == "mul":
-                y = xs[0]
-                for t in xs[1:]:
-                    y = y * t
-                ys.append(y)
             else:
                 ys.append(m(xs[0]))
             if last[k] == k:  # read by no later node (and not the output)
