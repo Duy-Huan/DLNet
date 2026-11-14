@@ -23,7 +23,7 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
   - Thẻ ghi ra YAML đọc lại đúng giá trị: `null`, `1.0e-05`, chuỗi được trích dẫn.
 - **Đo khả năng dựng lại mạng đã công bố** (`scripts/bench_import.py`, trọng số ngẫu nhiên, không tải gì):
   - **torchvision: 75/75 mạng phân loại dựng lại trùng từng bit** (trước v1.8: 22/65). 5 mạng trên 160M tham số không đo.
-  - timm: xem `agent.md` §16.8.
+  - timm 1.0.31: mẫu cố định 200 mạng, **115/163 dựng lại trùng từng bit (71 %)**; 37 mạng quá lớn không đo. Chi tiết và danh sách lỗi còn lại: `agent.md` §16.8.
   - Job CI `verify-v18` giữ mức torchvision ≥ 95 %.
 - **5 khối mới cho tìm kiếm** (`ops_v18.py`), port từ timm và đối chiếu trùng từng bit (`scripts/verify_v18.py`, 14/14 cấu hình):
   - `pconv_block` (FasterNet);

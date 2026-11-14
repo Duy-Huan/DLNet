@@ -286,7 +286,7 @@ Mỗi nút ghi tên lớp gốc (`ref`), nên `paper verify` chép trọng số 
 
 Đo bằng `scripts/bench_import.py`:
 - **75/75 mạng phân loại của torchvision dựng lại trùng từng bit** (ResNet, ResNeXt, Wide ResNet, VGG, DenseNet, GoogLeNet, Inception v3, MobileNet v2/v3, EfficientNet v1/v2, MNASNet, ShuffleNet v2, SqueezeNet, RegNet, ConvNeXt, ViT-B, Swin v1/v2, MaxViT, AlexNet);
-- kết quả timm ở `agent.md` §16.8.
+- timm: mẫu cố định 200 mạng, 115/163 mạng đo được trùng từng bit (71 %). Chi tiết ở `agent.md` §16.8.
 
 Gặp phép toán không có tương đương thì dừng và nêu tên chỗ đó: khi ấy viết khối đó bằng một module của kho, hoặc dùng thẻ mức A. Hai giới hạn còn lại:
 - `torch.fx` không dò được mô hình có rẽ nhánh theo dữ liệu (CrossViT, ConViT, NFNet, EfficientViT): dùng thẻ mức A;

@@ -509,6 +509,25 @@ def nodes_of(model: nn.Module, classes: int | None = None, x=None):
             add(n, got[0], [src(x0)], got[1], ref=n.target)
             continue
         f = _fname(n)
+        deps: list = []
+        torch.fx.node.map_arg(
+            (getattr(n, "node", n).args, getattr(n, "node", n).kwargs), deps.append
+        )
+        if f in ("arange", "linspace", "logspace", "eye", "tensor", "as_tensor", "meshgrid", "ones", "zeros", "full") \
+                and not any(isinstance(vals.get(d.name), torch.Tensor) for d in deps) \
+                and (v.dim() == 0 or v.shape[0] != x.shape[0]):  # fmt: skip
+            # a constant made from sizes (positions, a grid): its values in this run go into the card
+            if v.numel() > INLINE_MAX:
+                raise ImportUnsupported(f"{n.name}: a constant tensor of {v.numel():,} values")
+            entry = {
+                "shape": list(v.shape) or [1],
+                "learned": False,
+                "value": v.reshape(v.shape or (1,)).tolist(),
+            }
+            if v.dtype != torch.float32:
+                entry["dtype"] = str(v.dtype).replace("torch.", "")
+            add(n, "static", [], {"tensors": [entry], "program": []})
+            continue
         if f.endswith("_") and f[:-1] in (
             "add",
             "sub",
@@ -677,6 +696,8 @@ def nodes_of(model: nn.Module, classes: int | None = None, x=None):
                     "max": _num(hi) if hi is not None else None,
                 },
             )
+        elif f in ("invert", "logical_not") and v.dtype == torch.bool:
+            add(n, "unary", [src(tens[0])], {"fn": "logical_not"})
         elif f in UNARY_F:
             add(n, "unary", [src(tens[0])], {"fn": f})
         elif f in ("reshape", "view", "reshape_as", "view_as"):
@@ -868,7 +889,7 @@ def nodes_of(model: nn.Module, classes: int | None = None, x=None):
             "batch_norm",
             "group_norm",
         ):
-            _functional_layer(n, f, add, src, shape, vals)
+            _functional_layer(n, f, add, src, shape, vals, params)
         elif f == "einsum":
             eq = n.args[0]
             ops_ = (
@@ -1054,6 +1075,9 @@ def _static_program(node, mods, vals, params, buffers):
         a0 = n.args[0] if n.args else None
         if n.op == "call_module":
             m = mods[n.target]
+            if isinstance(m, SKIP_MODULES) or type(m).__name__ in ("DropPath", "StochasticDepth"):
+                pos[n.name] = ref_of(a0)  # nothing at inference
+                continue
             if isinstance(m, nn.Linear):
                 layers.append(
                     {
@@ -1137,7 +1161,22 @@ def _static_program(node, mods, vals, params, buffers):
                 step(n, g, [a], value=b)
             else:
                 step(n, {"sub": "rsub", "div": "rdiv"}.get(g, g), [b], value=a)
-        elif f in ("exp", "sigmoid", "log", "log2", "sign", "abs", "sqrt", "neg", "tanh", "relu"):
+        elif f in ("dropout", "identity"):
+            pos[n.name] = ref_of(a0)
+        elif f in (
+            "exp",
+            "sigmoid",
+            "log",
+            "log2",
+            "sign",
+            "abs",
+            "sqrt",
+            "neg",
+            "tanh",
+            "relu",
+            "sin",
+            "cos",
+        ):
             step(n, f, [a0])
         elif f in ("clamp", "clip"):
             step(n, "clamp", [a0], min=_arg(n, 1, "min"), max=_arg(n, 2, "max"))
@@ -1270,7 +1309,7 @@ def _getitem_tensor(n, base, idx, add, src, axis, rank, shape, vals):
     return cur
 
 
-def _functional_layer(n, f, add, src, shape, vals):
+def _functional_layer(n, f, add, src, shape, vals, params=None):
     """F.layer_norm / F.linear / F.conv2d / F.batch_norm / F.group_norm with the module's own
     parameters (get_attr): the card's layer, its weights taken from those names."""
     x0 = n.args[0]
@@ -1282,8 +1321,13 @@ def _functional_layer(n, f, add, src, shape, vals):
             raise ImportUnsupported(f"{n.name}: {f} with weights that are computed, not stored")
         return a.target
 
-    stored = all(a is None or (isinstance(a, torch.fx.Node) and a.op == "get_attr")
-                 for a in [*n.args[1:3], n.kwargs.get("weight"), n.kwargs.get("bias")] if isinstance(a, torch.fx.Node) or a is None)  # fmt: skip
+    w_args = [
+        a
+        for a in (*n.args[1:3], n.kwargs.get("weight"), n.kwargs.get("bias"))
+        if isinstance(a, torch.fx.Node)
+    ]
+    # stored = the layer's own learned parameters; a buffer (a fixed filter) or a computed tensor is an input
+    stored = all(a.op == "get_attr" and (params is None or a.target in params) for a in w_args)
     if not stored and f in (
         "linear",
         "conv1d",

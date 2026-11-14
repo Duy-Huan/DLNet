@@ -685,6 +685,7 @@ UNARY = {
     "floor": torch.floor, "ceil": torch.ceil, "round": torch.round, "erf": torch.erf, "log1p": torch.log1p,
     "expm1": torch.expm1, "sigmoid": torch.sigmoid, "tanh": torch.tanh, "atan": torch.atan, "log2": torch.log2,
     "real": torch.real, "imag": torch.imag, "angle": torch.angle, "conj": torch.conj_physical,
+    "logical_not": torch.logical_not,
 }  # fmt: skip
 
 
@@ -957,6 +958,7 @@ def _check_math():
 
 
 STATIC_UNARY = {"exp": torch.exp, "sigmoid": torch.sigmoid, "log": torch.log, "log2": torch.log2, "sign": torch.sign,
+                "sin": torch.sin, "cos": torch.cos,
                 "abs": torch.abs, "sqrt": torch.sqrt, "neg": torch.neg, "tanh": torch.tanh, "relu": torch.relu,
                 "contiguous": lambda t: t.contiguous(), "float": lambda t: t.float(), "long": lambda t: t.long()}  # fmt: skip
 STATIC_BINARY = {"add": torch.add, "sub": torch.sub, "mul": torch.mul, "div": torch.div, "pow": torch.pow,

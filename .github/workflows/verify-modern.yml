@@ -15,6 +15,12 @@ on:
       - dlnet/zoo/ops_hsi.py
       - dlnet/zoo/ops_more.py
       - scripts/verify_more.py
+      - dlnet/zoo/ops_prim.py
+      - dlnet/zoo/ops_lib.py
+      - dlnet/zoo/ops_v18.py
+      - dlnet/paper_import.py
+      - scripts/verify_v18.py
+      - scripts/bench_import.py
       - scripts/verify_hsi.py
       - scripts/verify_next.py
       - scripts/verify_modern.py

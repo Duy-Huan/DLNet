@@ -905,7 +905,11 @@ Chưa làm: epochs (hiện là công thức mặc định 100 epoch, cosine, ch�
   5. Cho timm: thay kích thước tính từ shape bằng giá trị thật; permute qkv `(2, 0, ...)` + `unbind(0)` → select + permute; reshape để trục batch gộp / tách (theo dõi "hệ số batch" khi dò shape); lớp dùng lại (`share`); hằng số trong mô hình (`.constants.npz`); `linear_fn` với bias tính từ tham số (Swin v2 của timm); time-major của LSTM; fill / addcmul / repeat_interleave / norm.
 - **Kết quả**:
   - torchvision 0.29: **75/75 trùng từng bit** (sai khác 0 trừ vài mạng ≤ 1e-6), 5 mạng trên 160M tham số không đo.
-  - timm 1.0.31 (mẫu cố định 200 mạng, seed 0): TIMM_RESULT.
+  - timm 1.0.31 (mẫu cố định 200 mạng, seed 0):
+    - **115/163 mạng dựng lại trùng từng bit (71 %)**; 37 mạng trên 160M tham số không đo.
+    - Lần đo đầu với mã cuối là 106; thêm 9 nhờ: dropout trong phép tính trên trọng số, sin / cos, hằng tạo từ kích thước (`arange`), `~mask`, bộ lọc là buffer (BlurPool).
+    - Còn hỏng: 26 vì `torch.fx` không dò được; phần còn lại là đuôi dài, mỗi lỗi 1–4 mạng (`unfold`, `repeat`, `tile`, `getattr` trên module, `batch_norm` hàm với `training`, `build_grid`, hằng 5,3 triệu giá trị, param dùng làm đầu vào của một phép).
+    - Trên GitHub Actions (job `verify-v18`): torchvision 75/75; mẫu timm 60 mạng 32/54, đo trước nhóm sửa cuối.
 - **Lỗi lớn nhất còn lại**: `torch.fx` không dò được rẽ nhánh theo dữ liệu (if trên `x.shape` trong forward). Cần một importer ở mức ATen (`torch.export` / `make_fx`), chưa làm; các mạng đó dùng thẻ mức A.
 - **Khối cho tìm kiếm** (`ops_v18.py`):
   - `pconv_block` (FasterNet), `gated_cnn_block` (MambaOut), `mobilevit_block`, `mobilevitv2_block` (MobileViT v1/v2), `sdta_block` (EdgeNeXt);
