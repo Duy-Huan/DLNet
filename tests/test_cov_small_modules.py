@@ -285,3 +285,29 @@ def test_mcp_progress_with_a_total_and_a_cancelled_failure():
     assert seen[0]["params"]["total"] == 4
     svc.cancel_then_fail = True
     assert proto.handle(msg, seen.append) is None  # cancelled: no response, even on an error
+
+
+def test_export_bundles_the_zoo_when_the_network_cannot_be_written_standalone(
+    tmp_path, monkeypatch
+):
+    from test_regression import _export_minimal
+
+    from dlnet import standalone
+
+    def refuse(*a, **k):
+        raise standalone.Unsupported("an op without a standalone form")
+
+    from dlnet import search
+
+    real = search.select_topk
+
+    def with_spec(*a, **k):  # the searched network as a zoo spec
+        out = real(*a, **k)
+        for r in out:
+            r["cfg"] = families.complete({**r["cfg"]}, "tabular", (4,), 2)
+        return out
+
+    monkeypatch.setattr(search, "select_topk", with_spec)
+    monkeypatch.setattr(standalone, "write_package", refuse)
+    _export_minimal(tmp_path / "o")
+    assert list((tmp_path / "o").glob("top1_*/zoo/__init__.py"))
