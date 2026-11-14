@@ -1,0 +1,19 @@
+# build context of Containerfile: only requirements.txt, pyproject.toml, README.md and dlnet/ are used
+.git
+ref
+examples
+qa
+papers
+tests
+doc
+packaging
+skills
+scripts
+build
+dist
+dlnet-workspace
+**/__pycache__
+**/*.py[cod]
+*.egg-info
+.venv
+.coverage*

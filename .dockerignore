@@ -1,0 +1,19 @@
+# same as .containerignore (Docker reads this name, Podman reads .containerignore)
+.git
+ref
+examples
+qa
+papers
+tests
+doc
+packaging
+skills
+scripts
+build
+dist
+dlnet-workspace
+**/__pycache__
+**/*.py[cod]
+*.egg-info
+.venv
+.coverage*

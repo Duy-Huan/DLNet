@@ -51,6 +51,44 @@ dlnet run-script results/top1_cnn/predict.py --data new.csv --out pred.csv
 
 `model.py` của gói là PyTorch thuần, dùng được ở bất kỳ môi trường nào có `torch`.
 
+## Chạy bằng container (Podman / Docker)
+
+Từ v1.8.2, repo có `Containerfile`: một image Linux (Python 3.12, PyTorch CPU, DLNet) chạy được trên bất kỳ máy nào có **Podman** (Windows và macOS qua `podman machine`, Linux trực tiếp) hoặc Docker. Dữ liệu và kết quả nằm trong một thư mục của máy bạn, gắn vào container ở `/workspace`.
+
+Build image (một lần, từ thư mục gốc của repo; khoảng 2 GB vì có PyTorch):
+
+```bash
+podman build -t dlnet -f Containerfile .
+```
+
+Chạy `design` trên dữ liệu trong thư mục `work` hiện tại (kết quả ra `work/runs/a`):
+
+```bash
+podman run --rm -v ./work:/workspace:Z dlnet design --data data.csv --target y --budget 10m --out runs/a
+```
+
+Mọi lệnh khác dùng giống hệt: `podman run --rm -v ./work:/workspace:Z dlnet <lệnh> ...` (`selfcheck`, `paper import`, `run-script <gói>/train.py`, ...).
+
+Giao diện web (`dlnet ui`) và MCP server (`dlnet serve`):
+
+```bash
+podman run --rm -p 127.0.0.1:8766:8766 -v ./work:/workspace:Z dlnet ui --workspace /workspace
+```
+
+```bash
+podman run --rm -p 127.0.0.1:8765:8765 -v ./work:/workspace:Z -e DLNET_TOKEN=<token> dlnet serve --host 0.0.0.0 --workspace /workspace
+```
+
+Lưu ý:
+- mở UI ở `http://127.0.0.1:8766/` (trang in ra trong log). Cổng bên ngoài phải **giống** cổng bên trong (`-p 127.0.0.1:9000:9000` cùng `ui --port 9000`), vì UI chỉ trả lời request ghi đúng `127.0.0.1` / `localhost` và cổng của nó;
+- trong image, UI nghe trên 0.0.0.0 (biến `DLNET_UI_BIND`, hoặc `dlnet ui --bind`) để cổng chuyển tiếp tới được. Luôn publish với `127.0.0.1:` phía trước để máy khác trong mạng không truy cập được;
+- `serve` trên 0.0.0.0 bắt buộc có token (`DLNET_TOKEN`), không thì từ chối chạy;
+- `:Z` cần trên Linux có SELinux (Fedora, RHEL); trên máy khác bỏ đi cũng được;
+- Podman rootless ánh xạ root trong container thành chính user của bạn, nên các file ghi ra `work/` thuộc về bạn. Với Docker, thêm `--user "$(id -u):$(id -g)"`;
+- image chỉ có PyTorch CPU. Muốn GPU, dùng gói cài hoặc `pip install` như mục dưới.
+
+Kiểm thử image (cho người phát triển): `python scripts/test_container.py` build image rồi chạy `--version`, `selfcheck`, `design` → `train.py` → `predict.py` trên thư mục gắn vào, `serve` và `ui` qua cổng publish. Job CI `container` chạy script này bằng Podman trên mỗi commit.
+
 ## GPU NVIDIA
 
 Gói cài dùng PyTorch **CPU** (bản CUDA nặng vài GB, vượt giới hạn tệp của GitHub Releases). Máy có GPU NVIDIA nên cài DLNet bằng pip trong một môi trường Python, với PyTorch CUDA:
