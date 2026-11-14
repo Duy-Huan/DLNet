@@ -71,7 +71,8 @@ def test_tabular_package_predicts_from_a_csv_without_the_target(tmp_path, tabula
 
     pkg = _design(tabular_csv, tmp_path / "o", "--target", "y")
     _run(
-        [str(pkg / "train.py"), "--data", str(tabular_csv), "--target", "y", "--epochs", "5"],
+        # 30 epochs: with 5 the accuracy on these 40 rows sat at the 0.6 bar on some CI machines
+        [str(pkg / "train.py"), "--data", str(tabular_csv), "--target", "y", "--epochs", "30"],
         tmp_path,
     )
     df = pd.read_csv(tabular_csv)
@@ -89,7 +90,8 @@ def test_tabular_package_predicts_from_a_csv_without_the_target(tmp_path, tabula
         tmp_path,
     )
     pred = np.loadtxt(tmp_path / "p.csv", delimiter=",")
-    assert len(pred) == 40 and set(pred) <= {0, 1} and (pred == df["y"].head(40)).mean() > 0.6
+    acc = (pred == df["y"].head(40)).mean()
+    assert len(pred) == 40 and set(pred) <= {0, 1} and acc > 0.6, acc
 
 
 def test_other_plugins_predict(tmp_path, hsi_npz):
