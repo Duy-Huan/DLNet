@@ -315,7 +315,7 @@ class Trainer:
         # NHWC is faster for convolutions on GPUs (tensor cores); on the CPU it is left as is
         self.channels_last = self.device.type == "cuda" and data["Xtr"][[0]].dim() == 4
         model.to(self.device)
-        if self.channels_last:
+        if self.channels_last:  # pragma: no cover - needs a CUDA GPU (CI has none)
             model.to(memory_format=torch.channels_last)
         self.model, self.data, self.batch = model, data, batch
         # AdamW is DLNet's recipe; sgd / adam exist to train a paper baseline as its authors did
@@ -471,7 +471,7 @@ class Trainer:
                 scheduler.step()
             self.epochs_done += 1
             _spend(1)
-        if self.device.type == "cuda":
+        if self.device.type == "cuda":  # pragma: no cover - needs a CUDA GPU (CI has none)
             torch.cuda.synchronize(self.device)  # kernels run asynchronously: time what ran
         self.seconds += time.time() - t0
 
