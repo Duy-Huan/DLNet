@@ -29,7 +29,7 @@ def test_block_refusals(spec, kind, dims, match):
 
 
 def test_small_maps_use_quadratic_attention_and_divisible_rounding():
-    m, _, d = _build(
+    m, _, _ = _build(
         {"op": "efficientvit_block", "dim": 8}, "map", (16, 2, 2)
     )  # 2 x 2 <= 8: quadratic form
     assert m(torch.randn(2, 16, 2, 2)).shape == (2, 16, 2, 2)

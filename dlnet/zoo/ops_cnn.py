@@ -21,7 +21,7 @@ import torch.nn.functional as F
 from torch import nn
 
 from .core import ND, op
-from .ops_basic import ACTS, AVGP, BN, CONV, MAXP, SP, ChannelLast, ConvBNAct, norm_layer
+from .ops_basic import ACTS, AVGP, BN, CONV, MAXP, SP, ConvBNAct, norm_layer
 
 KIND = {1: "ser", 2: "map", 3: "vol"}
 CT = {1: nn.ConvTranspose1d, 2: nn.ConvTranspose2d, 3: nn.ConvTranspose3d}
@@ -651,6 +651,3 @@ def _up(dims, kind, scale):
 def _up_deconv(dims, kind, out):
     nd = ND[kind]
     return nn.Sequential(CT[nd](dims[0], out, 2, 2), BN[nd](out), nn.LeakyReLU())
-
-
-_ = (ChannelLast,)

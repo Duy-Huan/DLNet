@@ -34,11 +34,6 @@ class Escort(nn.Module):
         return n / (n.sum(1, keepdim=True) + 1e-8)
 
 
-class Swish(nn.Module):
-    def forward(self, x):
-        return x * torch.sigmoid(x)
-
-
 ACTS = {
     "relu": nn.ReLU, "gelu": nn.GELU, "swish": nn.SiLU, "tanh": nn.Tanh, "leaky": lambda: nn.LeakyReLU(0.1),
     "relu6": nn.ReLU6, "hswish": nn.Hardswish, "sigmoid": nn.Sigmoid, "escort": Escort, "identity": nn.Identity, "elu": nn.ELU,
@@ -72,17 +67,6 @@ class FRN(nn.Module):
     def forward(self, x):
         x = x * torch.rsqrt(x.square().mean(self.dims, keepdim=True) + self.eps.abs())
         return torch.max(self.gamma * x + self.beta, self.tau)
-
-
-class ChannelLast(nn.Module):
-    """Apply `f` (acts on the last axis) to a channels-first tensor."""
-
-    def __init__(self, f, nd):
-        super().__init__()
-        self.f, self.p, self.q = f, (0, *range(2, 2 + nd), 1), (0, nd + 1, *range(1, nd + 1))
-
-    def forward(self, x):
-        return self.f(x.permute(*self.p)).permute(*self.q)
 
 
 def norm_layer(kind, c, name):
