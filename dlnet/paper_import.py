@@ -292,9 +292,9 @@ class _no_proxies_left:
         return False
 
 
-class _ConcreteProxy(torch.fx.Proxy):
-    """A proxy that also knows its value in the import run: `if`, len(), int(), range() on sizes
-    use that value (the card is written for one input size anyway)."""
+class _Concrete:
+    """What a proxy of the concrete trace knows: its value in the import run. `if`, len(), int(),
+    range() and iteration on sizes use that value (the card is written for one input size anyway)."""
 
     def _v(self):
         return self.tracer.values[self.node]
@@ -314,10 +314,18 @@ class _ConcreteProxy(torch.fx.Proxy):
     def __getattr__(self, k):
         if k in ("device", "dtype", "is_cuda", "requires_grad", "layout"):  # read, not computed
             return getattr(self._v(), k)
-        return super().__getattr__(k)
+        return _ConcreteAttribute(self, k)  # x.shape, x.view(...): a proxy that knows its value too
 
     def __setitem__(self, key, value):  # t[..., 2] = v on a tensor made in forward
         return self.tracer.create_proxy("call_function", operator.setitem, (self, key, value), {})
+
+
+class _ConcreteProxy(_Concrete, torch.fx.Proxy):
+    pass
+
+
+class _ConcreteAttribute(_Concrete, torch.fx.proxy.Attribute):
+    pass
 
 
 class _ConcreteTracer(_Tracer):
@@ -370,8 +378,6 @@ class _ConcreteTracer(_Tracer):
         self, kind, target, args, kwargs, name=None, type_expr=None, proxy_factory_fn=None
     ):
         p = super().create_proxy(kind, target, args, kwargs, name, type_expr, proxy_factory_fn)
-        if kind == "output":
-            return p
 
         def get(t):
             if (
@@ -460,8 +466,19 @@ FUNC_ACT = {
 }  # fmt: skip
 UNARY_F = ("exp", "log", "sqrt", "rsqrt", "abs", "neg", "sin", "cos", "reciprocal", "square", "sign", "floor", "ceil",
            "round", "erf", "log1p", "expm1", "atan", "log2")  # fmt: skip
+CAST_F = (
+    "float",
+    "to",
+    "type_as",
+    "type",
+    "double",
+    "long",
+    "int",
+    "bool",
+    "half",
+)  # dtype conversions
 ALIAS_F = ("contiguous", "clone", "detach", "dropout", "dropout1d", "dropout2d", "dropout3d", "alpha_dropout",
-           "stochastic_depth", "drop_path", "float", "to", "type_as", "requires_grad_")  # fmt: skip
+           "stochastic_depth", "drop_path", "requires_grad_")  # fmt: skip
 MERGE_USERS = ("add", "iadd", "radd", "sub", "rsub", "mul", "imul", "rmul", "truediv", "div", "cat", "concat", "stack",
                "matmul", "bmm", "scaled_dot_product_attention", "where", "maximum", "minimum", "einsum")  # fmt: skip
 INLINE_MAX = (
@@ -590,8 +607,6 @@ def nodes_of(model: nn.Module, classes: int | None = None, x=None):
         return add(n, "permute", [sel], {"order": rest})
 
     def src(a):
-        if not isinstance(a, torch.fx.Node):
-            raise ImportUnsupported(f"a constant ({a!r}) is used where a tensor is expected")
         if a.name in moved:
             raise ImportUnsupported(
                 f"{a.name}: a permute that moves the batch axis is used other than by [i] / unbind(0)"
@@ -662,20 +677,10 @@ def nodes_of(model: nn.Module, classes: int | None = None, x=None):
             add(n, {"truediv": "div", "floordiv": "div"}.get(fn, fn), [src(a), src(b)])
         elif is_t(a):
             add(n, "scalar", [src(a)], {"fn": fn, "value": _num(b)})
-        elif is_t(b):
+        else:  # (arithmetic on sizes only never reaches here: its value is not a tensor)
             add(n, "scalar", [src(b)], {"fn": rev_fn or fn, "value": _num(a)})
-        else:
-            alias[n.name] = None  # arithmetic on sizes: not a tensor
 
-    def _num(v):
-        if isinstance(v, torch.fx.Node):
-            v = vals[v.name]
-        if isinstance(v, torch.Tensor):
-            if v.numel() != 1:
-                raise ImportUnsupported(
-                    "a constant tensor is combined with the activations: write this part by hand"
-                )
-            v = v.item()
+    def _num(v):  # a number (sizes computed from shapes are already values: _Resolved)
         return float(v) if isinstance(v, float) else v
 
     head_ref = None
@@ -712,9 +717,7 @@ def nodes_of(model: nn.Module, classes: int | None = None, x=None):
                         "torch.", ""
                     )  # e.g. an integer index table
                 pending[n.name] = (bargs, t)
-            elif isinstance(
-                v, torch.Tensor
-            ):  # a plain tensor attribute (not a weight): its values go into the card
+            else:  # a plain tensor attribute (not a weight): its values go into the card
                 if v.numel() > INLINE_MAX:
                     raise ImportUnsupported(
                         f"{t}: a constant tensor of {v.numel():,} values used as data"
@@ -723,8 +726,6 @@ def nodes_of(model: nn.Module, classes: int | None = None, x=None):
                 if v.dtype != torch.float32:
                     entry["dtype"] = str(v.dtype).replace("torch.", "")
                 add(n, "static", [], {"tensors": [entry], "program": []})
-            else:
-                alias[n.name] = None
             continue
         if not isinstance(v, torch.Tensor):
             if isinstance(v, tuple | list) and any(isinstance(x_, torch.Tensor) for x_ in v):
@@ -741,10 +742,6 @@ def nodes_of(model: nn.Module, classes: int | None = None, x=None):
         if n.op == "call_module":
             m = mods[n.target]
             x0 = n.args[0]
-            if isinstance(m, nn.MultiheadAttention):
-                raise ImportUnsupported(
-                    f"{n.target}: MultiheadAttention returns a tuple"
-                )  # handled through getitem
             got = _module(m, n.target, shape(x0))
             if got is None:
                 alias[n.name] = src(x0)
@@ -753,25 +750,6 @@ def nodes_of(model: nn.Module, classes: int | None = None, x=None):
             continue
         f = _fname(n)
         inplace_of = None
-        deps: list = []
-        torch.fx.node.map_arg(
-            (getattr(n, "node", n).args, getattr(n, "node", n).kwargs), deps.append
-        )
-        if f in ("arange", "linspace", "logspace", "eye", "tensor", "as_tensor", "meshgrid", "ones", "zeros", "full") \
-                and not any(isinstance(vals.get(d.name), torch.Tensor) for d in deps) \
-                and (v.dim() == 0 or v.shape[0] != x.shape[0]):  # fmt: skip
-            # a constant made from sizes (positions, a grid): its values in this run go into the card
-            if v.numel() > INLINE_MAX:
-                raise ImportUnsupported(f"{n.name}: a constant tensor of {v.numel():,} values")
-            entry = {
-                "shape": list(v.shape) or [1],
-                "learned": False,
-                "value": _const(v.reshape(v.shape or (1,))),
-            }
-            if v.dtype != torch.float32:
-                entry["dtype"] = str(v.dtype).replace("torch.", "")
-            add(n, "static", [], {"tensors": [entry], "program": []})
-            continue
         if f.endswith("_") and f[:-1] in (
             "add",
             "sub",
@@ -879,7 +857,12 @@ def nodes_of(model: nn.Module, classes: int | None = None, x=None):
             )
             add(n, "add", [z, base])
             continue
-        if f in ALIAS_F:
+        if f in CAST_F and isinstance(n.args[0], torch.fx.Node) and is_t(n.args[0]) \
+                and vals[n.args[0].name].dtype != v.dtype:  # fmt: skip
+            # (x > 0).float(): the dtype changes what later arithmetic means (bool + bool is OR)
+            add(n, "cast", [src(n.args[0])], {"dtype": str(v.dtype).replace("torch.", "")})
+            continue
+        if f in ALIAS_F or f in CAST_F:
             alias[n.name] = src(n.args[0])
             continue
         if f in ("add", "iadd", "radd"):
@@ -901,11 +884,8 @@ def nodes_of(model: nn.Module, classes: int | None = None, x=None):
             a, b = n.args[:2]
             if is_t(a) and is_t(b):
                 add(n, "compare", [src(a), src(b)], {"fn": f})
-            elif is_t(a):
+            else:  # x > 2 (Python turns 2 < x into x > 2: the constant never comes first)
                 add(n, "scalar", [src(a)], {"fn": f, "value": _num(b)})
-            else:  # constant < x  ==  x > constant
-                flip = {"gt": "lt", "lt": "gt", "ge": "le", "le": "ge", "eq": "eq", "ne": "ne"}[f]
-                add(n, "scalar", [src(b)], {"fn": flip, "value": _num(a)})
         elif f in ("matmul", "bmm"):
             add(n, "matmul", [src(n.args[0]), src(n.args[1])])
         elif f in ("cat", "concat", "concatenate") and len(n.args[0]) == 1:
@@ -1258,23 +1238,11 @@ def nodes_of(model: nn.Module, classes: int | None = None, x=None):
             add(n, "im2col" if f == "unfold" else "col2im", [src(n.args[0])], args)
         elif f == "cumsum":
             add(n, "cumsum", [src(n.args[0])], {"axis": axis(n.args[0], _arg(n, 1, "dim"))})
-        elif f in ("chunk", "split", "unbind", "unflatten"):
-            if f == "unflatten":
-                add(
-                    n,
-                    "unflatten",
-                    [src(n.args[0])],
-                    {
-                        "axis": axis(n.args[0], _arg(n, 1, "dim")),
-                        "sizes": list(_arg(n, 2, "sizes")),
-                    },
-                )
-            else:
-                tuples[n.name] = n
+        elif f == "unflatten":  # (chunk / split / unbind give tuples: read through getitem)
+            add(n, "unflatten", [src(n.args[0])], {"axis": axis(n.args[0], _arg(n, 1, "dim")),
+                                                   "sizes": list(_arg(n, 2, "sizes"))})  # fmt: skip
         else:
             raise ImportUnsupported(f"{n.name}: operation {f!r} has no card equivalent")
-        if n.name in alias and alias[n.name] is None and isinstance(v, torch.Tensor):
-            raise ImportUnsupported(f"{n.name}: tensor operation {f!r} on constants")
         if inplace_of is not None:
             alias[inplace_of.name] = alias.get(n.name, n.name)
     if not nodes or out != nodes[-1]["id"]:
@@ -1382,14 +1350,8 @@ def _static_program(node, mods, vals, params, buffers, src_fn, learned=None):
     for n in weights:
         pos[n.name] = len(inputs)
         inputs.append(src_fn(n))
-    for n in inline:
-        t = vals.get(n.name)
-        if not isinstance(t, torch.Tensor):
-            raise ImportUnsupported(f"{n.name}: a constant that is not a tensor")
-        if t.numel() > INLINE_MAX:
-            raise ImportUnsupported(
-                f"{n.name}: a constant tensor of {t.numel():,} values is not a parameter or buffer"
-            )
+    for n in inline:  # (their size was checked where the main loop read them)
+        t = vals[n.name]
         pos[n.name] = len(inputs) + len(tensors)
         entry = {
             "shape": list(t.shape),
@@ -1420,9 +1382,7 @@ def _static_program(node, mods, vals, params, buffers, src_fn, learned=None):
         if n.op == "get_attr":
             continue
         f = _fname(n)
-        v = vals[n.name]
-        if not _has_tensor(v):  # a device, dtype or size read from a tensor: not computed
-            continue
+        v = vals[n.name]  # (sizes, devices and dtypes read from a tensor are not in `order`)
         a0 = n.args[0] if n.args else None
         if n.op == "call_module":
             m = mods[n.target]
@@ -1600,8 +1560,7 @@ def _static_program(node, mods, vals, params, buffers, src_fn, learned=None):
             raise ImportUnsupported(
                 f"{n.name}: operation {f!r} on the weights has no static equivalent"
             )
-    if pos[node.name] != base + len(program) - 1:
-        program.append({"op": "contiguous", "in": [pos[node.name]]})
+    # (the node is always the last value: its program holds its own ancestors only)
     return (
         {"tensors": tensors, "program": program} | ({"layers": layers} if layers else {}),
         layer_refs,
@@ -1637,9 +1596,8 @@ def _getitem_tuple(n, base, idx, tuples, mods, vals, add, src, axis, shape):
                 args.update(kdim=m.kdim, vdim=m.vdim)
             add(n, "mha", [src(q), src(k), src(v)], args, ref=b.target)
             return
-        got = _module(m, b.target, shape(b.args[0]))
-        add(n, got[0], [src(b.args[0])], got[1], ref=b.target)
-        return
+        _module(m, b.target, shape(b.args[0]))  # refuses it (e.g. max pooling with return_indices)
+        raise ImportUnsupported(f"{b.target}: {type(m).__name__} returns a tuple")
     f = _fname(b)
     x0 = b.args[0]
     if f == "chunk":
@@ -1681,6 +1639,8 @@ def _getitem_tensor(n, base, idx, add, src, axis, rank, shape, vals):
         idx = idx[:k] + (slice(None),) * fill + idx[k + 1 :]
     cur, ax, out_rank, steps = src(base), 0, r, []
     for i in idx:
+        if isinstance(i, bool):  # x[:, True] adds an axis in torch: not an item (a bool is an int)
+            raise ImportUnsupported(f"{n.name}: index {i!r}")
         if i is None:
             steps.append(("unsqueeze", {"axis": ax}))
             ax += 1
@@ -1695,7 +1655,7 @@ def _getitem_tensor(n, base, idx, add, src, axis, rank, shape, vals):
                 raise ImportUnsupported(f"{n.name}: indexing the batch axis")
             steps.append(("select", {"axis": ax, "index": i}))
             out_rank -= 1
-        elif isinstance(i, slice):
+        else:  # a slice (torch refused any other index in the run before)
             if ax == 0 and i != slice(None):
                 raise ImportUnsupported(f"{n.name}: slicing the batch axis")
             if i != slice(None):
@@ -1706,8 +1666,6 @@ def _getitem_tensor(n, base, idx, add, src, axis, rank, shape, vals):
                     )
                 )
             ax += 1
-        else:
-            raise ImportUnsupported(f"{n.name}: index {i!r}")
     if not steps:
         return add(n, "as_kind", [cur], {"to": "nd"})
     for k, (op_, args) in enumerate(steps):

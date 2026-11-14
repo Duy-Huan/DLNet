@@ -700,6 +700,35 @@ def _unary(dims, kind, fn):
     return Fn(fn, UNARY[fn])
 
 
+class Cast(nn.Module):
+    """x.to(dtype): a mask made float before arithmetic (True + True is True for bool, 2 for float)."""
+
+    def __init__(self, dtype):
+        super().__init__()
+        self.dtype = str(dtype)
+        getattr(torch, self.dtype)  # a torch dtype name, checked when built
+
+    def forward(self, x):
+        return x.to(getattr(torch, self.dtype))
+
+    def extra_repr(self):
+        return self.dtype
+
+
+@op(
+    "cast",
+    ANY,
+    space={"dtype": ["float32", "int64", "bool"]},
+    tags=P,
+    source="torch.Tensor.to(dtype)",
+)
+def _cast(dims, kind, dtype):
+    """Change the element type (float32, float64, int64, bool, ...); the shape stays."""
+    if not isinstance(getattr(torch, str(dtype), None), torch.dtype):
+        raise ValueError(f"cast dtype {dtype!r}: a torch dtype name (float32, int64, bool, ...)")  # noqa: TRY004
+    return Cast(dtype)
+
+
 @op("clamp", ANY, space={"min": [None, 0.0], "max": [None, 6.0]}, tags=P, source="torch.clamp")
 def _clamp(dims, kind, min, max):
     """Clip to [min, max] (either may be None)."""

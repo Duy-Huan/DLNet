@@ -344,6 +344,7 @@ PRIM = [
     ),
     ({"op": "window_attention", "heads": 2, "window": [4, 4], "shift": [0, 0]}, "nd", (8, 8, 6)),
     ({"op": "unfold_axis", "axis": 2, "size": 3, "step": 2}, *M),
+    ({"op": "cast", "dtype": "float32"}, *M),
     ({"op": "im2col", "k": 3, "pad": 1, "s": 2}, *M),
     ({"op": "col2im", "size": [8, 8], "k": 3, "pad": 1, "s": 2}, "nd", (54, 16)),
 ]
