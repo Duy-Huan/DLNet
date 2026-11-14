@@ -119,3 +119,10 @@ Công thức huấn luyện (`core.RECIPE`, `--recipe`): `modern` thêm augmenta
 - Chỉ so điểm của các mô hình cùng số epoch (`search.equalize`, `search.final_order`); nhiễu của một lần chạy là sai số lấy mẫu của tập validation (`search.sampling_noise`).
 - Một ứng viên ném lỗi hoặc phân kỳ (loss NaN/inf ở mọi batch của một epoch, điểm validation không hữu hạn) bị loại và ghi vào `failed_candidates`, không làm dừng lần chạy.
 - Proxy và quy tắc chọn hạt giống không loại ứng viên khi chưa có số đo chứng minh (`agent.md` §16).
+
+## 7. Kiểm thử
+
+- Coverage **100 %** (từ v1.9.0), đo trên toàn bộ test: unit, regression, e2e, kể cả lệnh CLI chạy trong tiến trình con (`coverage` với `patch = ["subprocess"]`). Job CI `coverage` fail nếu dưới 100 %.
+- `# pragma: no cover - <lý do>` chỉ dành cho dòng CI không chạy được: cần GPU CUDA (2 dòng trong `dlnet/core.py`) hoặc chỉ chạy trên Windows (2 dòng trong `dlnet/service.py`).
+- Regression test (`pytest -m regression`): `tests/test_regression.py`, `test_regression_v18.py`, `test_regression_v19.py`. Mỗi test đỏ trên mã trước khi sửa lỗi tương ứng.
+- Test cho nhánh từ chối và nhánh dự phòng: `tests/test_cov_*.py`.

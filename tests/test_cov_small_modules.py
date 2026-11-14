@@ -61,6 +61,10 @@ def test_op_helpers():
 
     with pytest.raises(ValueError, match="not divisible by 16 frequencies"):
         MultiSpectralAttention(24)
+    from dlnet.zoo.ops_freq import AFNO2D
+
+    with pytest.raises(ValueError, match="AFNO"):
+        AFNO2D(12, num_blocks=8)
     assert isinstance(mlp_block(4, (8,), bn=True)[1], torch.nn.BatchNorm1d)
     assert ops_img.make_divisible(10, 8) == 16
     with pytest.raises(ValueError, match="splits the input"):
