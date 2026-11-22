@@ -6,12 +6,16 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-11-22
+
 - **Plugin mới `hsi_sr`: siêu phân giải ảnh siêu phổ** (lý do tăng major: thêm một loại tác vụ mới, `super_resolution`, có đầu ra là ảnh lớn hơn đầu vào).
   - Dữ liệu: cube độ phân giải cao (`.npz` có `hr` tự nhận; `.mat` / `.npy` với `--plugin hsi_sr`), một hoặc nhiều cube. Ảnh thấp mô phỏng theo giao thức Wald: `--scale`, `--degrade bicubic|gauss`, `--sr-patch`. Từ 5 cube chia theo cube (test trên cảnh chưa thấy), ít hơn thì chia tile và cảnh báo.
   - Metric: MPSNR (chính), MSSIM, SAM, ERGAS, RMSE. Baseline cổ điển: nội suy nearest, bilinear, bicubic.
   - Mô hình: họ `srcnn`, `vdsr`, `edsr`, `rcan`, `sspsr`, `fcnn3d` và kiến trúc zoo giữ kích thước; head mới `srN` (pixel shuffle + residual bicubic); khối mới `edsr_block`, `rcab`, `ssb`, `sr3d` (`zoo/ops_sr.py`, viết theo cấu trúc paper, chưa đối chiếu số học với mã gốc). Loss L1, augmentation lật / chuyển vị chung cho ảnh vào và ảnh đích.
   - Gói xuất: `train.py`, `predict.py` phóng to một cube độ phân giải thấp bất kỳ kích thước (tile chồng lấn, ghép trung bình), `--export` `.pt2` / `.onnx`, notebook có phần so sánh ảnh thấp / bicubic / mạng / ảnh thật, sơ đồ khối vẽ head upsample.
   - MCP: `dlnet_design` / `dlnet_profile` nhận `plugin: hsi_sr`, `scale`, `sr_patch`, `degrade`.
+  - Head `srN` khởi tạo bằng 0: mạng chưa huấn luyện chính là bicubic (khởi tạo ngẫu nhiên kém bicubic 8 dB sau 10 epoch trên Salinas ×2).
+  - Kiểm định trên Salinas và Indian Pines (`qa/reports/v2.0.0/`): trong 10 phút CPU mạng chỉ bằng hoặc hơn bicubic vài phần mười dB; huấn luyện đầy đủ top-1 Salinas ×4 hơn bicubic 0,55 dB.
 - Sửa: ước lượng hyperparameter (`hparams`: LR range test, gradient noise scale) dùng cross-entropy cho tác vụ `reconstruction` (autoencoder), coi ảnh chuẩn hóa là nhãn mềm, nên đo trên một hàm loss khác hàm loss huấn luyện. Giờ dùng đúng loss của tác vụ (`core.loss_for`: MSE; L1 cho siêu phân giải).
 - Sửa: thông báo chọn hạt giống in "1000000000 per class" với dữ liệu không có lớp.
 - `predict.py` in kích thước mảng kết quả thay vì số dòng.
@@ -612,7 +616,8 @@ Bản đầu tiên: prototype chạy được từ dữ liệu đến Top-K base
 - Chưa có zero-cost proxy, cost model FLOPs/VRAM, Tensor-LoRA, deep unfolding; chưa có plugin image và timeseries.
 - Kết quả trên Indian Pines và Pavia University là một lần chạy ngắn trên CPU: với chia theo khối, mạng sâu chưa vượt rõ baseline cổ điển.
 
-[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v1.9.0...HEAD
+[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v2.0.0
 [1.9.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.9.0
 [1.8.2]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.8.2
 [1.8.1]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.8.1
