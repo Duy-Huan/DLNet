@@ -6,6 +6,8 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-11-22
+
 - **Plugin mới `hsi_sr`: siêu phân giải ảnh siêu phổ** (lý do tăng major: thêm một loại tác vụ mới, `super_resolution`, có đầu ra là ảnh lớn hơn đầu vào).
   - Dữ liệu: cube độ phân giải cao (`.npz` có `hr` tự nhận; `.mat` / `.npy` với `--plugin hsi_sr`), một hoặc nhiều cube. Ảnh thấp mô phỏng theo giao thức Wald: `--scale`, `--degrade bicubic|gauss`, `--sr-patch`. Từ 5 cube chia theo cube (test trên cảnh chưa thấy), ít hơn thì chia tile và cảnh báo.
   - Metric: MPSNR (chính), MSSIM, SAM, ERGAS, RMSE. Baseline cổ điển: nội suy nearest, bilinear, bicubic.
@@ -614,7 +616,8 @@ Bản đầu tiên: prototype chạy được từ dữ liệu đến Top-K base
 - Chưa có zero-cost proxy, cost model FLOPs/VRAM, Tensor-LoRA, deep unfolding; chưa có plugin image và timeseries.
 - Kết quả trên Indian Pines và Pavia University là một lần chạy ngắn trên CPU: với chia theo khối, mạng sâu chưa vượt rõ baseline cổ điển.
 
-[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v1.9.0...HEAD
+[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v2.0.0
 [1.9.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.9.0
 [1.8.2]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.8.2
 [1.8.1]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.8.1
