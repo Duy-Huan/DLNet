@@ -597,10 +597,12 @@ class Head(nn.Module):
             if kind != "map":
                 raise ValueError("super-resolution needs a map feature")
             self.mode, self.scale = "sr", int(mode[2:])
-            self.f = nn.Sequential(
-                nn.Conv2d(dims[0], out_dim * self.scale**2, 3, padding=1),
-                nn.PixelShuffle(self.scale),
-            )
+            conv = nn.Conv2d(dims[0], out_dim * self.scale**2, 3, padding=1)
+            # zero start: the untrained network IS bicubic interpolation and training only adds detail
+            # (a random start was 8 dB below bicubic after 10 epochs on Salinas x2, 0.9 dB after 60)
+            nn.init.zeros_(conv.weight)
+            nn.init.zeros_(conv.bias)
+            self.f = nn.Sequential(conv, nn.PixelShuffle(self.scale))
             return
         if mode == "ensemble":
             # tabm.LinearEnsemble: k separate linear layers on the k member representations (k, d).
