@@ -40,6 +40,7 @@ def test_every_family_is_drawn(domain, family):
         "patch": 4,
         "rank_ratio": 0.5,
         "latent": 8,
+        "scale": 2,
     }
     c = families.complete(cfg, domain, DIMS[domain], 3)
     assert len(_texts(diagram.svg(c))) > 5

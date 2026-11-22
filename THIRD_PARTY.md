@@ -196,6 +196,21 @@ Không port: dropout / drop-path trong các khối (dùng `res` có `drop_path` 
 
 Kiểm chứng: `scripts/verify_v18.py` (job CI `verify-v18`) chép trọng số timm (đã nhiễu) sang khối DLNet theo thứ tự, so đầu ra: **14/14 cấu hình trùng từng bit** (sai khác 0), kể cả kích thước lẻ buộc MobileViT nội suy. `window_attention` được kiểm qua việc dựng lại Swin v1/v2 của torchvision (sai khác 0, `scripts/bench_import.py`).
 
+### v2.0: siêu phân giải (`dlnet/zoo/ops_sr.py`, head `srN` trong `zoo/core.py`)
+
+Viết lại theo cấu trúc mô tả trong paper và mã công khai của tác giả, **chưa đối chiếu số học với mã gốc** (khác các port ở trên): khối nhỏ, chỉ gồm conv / ReLU / pooling chuẩn của torch.
+
+| Paper | Mã công khai tham khảo | Lớp gốc | Op / họ trong DLNet |
+|---|---|---|---|
+| EDSR (Lim et al., CVPRW 2017) | sanghyun-son/EDSR-PyTorch | `common.ResBlock` | `edsr_block`, họ `edsr` |
+| RCAN (Zhang et al., ECCV 2018) | yulunzhang/RCAN | `RCAB`, `CALayer` | `rcab`, họ `rcan` (một residual group) |
+| SSPSR (Jiang et al., IEEE TCI 2020) | junjun-jiang/SSPSR | `SSB` (ResBlock + ResAttentionBlock) | `ssb`, họ `sspsr` (không chia nhóm băng, không nhánh progressive) |
+| 3D-FCNN (Mei et al., Remote Sensing 2017) | (paper) | mạng tích chập 3-D | `sr3d`, họ `fcnn3d` |
+| SRCNN (Dong et al., ECCV 2014), VDSR (Kim et al., CVPR 2016) | (paper) | | họ `srcnn`, `vdsr` (từ `conv_bn_act` không norm) |
+| ESPCN (Shi et al., CVPR 2016) | `torch.nn.PixelShuffle` | sub-pixel convolution | head `srN` |
+
+Khác bản gốc: mọi họ dùng chung head `srN` (conv 3x3 → pixel shuffle → cộng ảnh bicubic), thay cho upsampler riêng của từng paper; SRCNN gốc nhận ảnh đã phóng bicubic, ở đây chạy trên ảnh thấp rồi phóng ở head.
+
 ## Chưa port và lý do
 
 | Nguồn | Lớp / phần chưa có | Lý do |

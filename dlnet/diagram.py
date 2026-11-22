@@ -458,6 +458,10 @@ def _head(arch, kind, dims) -> Box:
     if mode == "dense":
         return block(f"1x1 conv -> {out} classes", "per pixel, resized to the input", "head",
                      f"{out} x {' x '.join(map(str, arch['input']['dims'][1:]))}")  # fmt: skip
+    if str(mode).startswith("sr"):
+        r, (_, h, w) = int(mode[2:]), arch["input"]["dims"]
+        return block(f"conv 3x3 + pixel shuffle x{r}", "+ bicubic upsampling of the input", "head",
+                     f"{out} x {h * r} x {w * r}")  # fmt: skip
     if mode == "ensemble":
         return block(
             f"{dims[0]} linear heads -> {out}",

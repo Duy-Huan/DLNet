@@ -38,7 +38,7 @@ S, I, B, N, O, A = (
 )
 DATA_ARGS = {
     "data": {**S, "description": "dataset file in the workspace, e.g. data/train.csv (.csv, .npz, .npy, .mat)"},
-    "plugin": {**S, "description": "force a plugin: tabular | image | timeseries | hsi | segmentation | graph | recsys "
+    "plugin": {**S, "description": "force a plugin: tabular | image | timeseries | hsi | hsi_sr | segmentation | graph | recsys "
                "(default: detected from the file)"},
     "target": {**S, "description": "tabular: name of the target column"},
     "task": {**S, "enum": ["auto", "classification", "regression"], "description": "default auto"},
@@ -50,6 +50,9 @@ DATA_ARGS = {
     "patch": {**I, "description": "hyperspectral: spatial patch size (default 9)"},
     "pca": {**I, "description": "hyperspectral: PCA components kept (default 30; 0 = all bands)"},
     "split": {**S, "enum": ["pixel", "block"], "description": "hyperspectral: how train / test pixels are separated"},
+    "scale": {**I, "description": "hsi_sr: upsampling factor (default 2)"},
+    "sr_patch": {**I, "description": "hsi_sr: side of a high-resolution tile, a multiple of scale (default 32)"},
+    "degrade": {**S, "enum": ["bicubic", "gauss"], "description": "hsi_sr: how the low-resolution input is simulated"},
 }  # fmt: skip
 WAIT = {**N, "description": "seconds to wait for the job before returning its id instead of the result "
         "(poll with dlnet_job); keep it below your client's tool timeout"}  # fmt: skip
@@ -405,6 +408,7 @@ class Service:
             task=a.get("task", "auto"), target=a.get("target"), gt=str(gt) if gt else None,
             cube_key=a.get("cube_key"), gt_key=a.get("gt_key"), split=a.get("split", "pixel"), frac=None,
             patch=int(a.get("patch", 9)), pca=int(a.get("pca", 30)), block_size=16,
+            scale=int(a.get("scale", 2)), sr_patch=int(a.get("sr_patch", 32)), degrade=a.get("degrade", "bicubic"),
         )  # fmt: skip
 
     def _prepare(self, a: dict):
@@ -600,7 +604,8 @@ class Service:
                  "cv_splits": "--cv-splits", "max_params": "--max-params", "rung_score": "--rung-score",
                  "rungs": "--rungs", "task": "--task", "x_key": "--x-key",
                  "y_key": "--y-key", "cube_key": "--cube-key", "gt_key": "--gt-key", "patch": "--patch",
-                 "pca": "--pca", "split": "--split"}  # fmt: skip
+                 "pca": "--pca", "split": "--split", "scale": "--scale", "sr_patch": "--sr-patch",
+                 "degrade": "--degrade"}  # fmt: skip
         for k, flag in flags.items():
             if a.get(k) not in (None, ""):
                 argv += [flag, str(a[k])]

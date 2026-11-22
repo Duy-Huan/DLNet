@@ -726,6 +726,7 @@ class DomainPlugin:
 | `graph` | `.npz` có `X` (G,N,F), `A` (G,N,N), `y` (G): phân loại cả đồ thị | **đã có:** `gcn_net`, `gat_net`, `sage_net`, `gin_net`, `graph_mlp`; baseline cổ điển trên thống kê đồ thị (mật độ, bậc, tam giác, hệ số cụm, phổ Laplacian) | M13 |
 | `recsys` | `.npz` có `ids` (N,F) số nguyên và `y` (điểm hoặc nhấp) | **đã có:** `mf` (GMF), `ncf`, `fm`, `dlrm`; baseline one-hot | M13 |
 | `image_reconstruction` | `.npz` có `X` ảnh, không nhãn | **đã có:** `conv_ae`, `vae` (mã 2–8 kênh); baseline PCA 0/8/32 thành phần | M13 |
+| `hsi_sr` | cube siêu phổ độ phân giải cao (`.npz` có `hr`, `.mat` / `.npy` với `--plugin hsi_sr`) | **đã có (v2.0):** `srcnn`, `vdsr`, `edsr`, `rcan`, `sspsr`, `fcnn3d` + zoo; baseline nội suy nearest / bilinear / bicubic | v2.0 |
 | `image_segmentation` | ảnh + mask, `.npz` có `X` (N,H,W[,C]) và `y` (N,H,W) | **đã có:** `fcn`, `unet`, `deconvnet` × encoder `vgg`/`resnet`/`densenet`/`mobilenetv2`; metric mIoU | M10 (v0.9.0) |
 | `timeseries` | chuỗi thời gian, `.npz` có `X` (N,T[,C]) và `y` | **đã có:** `tcn`, `gru`, `ts_transformer` | M9 (v0.8.0) |
 | `signal`/khác | tín hiệu, tensor đa chiều | tuỳ domain | sau |
@@ -784,6 +785,16 @@ budget: {time: 2h, vram_gb: 12}
 
 - Giới hạn: digits rất dễ (mọi mô hình ≥ 0,97), 16 ứng viên và một lần chia, nên chưa nói được họ nào tốt hơn họ nào; hai ứng viên top đứng cùng nhóm "chưa phân biệt được". Segmentation chỉ có dữ liệu tổng hợp rất dễ (một baseline 5×5 đã gần tối đa), chưa có ảnh y tế / ảnh vệ tinh / Pascal thật; `unet` có độ lệch chuẩn lớn (0,17) nghĩa là huấn luyện chưa ổn định trong ngân sách ngắn. Sinh được 5 ứng viên hợp lệ cho segmentation (một số cấu hình bị loại vì shape hoặc ngân sách tham số).
 - Chưa có: augmentation (lật, cắt), loss cho lớp mất cân bằng (Dice, focal), mô hình pretrained, đầu vào lớn (ảnh > 128×128 chưa kiểm tra tốc độ và bộ nhớ).
+
+### 14.5 Plugin siêu phân giải ảnh siêu phổ `hsi_sr` (v2.0)
+
+- **Dữ liệu** (`dlnet/hsi_sr_data.py`, được chép vào gói xuất): cube độ phân giải cao (H, W, B) hoặc chồng cube (N, H, W, B). Ảnh vào độ phân giải thấp được mô phỏng theo giao thức Wald: `bicubic` (thu nhỏ có chống răng cưa) hoặc `gauss` (Gauss sigma = scale/2 rồi lấy mẫu). Không có cặp LR/HR thật.
+- **Chia tập**: ≥ 5 cube thì chia cả cube (test trên cảnh chưa thấy); ít hơn thì chia tile không chồng lấn của cùng cảnh, kèm cảnh báo trong leaderboard.
+- **Thang**: (x − lo) / hi với lo = min(0, min train), hi = max train − lo; metric tính trên thang này (PSNR đỉnh 1).
+- **Tác vụ `super_resolution`** trong `core`: loss L1 (`core.loss_for`), metric `core.sr_metrics` (MPSNR = điểm, MSSIM cửa sổ đều 7x7, SAM độ, ERGAS, RMSE), augmentation dihedral chung cho ảnh vào và ảnh đích (`Trainer._dihedral`), batch đánh giá 64 (`data["eval_batch"]`). Nhiễu lấy mẫu của PSNR: (10 / ln 10)·sqrt(2/n), n = số tile validation (`search.sampling_noise`).
+- **Mô hình**: head `srN` của `zoo.core.Head` (conv 3x3 → PixelShuffle(N) → + bicubic của đầu vào). Thân phải giữ kích thước không gian; `build_model` và `space._candidate` loại thân làm nhỏ ảnh. Họ: `families.HSI_SR`; khối: `zoo/ops_sr.py` (tag `sr`, không vào ngữ pháp ngẫu nhiên của miền khác).
+- **Dự đoán**: `inference.prepare_input` trả `hsi_sr_data.Tiles` (tile chồng lấn nửa cạnh, đúng cỡ lúc train), `predict` ghép bằng trung bình → cube (H·s, W·s, B) theo thang gốc. Mọi kiến trúc (cả loại chỉ nhận đúng cỡ tile) đều dự đoán được trên cube bất kỳ kích thước.
+- **Chưa có**: cặp LR/HR thật (ảnh thấp đo riêng), hợp nhất với ảnh RGB/đa phổ (fusion), các họ transformer riêng cho SR (SwinIR, ESSA).
 
 ## 15. Skills (bắt buộc đọc trước khi làm)
 

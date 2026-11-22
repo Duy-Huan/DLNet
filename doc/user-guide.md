@@ -41,6 +41,7 @@ DLNet tự nhận loại dữ liệu, in từng bước (`[plugin]`, `[profile]`
 | Autoencoder / VAE | `.npz` | chỉ `X` (không có `y`) |
 | Chuỗi thời gian | `.npz` | `X` (N, T) hoặc (N, T, C); `y` (N,) |
 | Siêu phổ (HSI) | `.mat`, `.npz`, `.npy` | cube (H, W, bands) và ground truth (H, W), `0` = không nhãn |
+| Siêu phân giải siêu phổ (`hsi_sr`, v2.0) | `.npz` có `hr`, hoặc `.mat` / `.npy` kèm `--plugin hsi_sr` | cube độ phân giải cao (H, W, bands) hoặc nhiều cube (N, H, W, bands); không cần nhãn |
 | Đồ thị | `.npz` | `X` (G, N, F) đặc trưng nút, `A` (G, N, N) kề, `y` (G,) |
 | Recommender | `.npz` | `ids` (N, F) số nguyên (ví dụ user, item), `y` (N,) điểm hoặc nhấp |
 
@@ -70,6 +71,28 @@ python -m dlnet design --data interactions.npz --budget 10m
 # siêu phổ: chia theo khối để không rò rỉ không gian
 python -m dlnet design --data cube.mat --gt gt.mat --split block --patch 9 --pca 30 --budget 10m
 ```
+
+**Siêu phân giải ảnh siêu phổ (plugin `hsi_sr`, từ v2.0).** Đưa vào cube **độ phân giải cao**; DLNet tự tạo ảnh vào độ phân giải thấp bằng một phép suy giảm đã biết (giao thức Wald, chuẩn của các benchmark HSI SR), nên mọi metric so với pixel thật:
+
+```bash
+python -m dlnet design --data scene.npz --budget 20m                          # .npz có mảng hr: tự nhận plugin
+python -m dlnet design --data PaviaU.mat --plugin hsi_sr --scale 4 --budget 30m
+python -m dlnet design --data cave.npz --plugin hsi_sr --scale 2 --sr-patch 48 --degrade gauss
+```
+
+| Tùy chọn | Mặc định | Ý nghĩa |
+|---|---|---|
+| `--scale` | 2 | hệ số phóng (2, 3, 4, ...) |
+| `--sr-patch` | 32 | cạnh một tile độ phân giải cao, phải chia hết cho `--scale`; tile thấp = `sr-patch / scale` ≥ 4 |
+| `--degrade` | `bicubic` | `bicubic`: thu nhỏ bicubic có chống răng cưa; `gauss`: làm mờ Gauss (sigma = scale/2) rồi lấy mỗi `scale` pixel |
+| `--cube-key` | | tên mảng cube nếu file có nhiều mảng (mặc định: `hr`, rồi mảng 3-D / 4-D duy nhất) |
+
+- **Chia tập**: từ 5 cube trở lên, cả cube vào train / val / test (60/20/20) nên điểm test là trên **cảnh chưa thấy**; ít hơn thì mỗi cube được cắt thành tile không chồng lấn và chia tile (DLNet in cảnh báo: test là pixel chưa thấy của **cùng cảnh**).
+- **Thang giá trị**: chia cho giá trị lớn nhất của tập train, nên PSNR tính với đỉnh 1 như trong các paper.
+- **Metric**: MPSNR (trung bình PSNR từng băng, metric chính), MSSIM, SAM (góc phổ, độ), ERGAS, RMSE.
+- **Baseline cổ điển**: nội suy nearest, bilinear, bicubic trên cùng tile. Mạng được nhận khi thắng nội suy tốt nhất vượt nhiễu.
+- **Họ mô hình**: `srcnn` (SRCNN), `vdsr` (VDSR), `edsr` (EDSR), `rcan` (RCAN), `sspsr` (khối không gian–phổ của SSPSR, không chia nhóm băng), `fcnn3d` (3D-FCNN), cùng kiến trúc từ zoo (`--zoo`) giữ nguyên kích thước không gian. Mọi mạng kết thúc bằng head `srN`: conv 3x3 → pixel shuffle ×N, cộng ảnh nội suy bicubic của đầu vào (residual toàn cục). Hàm loss L1, augmentation lật / chuyển vị (8 phép dihedral) áp đồng thời lên ảnh vào và ảnh đích.
+- **Dự đoán**: `predict.py --data cube_thap.npy --out sr.npy` nhận một cube **độ phân giải thấp** (H, W, bands) bất kỳ kích thước, cắt thành tile chồng lấn đúng cỡ lúc huấn luyện, ghép lại bằng trung bình, trả về cube (H·scale, W·scale, bands) theo thang gốc.
 
 **Họ miền tần số cho ảnh siêu phổ** (FFT → phép học trên phổ tần số → iFFT, `dlnet/zoo/ops_freq.py`): `gfnet2d` (GFNet, lọc toàn cục 2-D), `afno2d` (AFNO), `fno2d` (Fourier Neural Operator), `ffc2d` (Fast Fourier Convolution), `fcanet2d` (chú ý kênh bằng DCT), `spec_fft2d` (hệ số Fourier của phổ từng pixel rồi ResNet), `fourier_ss` (lọc Fourier dọc trục phổ rồi GFNet không gian). Các họ này nằm sẵn trong không gian tìm kiếm HSI; ngữ pháp (`--zoo`) cũng tự chèn các op `gfnet_block`, `fno_block`, `afno_block`, `ffc_block`, `fca`, `spectral_gf` vào kiến trúc lấy mẫu. Hai họ xử lý **trục phổ** (`spec_fft2d`, `fourier_ss`) chỉ có ý nghĩa vật lý khi giữ nguyên thứ tự băng: dùng `--pca 0` (với PCA, trục kênh là các thành phần chính, không phải bước sóng).
 
@@ -374,7 +397,7 @@ python dlnet_out/top1_tabular_mlp/predict.py --data new_rows.csv --out predictio
 python dlnet_out/top1_resnet/predict.py --data new_images.npz --export model.pt2          # thêm: đồ thị triển khai (torch.export)
 ```
 
-File mới cùng định dạng với dữ liệu huấn luyện, không cần nhãn. Kết quả theo đơn vị gốc: nhãn lớp gốc (ví dụ `"cat"`, `21`), giá trị hồi quy gốc, mask với giá trị lớp gốc (phân đoạn), ảnh tái tạo theo thang gốc, bản đồ lớp (H, W) cho ảnh siêu phổ. `--export model.onnx` cần `pip install onnx onnxscript`. Trong mã Python: `import inference; model, meta, cfg = inference.load("dlnet_out/top1_resnet"); y = inference.predict_file(model, meta, cfg, "new.npz")`.
+File mới cùng định dạng với dữ liệu huấn luyện, không cần nhãn. Kết quả theo đơn vị gốc: nhãn lớp gốc (ví dụ `"cat"`, `21`), giá trị hồi quy gốc, mask với giá trị lớp gốc (phân đoạn), ảnh tái tạo theo thang gốc, bản đồ lớp (H, W) cho ảnh siêu phổ, cube siêu phân giải (H·scale, W·scale, bands) cho `hsi_sr`. `--export model.onnx` cần `pip install onnx onnxscript`. Trong mã Python: `import inference; model, meta, cfg = inference.load("dlnet_out/top1_resnet"); y = inference.predict_file(model, meta, cfg, "new.npz")`.
 
 ## 10. Học từ các lần chạy trước
 

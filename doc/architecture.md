@@ -83,6 +83,7 @@ Một plugin (`dlnet/plugins/__init__.py: DomainPlugin`) cài: `detect` (độ t
 | `image_classification` | `.npz`: `X (N,H,W[,C])`, `y (N,)` | accuracy |
 | `image_segmentation` | `.npz`: `X`, mask `y (N,H,W)` | mIoU |
 | `image_reconstruction` | `.npz`: chỉ `X` | MSE, PSNR |
+| `hsi_sr` | cube siêu phổ độ phân giải cao (`.npz` có `hr`, hoặc `.mat` / `.npy` với `--plugin hsi_sr`) | MPSNR; MSSIM, SAM, ERGAS |
 | `timeseries` | `.npz`: `X (N,T[,C])`, `y` | accuracy / RMSE |
 | `graph` | `.npz`: `X (G,N,F)`, `A (G,N,N)`, `y (G)` | accuracy |
 | `recsys` | `.npz`: `ids (N,F)` nguyên, `y` | RMSE / accuracy |

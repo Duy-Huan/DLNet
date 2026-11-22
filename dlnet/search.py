@@ -127,6 +127,8 @@ def sampling_noise(score: float, primary: str, n: int) -> float:
         return float(abs(score) / (2 * n) ** 0.5)
     if primary == "neg_mse":
         return float(abs(score) * (2 / n) ** 0.5)
+    if primary == "psnr":  # PSNR = -10 log10 MSE: the MSE error above through the logarithm
+        return float(10 / math.log(10) * (2 / n) ** 0.5)
     return 0.0
 
 

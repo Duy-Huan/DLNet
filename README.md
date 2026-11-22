@@ -39,11 +39,12 @@ Tùy chọn (làm hết các bước trên bằng một lệnh, tự tìm Python
 
 ## Trang thai
 - Plugin `tabular` (CSV) va plugin `hsi` (anh sieu pho: cube + ground truth, phan loai pixel).
+- **v2.0: plugin `hsi_sr`, sieu phan giai anh sieu pho.** Dua vao cube do phan giai cao; DLNet tu tao anh do phan giai thap (giao thuc Wald, `--scale`, `--degrade bicubic|gauss`), tim mang trong cac ho SRCNN, VDSR, EDSR, RCAN, SSPSR, 3D-FCNN va zoo (head pixel shuffle + residual bicubic), so voi noi suy nearest / bilinear / bicubic theo MPSNR, SSIM, SAM, ERGAS. `predict.py` phong to mot cube do phan giai thap bat ky kich thuoc. Huong dan: [doc/user-guide.md](doc/user-guide.md#4-chạy-theo-loại-bài-toán).
 - Lenh `dlnet unfold`: deep unfolding (LISTA) cho bai toan nghich thua `y = A x + nhieu` khi biet ma tran `A`.
 - Module thu vien: Tensor-LoRA (`dlnet/tensor_lora.py`), HOSVD (`dlnet/tensor.py`); chua duoc `design` dung.
 - Plugin `graph` (X, A, y), `recsys` (ids, y), `image_reconstruction` (chi X); lenh `dlnet gan --data images.npz` (DCGAN, xep hang theo MMD).
 - Plugin `image_classification`, `image_segmentation` (mask `y` (N,H,W), metric mIoU) va `timeseries` (file `.npz` co `X` va `y`).
-- **Kho module `dlnet/zoo/` (211 module + 11 decoder phan doan, tu torchvision, timm, segmentation_models_pytorch, MONAI va ma chinh thuc cua cac paper 2022–2025; doi chieu so hoc voi ma goc tren GitHub Actions, xem `THIRD_PARTY.md`)**: moi `design` them cac kien truc tu zoo (`--zoo`, `--evolve`: aging evolution); `python -m dlnet zoo` liet ke module; nguon o `THIRD_PARTY.md`. v1.4 them 21 module va 13 ho (DLinear, TSMixer, TiDE; GATv2, GCNII, APPNP, SGC; xDeepFM, AutoInt, FiBiNET; Set Transformer, attention pooling; InceptionNeXt, FocalNet, non-local, PVTv2, BlurPool, SimAM, GeM); 53/53 phep doi chieu voi ma goc khop.
+- **Kho module `dlnet/zoo/` (215 module + 11 decoder phan doan, tu torchvision, timm, segmentation_models_pytorch, MONAI va ma chinh thuc cua cac paper 2022–2025; doi chieu so hoc voi ma goc tren GitHub Actions, xem `THIRD_PARTY.md`)**: moi `design` them cac kien truc tu zoo (`--zoo`, `--evolve`: aging evolution); `python -m dlnet zoo` liet ke module; nguon o `THIRD_PARTY.md`. v1.4 them 21 module va 13 ho (DLinear, TSMixer, TiDE; GATv2, GCNII, APPNP, SGC; xDeepFM, AutoInt, FiBiNET; Set Transformer, attention pooling; InceptionNeXt, FocalNet, non-local, PVTv2, BlurPool, SimAM, GeM); 53/53 phep doi chieu voi ma goc khop. v2.0 them 4 khoi sieu phan giai (`edsr_block`, `rcab`, `ssb`, `sr3d`) viet theo paper, chua doi chieu so hoc.
 - **Phan tich du lieu anh va chon hat giong**: `[datacard]` (pho, do dai tuong quan, phu thuoc vi tri, probe tich chap ngau nhien...), `--context "medical CT"`, `--goal small`, `--seeds N`, `--scheduler hyperband`. Do tren MNIST/Fashion: prior chua du doan duoc thu hang (`agent.md` §16.5), nen mac dinh khong loai ung vien.
 - **DLNet la mot dich vu MCP qua HTTP** (`python -m dlnet serve`): Claude Code, Codex, Antigravity ket noi toi `http://<host>:8765/mcp` va dung DLNet de phan tich du lieu, sinh mang, huan luyen, danh gia, du doan (20 tool, job nen, token, workspace co lap). Huong dan: [doc/mcp-server.md](doc/mcp-server.md).
 - **v1.8**: thu vien lop co ban (gan du `torch.nn` + cac phep tensor, `dlnet/zoo/ops_prim.py`) va `dlnet paper import` viet lai: **75/75 mang phan loai cua torchvision dung lai trung tung bit** tu ma goc (ResNet, EfficientNet, ConvNeXt, ViT, Swin v1/v2, MaxViT, ...), kiem bang `scripts/bench_import.py`; v1.8.1: timm (mau co dinh 200 mang) **161/163 dung lai trung tung bit**, ke ca mang co `if` tren kich thuoc trong forward; 5 khoi hieu qua moi cho tim kiem (FasterNet, MambaOut, MobileViT v1/v2, EdgeNeXt), trung tung bit voi timm.
@@ -66,6 +67,9 @@ python -m dlnet design --data cube.mat --gt gt.mat --split block --patch 9 --pca
 python -m dlnet design --data images.npz --budget 10m --topk 3          # y (N,): phan loai
 python -m dlnet design --data masks.npz --budget 10m --topk 3           # y (N,H,W): phan doan
 python -m dlnet design --data series.npz --budget 10m --topk 3
+
+# sieu phan giai anh sieu pho (cube do phan giai cao; .npz co mang hr thi tu nhan plugin)
+python -m dlnet design --data PaviaU.mat --plugin hsi_sr --scale 4 --budget 30m --topk 3
 
 # bai toan nghich thua y = A x + nhieu (.npz chua A, Y, X): LISTA so voi ISTA / FISTA cung so vong
 python -m dlnet unfold --data problem.npz --layers 4,8,16 --epochs 100

@@ -76,6 +76,8 @@ def synflow(model: nn.Module, x_shape: tuple[int, ...]) -> float:
 
 
 def _loss(out, y, task):
+    if task == "super_resolution":
+        return nn.functional.l1_loss(out, y)
     if task == "reconstruction":
         return nn.functional.mse_loss(out, y)
     if task == "regression":

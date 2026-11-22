@@ -686,7 +686,8 @@ def _design_args(d, plugins) -> None:
         "--plugin",
         default="auto",
         help="auto | tabular | hsi | image_classification (image) | image_segmentation (segmentation) | "
-        "image_reconstruction (autoencoder) | timeseries | graph | recsys",
+        "image_reconstruction (autoencoder) | timeseries | graph | recsys | "
+        "hsi_sr (hyperspectral super-resolution)",
     )
     d.add_argument(
         "--budget", default="5m",

@@ -25,13 +25,13 @@ import torch
 from torch import nn
 
 from . import clock
-from .core import Trainer, members
+from .core import Trainer, loss_for, members
 
 MIN_BATCH, MAX_BATCH = 16, 512
 
 
 def _loss_fn(data):
-    return nn.MSELoss() if data["task"] == "regression" else nn.CrossEntropyLoss()
+    return loss_for(data["task"])
 
 
 def _loss(model, X, y, data, loss_fn):

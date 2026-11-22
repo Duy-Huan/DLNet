@@ -585,12 +585,23 @@ def check(spec, kind: str, dims) -> dict:
 
 
 class Head(nn.Module):
-    """Global pooling + dropout + linear (cls), a 1x1 convolution per pixel (dense), or one output
-    layer per ensemble member (ensemble: TabM, arXiv:2410.24210)."""
+    """Global pooling + dropout + linear (cls), a 1x1 convolution per pixel (dense), one output
+    layer per ensemble member (ensemble: TabM, arXiv:2410.24210), or a super-resolution upsampler
+    (sr2, sr3, sr4, ...: 3x3 convolution to out_dim * r^2 channels, pixel shuffle by r (ESPCN, Shi
+    et al. 2016), plus the bicubic upsampling of the input as global residual (VDSR, Kim et al. 2016))."""
 
     def __init__(self, kind, dims, out_dim, mode="cls", dropout=0.0):
         super().__init__()
         self.kind, self.mode = kind, mode
+        if mode.startswith("sr"):
+            if kind != "map":
+                raise ValueError("super-resolution needs a map feature")
+            self.mode, self.scale = "sr", int(mode[2:])
+            self.f = nn.Sequential(
+                nn.Conv2d(dims[0], out_dim * self.scale**2, 3, padding=1),
+                nn.PixelShuffle(self.scale),
+            )
+            return
         if mode == "ensemble":
             # tabm.LinearEnsemble: k separate linear layers on the k member representations (k, d).
             # Training: (B, k, out), one loss per member (core.Trainer); eval: the members' mean
@@ -612,7 +623,12 @@ class Head(nn.Module):
             feat = dims[1] if kind == "seq" else dims[0]
             self.f = nn.Sequential(nn.Dropout(dropout), nn.Linear(feat, out_dim))
 
-    def forward(self, x, size=None):
+    def forward(self, x, size=None, inp=None):
+        if self.mode == "sr":
+            up = nn.functional.interpolate(
+                inp, scale_factor=self.scale, mode="bicubic", align_corners=False
+            )
+            return self.f(x) + up
         if self.mode == "ensemble":
             y = (self.drop(x).transpose(0, 1) @ self.weight).transpose(
                 0, 1
@@ -647,6 +663,8 @@ class ZooNet(nn.Module):
 
     def forward(self, x):
         z = self.body(x)
+        if self.head.mode == "sr":
+            return self.head(z, inp=x)
         return self.head(z, x.shape[-2:]) if self.head.mode == "dense" else self.head(z)
 
 
@@ -656,6 +674,10 @@ def build_model(cfg: dict, in_dim=None, out_dim=None) -> nn.Module:
     body, kind, dims = _build(cfg["spec"], inp["kind"], tuple(inp["dims"]))
     if cfg.get("head") == "none":  # the spec already produces the output (a generator)
         return body
+    if str(cfg.get("head", "")).startswith("sr") and (
+        kind != "map" or tuple(dims[1:]) != tuple(inp["dims"][1:])
+    ):
+        raise ValueError("a super-resolution body must keep the spatial size of its input")
     head = Head(
         kind, dims, out_dim or cfg["out_dim"], cfg.get("head", "cls"), cfg.get("dropout", 0.0)
     )

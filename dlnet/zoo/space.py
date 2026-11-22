@@ -403,6 +403,10 @@ def _candidate(spec, kind, dims, out_dim, head, train, rng, max_params, origin):
         return None
     if head == "dense" and info["kind"] != "map":
         return None
+    if head.startswith("sr") and (
+        info["kind"] != "map" or tuple(info["dims"][1:]) != tuple(dims[1:])
+    ):
+        return None  # super-resolution: the body must keep the input's spatial size
     if info["kind"] in (
         "graph",
         "ids",

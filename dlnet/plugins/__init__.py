@@ -89,6 +89,8 @@ ALIASES = {
     "recommendation": "recsys",
     "autoencoder": "image_reconstruction",
     "reconstruction": "image_reconstruction",
+    "super_resolution": "hsi_sr",
+    "hsi_super_resolution": "hsi_sr",
 }
 
 
@@ -102,11 +104,13 @@ def _registry() -> dict[str, DomainPlugin]:
         TimeSeriesPlugin,
     )
     from .hsi import HSIPlugin
+    from .hsi_sr import HSISuperResolutionPlugin
     from .tabular import TabularPlugin
 
     plugins = (
         TabularPlugin(),
         HSIPlugin(),
+        HSISuperResolutionPlugin(),
         ImageClassificationPlugin(),
         ImageSegmentationPlugin(),
         ImageReconstructionPlugin(),
