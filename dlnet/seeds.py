@@ -96,7 +96,9 @@ def trait_weights(card: dict, context: str = "", goal: str = "accuracy") -> tupl
         add(
             "global_attention",
             -1.0,
-            f"{n} training images ({spc} per class at least): global attention needs much data",
+            f"{n} training images"
+            + (f" ({spc} per class at least)" if spc < 10**9 else "")
+            + ": global attention needs much data",
         )
     gain = card.get("conv_bias_gain")
     if gain is not None and gain > 0.1:

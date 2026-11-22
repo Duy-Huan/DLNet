@@ -6,6 +6,17 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+- **Plugin mới `hsi_sr`: siêu phân giải ảnh siêu phổ** (lý do tăng major: thêm một loại tác vụ mới, `super_resolution`, có đầu ra là ảnh lớn hơn đầu vào).
+  - Dữ liệu: cube độ phân giải cao (`.npz` có `hr` tự nhận; `.mat` / `.npy` với `--plugin hsi_sr`), một hoặc nhiều cube. Ảnh thấp mô phỏng theo giao thức Wald: `--scale`, `--degrade bicubic|gauss`, `--sr-patch`. Từ 5 cube chia theo cube (test trên cảnh chưa thấy), ít hơn thì chia tile và cảnh báo.
+  - Metric: MPSNR (chính), MSSIM, SAM, ERGAS, RMSE. Baseline cổ điển: nội suy nearest, bilinear, bicubic.
+  - Mô hình: họ `srcnn`, `vdsr`, `edsr`, `rcan`, `sspsr`, `fcnn3d` và kiến trúc zoo giữ kích thước; head mới `srN` (pixel shuffle + residual bicubic); khối mới `edsr_block`, `rcab`, `ssb`, `sr3d` (`zoo/ops_sr.py`, viết theo cấu trúc paper, chưa đối chiếu số học với mã gốc). Loss L1, augmentation lật / chuyển vị chung cho ảnh vào và ảnh đích.
+  - Gói xuất: `train.py`, `predict.py` phóng to một cube độ phân giải thấp bất kỳ kích thước (tile chồng lấn, ghép trung bình), `--export` `.pt2` / `.onnx`, notebook có phần so sánh ảnh thấp / bicubic / mạng / ảnh thật, sơ đồ khối vẽ head upsample.
+  - MCP: `dlnet_design` / `dlnet_profile` nhận `plugin: hsi_sr`, `scale`, `sr_patch`, `degrade`.
+- Sửa: ước lượng hyperparameter (`hparams`: LR range test, gradient noise scale) dùng cross-entropy cho tác vụ `reconstruction` (autoencoder), coi ảnh chuẩn hóa là nhãn mềm, nên đo trên một hàm loss khác hàm loss huấn luyện. Giờ dùng đúng loss của tác vụ (`core.loss_for`: MSE; L1 cho siêu phân giải).
+- Sửa: thông báo chọn hạt giống in "1000000000 per class" với dữ liệu không có lớp.
+- `predict.py` in kích thước mảng kết quả thay vì số dòng.
+- Regression test `tests/test_regression_v20.py` khóa hai lỗi trên (đỏ trên v1.9.0); `tests/test_hsi_sr.py` phủ plugin mới, kể cả một lần `design` → `train.py` → `predict.py` thật. Coverage giữ 100 %.
+
 ## [1.9.0] - 2026-11-14
 
 - **Coverage 100 %** (trước là 97 %, sàn 95 %): job CI `coverage` giờ fail nếu dưới 100 % (`fail_under = 100`). Toàn bộ test chạy dưới coverage, kể cả CLI trong tiến trình con và e2e: 2.170+ test. Chỉ 4 dòng có `# pragma: no cover`, mỗi dòng ghi lý do: 2 dòng chỉ chạy khi có GPU CUDA (`channels_last`, `cuda.synchronize`), 2 dòng chỉ chạy trên Windows (dừng tiến trình con).

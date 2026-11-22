@@ -14,7 +14,8 @@ from dlnet import cli, standalone, zoo
 from dlnet.zoo import families
 
 DIMS = {"tabular": (16,), "image": (3, 32, 32), "segmentation": (3, 32, 32), "timeseries": (3, 64),
-        "hsi": (32, 9, 9), "graph": (8, 12), "recsys": (10, 7), "reconstruction": (3, 32, 32)}  # fmt: skip
+        "hsi": (32, 9, 9), "graph": (8, 12), "recsys": (10, 7), "reconstruction": (3, 32, 32),
+        "hsi_sr": (6, 8, 8)}  # fmt: skip
 FAMILIES = [(d, f) for d, (fams, *_) in families.DOMAINS.items() for f in fams if f != "composed"]
 
 
@@ -39,9 +40,10 @@ def test_every_family_is_written_as_source_identical_to_the_zoo_model(domain, fa
         "patch": 4,
         "rank_ratio": 0.5,
         "latent": 8,
+        "scale": 2,
     }
-    c = families.complete(cfg, domain, DIMS[domain], 3)
-    assert standalone.verified_source(c, 3)[1] == "identical"
+    c = families.complete(cfg, domain, DIMS[domain], 6 if domain == "hsi_sr" else 3)
+    assert standalone.verified_source(c, c["out_dim"])[1] == "identical"
 
 
 def test_combinators_and_shared_weights_are_reproduced():

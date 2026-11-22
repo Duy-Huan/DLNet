@@ -10,6 +10,7 @@ Importing this package registers every op. Layout:
   ops_graph2   GraphGPS + RWSE, Polynormer, SGFormer; FinalMLP, DCNv3, WuKong (CTR)
   ops_seq2     Gated DeltaNet, mLSTM, GR-KAN / KAT, MambaVision (reference implementations)
   ops_hsi      HSI networks: MambaHSI, MambaHSI+, SSFTT, FAHM
+  ops_sr       super-resolution blocks: EDSR, RCAN (RCAB), SSPSR (SSB), 3D-FCNN
   ops_next     2023-2025 drop-ins: gated/diff attention, DyT, 2-D RoPE, WTConv, UIB, MQA, LSNet, StarNet, EfficientViT, MSCA
   ops_freq     frequency domain (FFT/iFFT): GFNet, AFNO, FNO, FFC, FcaNet, FNet, spectral filters
   ops_more     v1.4 additions: DLinear, TSMixer, TiDE; GATv2, GCNII, APPNP, SGC; CIN, AutoInt, FiBiNET; Set Transformer,
@@ -38,6 +39,7 @@ from . import (  # noqa: F401  (registers the ops)
     ops_prim,
     ops_seq,
     ops_seq2,
+    ops_sr,
     ops_v18,
     ops_vec,
 )

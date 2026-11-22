@@ -91,7 +91,7 @@ HELPERS = """
 # imported at a time. `use(pkg)` returns its modules.
 import importlib, json, time, types
 
-SHARED = ("model", "core", "inference", "array_data", "hsi_data")
+SHARED = ("model", "core", "inference", "array_data", "hsi_data", "hsi_sr_data")
 _ACTIVE = []
 
 def use(pkg):
@@ -174,6 +174,15 @@ if plt is not None and p.cfg["data"]["kind"] in ("image", "segmentation"):
         a.imshow(img.squeeze(), cmap="gray" if img.ndim == 2 or img.shape[-1] == 1 else None)
         a.set_title(str(y[i]) if y.ndim == 1 else "", fontsize=8); a.axis("off")
     plt.show()
+""",
+    "hsi_sr": """
+# 2. Data: the same cube(s), degradation, tiles and split as the search (the package's hsi_sr_data.py)
+DATA, CUBE_KEY = {data!r}, {cube_key!r}
+p = use(BASELINES[0])
+dc = p.cfg["data"]
+data = p.hsi_sr_data.build(p.hsi_sr_data.load(DATA, CUBE_KEY), scale=dc["scale"], patch=dc["patch"],
+                           seed=p.cfg["split_seed"], degradation=dc["degradation"])
+print(data["info"])
 """,
     "image_reconstruction": """
 # 2. Data: the same images, split and normalisation as the search (the package's array_data.py)
@@ -309,6 +318,21 @@ if plt is not None:
     for a in ax: a.axis("off")
     plt.show()
 """,
+    "hsi_sr": """
+# One band of a test tile: the low-resolution input, bicubic interpolation, the best saved baseline, the truth
+best = max(RESULTS, key=lambda n: RESULTS[n]["val"]["score"]) if RESULTS else BASELINES[0]
+p, model, meta, cfg = evaluate_saved(best)
+s, band = cfg["data"]["scale"], data["in_dim"] // 2
+with torch.no_grad():
+    sr = model(data["Xte"][:1])[0, band].numpy()
+bic = p.hsi_sr_data.upsample(data["Xte"][:1], s, "bicubic")[0, band].numpy()
+if plt is not None:
+    fig, ax = plt.subplots(1, 4, figsize=(14, 4))
+    for a, img, t in zip(ax, (data["Xte"][0, band].numpy(), bic, sr, data["yte"][0, band].numpy()),
+                         ("low resolution", "bicubic", best, "ground truth")):
+        a.imshow(img, cmap="gray"); a.set_title(t, fontsize=9); a.axis("off")
+    plt.show()
+""",
     "segmentation": """
 # Masks predicted on test images by the best saved baseline
 best = max(RESULTS, key=lambda n: RESULTS[n]["val"]["score"]) if RESULTS else BASELINES[0]
@@ -378,7 +402,7 @@ The search ranked the baselines on a short budget; full training can reorder nei
 
 def _packages(plugin: str) -> dict:
     need = {"torchview": "torchview", "graphviz": "graphviz", "matplotlib": "matplotlib"}
-    if plugin == "hsi":
+    if plugin in ("hsi", "hsi_sr"):
         need["scipy"] = "scipy"
     if plugin == "tabular":
         need["pandas"] = "pandas"
@@ -391,8 +415,7 @@ def cells(out_dir, source: dict, git_url: str = "", git_subdir: str = "") -> lis
     names = [r["name"] for r in board["top_k"]]
     cfg = json.loads((out / names[0] / "config.yaml").read_text())
     plugin = cfg["plugin"]
-    kind = "hsi" if plugin == "hsi" else "tabular" if plugin == "tabular" else (
-        "image_reconstruction" if plugin == "image_reconstruction" else "arrays")  # fmt: skip
+    kind = plugin if plugin in ("hsi", "hsi_sr", "tabular", "image_reconstruction") else "arrays"
     rel = {k: (os.path.relpath(v, out) if v and Path(v).exists() else v) for k, v in source.items()}
     c = [
         _md(INTRO.format(n=len(names), task=board["task"], metric=board["metric"])),
@@ -445,7 +468,7 @@ def cells(out_dir, source: dict, git_url: str = "", git_subdir: str = "") -> lis
         _md("## 5. Reuse the saved baselines"),
         _code(RELOAD),
     ]
-    show = "hsi" if plugin == "hsi" else (
+    show = plugin if plugin in ("hsi", "hsi_sr") else (
         "segmentation" if plugin == "image_segmentation" else
         "regression" if board["task"] == "regression" else
         "classification" if board["task"] == "classification" and plugin != "image_reconstruction" else None

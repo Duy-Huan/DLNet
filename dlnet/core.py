@@ -195,7 +195,38 @@ def prepare(X, y, task: str, seed: int = 0) -> dict:
     return d
 
 
-def compute_metrics(y_true, y_pred, task: str, primary: str) -> dict:
+def _ssim(t: np.ndarray, p: np.ndarray, win: int = 7) -> float:
+    """Mean SSIM over every band of every image (Wang et al. 2004; uniform 7x7 window, data range 1)."""
+    a = torch.from_numpy(np.ascontiguousarray(t, dtype=np.float64)).reshape(-1, 1, *t.shape[-2:])
+    b = torch.from_numpy(np.ascontiguousarray(p, dtype=np.float64)).reshape(-1, 1, *p.shape[-2:])
+    w = min(win, *t.shape[-2:])
+    f = lambda x: nn.functional.avg_pool2d(x, w, 1)
+    ma, mb = f(a), f(b)
+    va, vb, cov = f(a * a) - ma**2, f(b * b) - mb**2, f(a * b) - ma * mb
+    c1, c2 = 0.01**2, 0.03**2
+    s = ((2 * ma * mb + c1) * (2 * cov + c2)) / ((ma**2 + mb**2 + c1) * (va + vb + c2))
+    return float(s.mean())
+
+
+def sr_metrics(y_true, y_pred, scale: int = 1) -> dict:
+    """Super-resolution metrics on (N, bands, H, W) scaled to [0, 1]: MPSNR (mean over bands of the
+    PSNR with peak 1), MSSIM, SAM (mean spectral angle, degrees), ERGAS (Wald 2000), RMSE."""
+    t, p = np.asarray(y_true, dtype=np.float64), np.asarray(y_pred, dtype=np.float64)
+    mse_b = ((t - p) ** 2).mean(axis=(0, 2, 3))
+    psnr = float(np.mean(10 * np.log10(1.0 / np.maximum(mse_b, 1e-12))))
+    nt, np_ = np.linalg.norm(t, axis=1), np.linalg.norm(p, axis=1)
+    ok = (nt > 0) & (np_ > 0)
+    cos = np.clip((t * p).sum(1)[ok] / (nt[ok] * np_[ok]), -1.0, 1.0)
+    sam = float(np.degrees(np.arccos(cos)).mean()) if ok.any() else 0.0
+    mu_b = t.mean(axis=(0, 2, 3))
+    ergas = float(100.0 / scale * np.sqrt(np.mean(mse_b / np.maximum(mu_b**2, 1e-12))))
+    return {"psnr": psnr, "ssim": _ssim(t, p), "sam": sam, "ergas": ergas,
+            "rmse": float(np.sqrt(mse_b.mean())), "score": psnr}  # fmt: skip
+
+
+def compute_metrics(y_true, y_pred, task: str, primary: str, scale: int = 1) -> dict:
+    if task == "super_resolution":
+        return sr_metrics(y_true, y_pred, scale)
     if task == "regression":
         rmse = float(np.sqrt(np.mean((y_true - y_pred) ** 2)))
         r2 = float(1 - np.sum((y_true - y_pred) ** 2) / np.sum((y_true - y_true.mean()) ** 2))
@@ -282,6 +313,16 @@ def amp_dtype(device: torch.device, amp="auto"):
 # ------------------------------------------------------------------------ training
 
 
+def loss_for(task: str, label_smoothing: float = 0.0) -> nn.Module:
+    """L1 for super-resolution (EDSR, RCAN, SSPSR train with it), MSE for regression and
+    reconstruction, cross-entropy for classification."""
+    if task == "super_resolution":
+        return nn.L1Loss()
+    if task in ("regression", "reconstruction"):
+        return nn.MSELoss()
+    return nn.CrossEntropyLoss(label_smoothing=label_smoothing)
+
+
 def members(model, out, y):
     """(output, target) for the loss. An ensemble model (TabM) returns (B, k, out) in training:
     every member gets its own loss, averaged (Gorishniy et al. 2025, sec. 3), not the loss of the
@@ -335,17 +376,22 @@ class Trainer:
             float
         ] = []  # mean training loss of every epoch (TSE, dlnet/search.py)
         self.seconds = 0.0
-        self.loss_fn = (
-            nn.MSELoss()
-            if data["task"] in ("regression", "reconstruction")
-            else nn.CrossEntropyLoss(label_smoothing=self.recipe["label_smoothing"])
-        )
-        kind = data.get("kind")
-        self.augment = self.recipe["augment"] and kind in ("image", "segmentation")
-        if self.augment:
+        self.loss_fn = loss_for(data["task"], self.recipe["label_smoothing"])
+        kind = self.kind = data.get("kind")
+        self.augment = self.recipe["augment"] and kind in ("image", "segmentation", "hsi_sr")
+        if self.augment and kind != "hsi_sr":
             c, h, w = data["shape"][:3]
             self.shift = 0 if kind == "segmentation" else max(1, min(h, w) // 8)
             self.flip = kind == "segmentation" or c == 3  # digits and letters must not be mirrored
+
+    def _dihedral(self, xb, yb):
+        """Super-resolution: the same random horizontal flip, vertical flip and transpose of each
+        input tile and its target (the 8 dihedral transforms, as EDSR / RCAN train)."""
+        n = xb.shape[0]
+        for f in (lambda t: t.flip(-1), lambda t: t.flip(-2), lambda t: t.transpose(-1, -2)):
+            m = (torch.rand(n, generator=self.gen) < 0.5).to(xb.device)[:, None, None, None]
+            xb, yb = torch.where(m, f(xb), xb), torch.where(m, f(yb), yb)
+        return xb, yb
 
     def _augment(self, xb, yb):
         """Random shift (zero padding) and horizontal flip per sample, on the training device.
@@ -442,7 +488,8 @@ class Trainer:
                     continue
                 xb, yb = self.batch_of(X, b), self.batch_of(y, b)
                 if self.augment:
-                    xb, yb = self._augment(xb, yb)
+                    aug = self._dihedral if self.kind == "hsi_sr" else self._augment
+                    xb, yb = aug(xb, yb)
                 with self._autocast():
                     out, yl = members(self.model, self.model(xb), yb)
                     out = out.squeeze(-1) if self.data["task"] == "regression" else out
@@ -479,19 +526,19 @@ class Trainer:
     def evaluate(self, split: str) -> dict:
         self.model.eval()
         X = self.split("X" + split)
-        outs = []
-        for i in range(0, len(X), 1024):
+        outs, step = [], self.data.get("eval_batch", 1024)
+        for i in range(0, len(X), step):
             with self._autocast():
-                outs.append(self.model(self.batch_of(X, torch.arange(i, min(i + 1024, len(X))))))
+                outs.append(self.model(self.batch_of(X, torch.arange(i, min(i + step, len(X))))))
         out = torch.cat([o.float().cpu() for o in outs])
         d = self.data
-        if d["task"] == "reconstruction":
+        if d["task"] in ("reconstruction", "super_resolution"):
             pred = out.numpy()
         elif d["task"] == "regression":
             pred = out.squeeze(-1).numpy() * d["y_std"] + d["y_mean"]
         else:
             pred = out.argmax(1).numpy()
-        return compute_metrics(d["y_raw"][split], pred, d["task"], d["primary"])
+        return compute_metrics(d["y_raw"][split], pred, d["task"], d["primary"], d.get("scale", 1))
 
 
 def train_full(

@@ -89,6 +89,16 @@ def prepare_input(meta, cfg, path):
         return torch.from_numpy(ids)
     if t == "hsi":
         return _hsi_patches(meta, path, keys)
+    if t == "hsi_sr":  # a LOW-resolution cube, cut into overlapping tiles of the training size
+        import hsi_sr_data
+
+        cube = hsi_sr_data.load(path, keys.get("cube_key"))
+        if len(cube) != 1:
+            raise SystemExit(f"{path}: give one low-resolution cube (H, W, bands), got {len(cube)}")
+        try:
+            return hsi_sr_data.Tiles(cube[0], pre)
+        except ValueError as e:
+            raise SystemExit(str(e)) from None
     raise SystemExit(f"unknown preprocessing type {t!r}")
 
 
@@ -122,7 +132,7 @@ def predict(model, meta, X, batch=1024, device="cpu"):
 
     classification: original class labels; regression: original target units; segmentation: a mask
     of original class values; reconstruction: images in the original intensity scale (N, C, H, W);
-    hsi: a class map (H, W)."""
+    hsi: a class map (H, W); hsi_sr: the super-resolved cube (H * scale, W * scale, bands)."""
     outs = []
     for i in range(0, len(X), batch):
         idx = torch.arange(i, min(i + batch, len(X)))
@@ -130,6 +140,8 @@ def predict(model, meta, X, batch=1024, device="cpu"):
         outs.append(model(xb.to(device)).float().cpu())
     out = torch.cat(outs)
     task = meta["task"]
+    if task == "super_resolution":  # the super-resolved cube (H * scale, W * scale, bands)
+        return X.stitch(out)
     if task == "regression":
         return out.squeeze(-1).numpy() * meta["y_std"] + meta["y_mean"]
     if task == "reconstruction":

@@ -15,7 +15,8 @@ PREDICT_PY = '''"""Predict with this baseline after `python train.py` (which wri
 
 new_file has the same format as the training data, without labels (CSV: the same columns;
 .npz: the same array names; HSI: a cube). Output: class labels / target values in the original
-units (segmentation: masks, reconstruction: images, HSI: a class map). Requires: torch, numpy.
+units (segmentation: masks, reconstruction: images, HSI: a class map, hsi_sr: the super-resolved
+cube of a LOW-resolution input cube). Requires: torch, numpy.
 """
 import argparse
 from pathlib import Path
@@ -39,7 +40,7 @@ if a.out.endswith(".csv"):
     np.savetxt(a.out, np.asarray(pred).reshape(len(pred), -1), delimiter=",", fmt="%s")
 else:
     np.save(a.out, pred)
-print(f"{len(pred)} predictions -> {a.out}")
+print(f"predictions {np.shape(pred)} -> {a.out}")
 if a.export:
     idx = np.arange(min(2, len(X)))
     sample = X[idx] if hasattr(X, "map_shape") else X[: len(idx)]
@@ -60,6 +61,8 @@ def core_recipe_detail() -> dict:
 
 
 def _fmt(m: dict, task: str) -> str:
+    if task == "super_resolution":
+        return f"PSNR {m['psnr']:.2f} dB (SSIM {m['ssim']:.4f}, SAM {m['sam']:.2f} deg, ERGAS {m['ergas']:.3f})"
     if task == "reconstruction":
         return f"MSE {m['mse']:.4f} (PSNR {m['psnr']:.2f} dB)"
     if task == "regression":
@@ -71,6 +74,8 @@ def _fmt(m: dict, task: str) -> str:
 
 
 def _short(t: dict, task: str) -> str:
+    if task == "super_resolution":
+        return f"psnr {t['psnr']} dB, ssim {t['ssim']}, sam {t['sam']}"
     if task == "reconstruction":
         return f"mse {t['mse']}, psnr {t['psnr']} dB"
     if task == "regression":

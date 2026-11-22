@@ -169,7 +169,7 @@ propose Top-K deep learning baselines for a dataset
 | Tùy chọn | Bắt buộc | Mặc định | Ý nghĩa |
 |---|---|---|---|
 | `--data` | có |  | data file (CSV: tabular; .mat/.npz/.npy: hsi; .npz with X, y: images, masks, series) |
-| `--plugin` |  | `auto` | auto \| tabular \| hsi \| image_classification (image) \| image_segmentation (segmentation) \| image_reconstruction (autoencoder) \| timeseries \| graph \| recsys |
+| `--plugin` |  | `auto` | auto \| tabular \| hsi \| image_classification (image) \| image_segmentation (segmentation) \| image_reconstruction (autoencoder) \| timeseries \| graph \| recsys \| hsi_sr (hyperspectral super-resolution) |
 | `--budget` |  | `5m` | budget of the whole run: wall clock (90s, 10m, 2h) or training epochs (400ep, reproducible) |
 | `--topk` |  | `3` | number of exported baselines |
 | `--papers` |  |  | paper cards (files or folders) to train on this data with the same protocol as the top-1 (after the search, outside --budget); adds a 'Paper baselines' table and their packages |
@@ -228,6 +228,9 @@ propose Top-K deep learning baselines for a dataset
 | `--patch` |  | `9` | [hsi] odd patch size |
 | `--pca` |  | `30` | [hsi] spectral components (0 = keep all bands) |
 | `--block-size` |  | `16` | [hsi] block size for --split block |
+| `--scale` |  | `2` | [hsi_sr] upsampling factor (2, 3, 4, ...) |
+| `--sr-patch` |  | `32` | [hsi_sr] side of a high-resolution tile (a multiple of --scale) |
+| `--degrade` |  | `bicubic` | [hsi_sr] how the low-resolution input is simulated (một trong: bicubic, gauss) |
 | `--x-key` |  |  | [image/timeseries] array name of the inputs (X) |
 | `--y-key` |  |  | [image/timeseries] array name of the targets (y) |
 
@@ -238,7 +241,7 @@ estimate a design run before starting it: candidates, time, papers, the score to
 | Tùy chọn | Bắt buộc | Mặc định | Ý nghĩa |
 |---|---|---|---|
 | `--data` | có |  | data file (CSV: tabular; .mat/.npz/.npy: hsi; .npz with X, y: images, masks, series) |
-| `--plugin` |  | `auto` | auto \| tabular \| hsi \| image_classification (image) \| image_segmentation (segmentation) \| image_reconstruction (autoencoder) \| timeseries \| graph \| recsys |
+| `--plugin` |  | `auto` | auto \| tabular \| hsi \| image_classification (image) \| image_segmentation (segmentation) \| image_reconstruction (autoencoder) \| timeseries \| graph \| recsys \| hsi_sr (hyperspectral super-resolution) |
 | `--budget` |  | `5m` | budget of the whole run: wall clock (90s, 10m, 2h) or training epochs (400ep, reproducible) |
 | `--topk` |  | `3` | number of exported baselines |
 | `--papers` |  |  | paper cards (files or folders) to train on this data with the same protocol as the top-1 (after the search, outside --budget); adds a 'Paper baselines' table and their packages |
@@ -297,6 +300,9 @@ estimate a design run before starting it: candidates, time, papers, the score to
 | `--patch` |  | `9` | [hsi] odd patch size |
 | `--pca` |  | `30` | [hsi] spectral components (0 = keep all bands) |
 | `--block-size` |  | `16` | [hsi] block size for --split block |
+| `--scale` |  | `2` | [hsi_sr] upsampling factor (2, 3, 4, ...) |
+| `--sr-patch` |  | `32` | [hsi_sr] side of a high-resolution tile (a multiple of --scale) |
+| `--degrade` |  | `bicubic` | [hsi_sr] how the low-resolution input is simulated (một trong: bicubic, gauss) |
 | `--x-key` |  |  | [image/timeseries] array name of the inputs (X) |
 | `--y-key` |  |  | [image/timeseries] array name of the targets (y) |
 | `--json` |  |  | print the plan as JSON |

@@ -619,6 +619,34 @@ def reconstruction(cfg, dims):
     return {"op": "encdec", "stages": stages, "dec": "deconv", "width": cfg["width"]}
 
 
+# ------------------------------------------------------------ super-resolution
+
+HSI_SR = ("srcnn", "vdsr", "edsr", "rcan", "sspsr", "fcnn3d")
+
+
+def hsi_sr(cfg, dims):
+    """Feature extractors on the low-resolution cube; the `srN` head upsamples (core.Head)."""
+    f, w, d = cfg["family"], cfg["width"], cfg["depth"]
+    conv = lambda out, k=3, act="relu": cba(out, k, 1, act, "none")
+    if f == "srcnn":  # SRCNN (Dong et al., ECCV 2014): 9x9 feature extraction, 1x1 mapping
+        return S(conv(w, 9), conv(max(w // 2, 1), 1))
+    if f == "vdsr":  # VDSR (Kim et al., CVPR 2016): plain 3x3 stack, global residual in the head
+        return S(*[conv(w) for _ in range(d)])
+    if f == "fcnn3d":  # 3D-FCNN (Mei et al. 2017): 3-D convolutions over (bands, H, W)
+        return S(N("sr3d", width=w, depth=d))
+    block = {
+        "edsr": lambda: N("edsr_block", res_scale=0.1),  # EDSR (Lim et al. 2017)
+        "rcan": lambda: N("rcab", reduction=8),  # RCAN (Zhang et al. 2018), one residual group
+        "sspsr": lambda: N("ssb", res_scale=0.1, reduction=8),  # SSPSR (Jiang et al. 2020)
+    }
+    if f not in block:
+        raise ValueError(f"unknown super-resolution family {f!r}")
+    # head conv, then the blocks and a conv inside one long skip (EDSR / RCAN / SSPSR trunk)
+    return S(
+        conv(w, act="identity"), R(S(*[block[f]() for _ in range(d)], conv(w, act="identity")))
+    )
+
+
 # ---------------------------------------------------------------- graphs and ids
 
 
@@ -724,6 +752,7 @@ DOMAINS = {
     "graph": (GRAPH, graph, "graph", "cls"),
     "recsys": (RECSYS, recsys, "ids", "cls"),
     "reconstruction": (RECONSTRUCTION, reconstruction, "map", "dense"),
+    "hsi_sr": (HSI_SR, hsi_sr, "map", "sr"),
 }
 
 
@@ -738,6 +767,8 @@ def complete(cfg: dict, domain: str, dims, out_dim: int) -> dict:
     cfg["spec"] = recipe(cfg, tuple(dims))
     if cfg["family"] in ENSEMBLE_FAMILIES:
         head = "ensemble"
+    if head == "sr":  # super-resolution: the head upsamples by the configured factor
+        head = f"sr{int(cfg['scale'])}"
     cfg.update(input={"kind": kind, "dims": list(dims)}, head=head, out_dim=out_dim)
     return cfg
 
