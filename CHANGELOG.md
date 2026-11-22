@@ -12,6 +12,8 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
   - Mô hình: họ `srcnn`, `vdsr`, `edsr`, `rcan`, `sspsr`, `fcnn3d` và kiến trúc zoo giữ kích thước; head mới `srN` (pixel shuffle + residual bicubic); khối mới `edsr_block`, `rcab`, `ssb`, `sr3d` (`zoo/ops_sr.py`, viết theo cấu trúc paper, chưa đối chiếu số học với mã gốc). Loss L1, augmentation lật / chuyển vị chung cho ảnh vào và ảnh đích.
   - Gói xuất: `train.py`, `predict.py` phóng to một cube độ phân giải thấp bất kỳ kích thước (tile chồng lấn, ghép trung bình), `--export` `.pt2` / `.onnx`, notebook có phần so sánh ảnh thấp / bicubic / mạng / ảnh thật, sơ đồ khối vẽ head upsample.
   - MCP: `dlnet_design` / `dlnet_profile` nhận `plugin: hsi_sr`, `scale`, `sr_patch`, `degrade`.
+  - Head `srN` khởi tạo bằng 0: mạng chưa huấn luyện chính là bicubic (khởi tạo ngẫu nhiên kém bicubic 8 dB sau 10 epoch trên Salinas ×2).
+  - Kiểm định trên Salinas và Indian Pines (`qa/reports/v2.0.0/`): trong 10 phút CPU mạng chỉ bằng hoặc hơn bicubic vài phần mười dB; huấn luyện đầy đủ top-1 Salinas ×4 hơn bicubic 0,55 dB.
 - Sửa: ước lượng hyperparameter (`hparams`: LR range test, gradient noise scale) dùng cross-entropy cho tác vụ `reconstruction` (autoencoder), coi ảnh chuẩn hóa là nhãn mềm, nên đo trên một hàm loss khác hàm loss huấn luyện. Giờ dùng đúng loss của tác vụ (`core.loss_for`: MSE; L1 cho siêu phân giải).
 - Sửa: thông báo chọn hạt giống in "1000000000 per class" với dữ liệu không có lớp.
 - `predict.py` in kích thước mảng kết quả thay vì số dòng.
