@@ -58,6 +58,7 @@
  "files.use_input": "Use as input",
  "kind.graph": "graph",
  "kind.hsi": "hyperspectral image",
+ "kind.hsi_sr": "hyperspectral super-resolution",
  "kind.image_classification": "image classification",
  "kind.image_reconstruction": "image reconstruction",
  "kind.image_segmentation": "image segmentation",

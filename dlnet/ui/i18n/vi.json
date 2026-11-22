@@ -58,6 +58,7 @@
  "files.use_input": "Dùng làm đầu vào",
  "kind.graph": "đồ thị",
  "kind.hsi": "ảnh siêu phổ",
+ "kind.hsi_sr": "siêu phân giải ảnh siêu phổ",
  "kind.image_classification": "phân loại ảnh",
  "kind.image_reconstruction": "tái tạo ảnh",
  "kind.image_segmentation": "phân đoạn ảnh",
