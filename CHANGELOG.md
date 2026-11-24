@@ -6,6 +6,8 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-11-24
+
 - **Kiến trúc chuỗi 2024–2026 trong zoo** (`dlnet/zoo/ops_v21.py`, 6 module mới, kho 221 module):
   - `rwkv7_block` (RWKV-7), `kda_block` (Kimi Delta Attention, Kimi Linear), `fox_block` (Forgetting Transformer), `mla_block` (Multi-head Latent Attention, DeepSeek-V2/V3), `mamba3_block` (Mamba-3), và `scan2d_block` chạy một trong năm bộ trộn trên pixel theo hai chiều cho ảnh / HSI.
   - Họ mới: `rwkv7`, `kimi_linear` (KDA + một MLA), `fox`, `mamba3` cho chuỗi thời gian; `mamba3_vision` cho ảnh. Ngữ pháp `--zoo` tự dùng các khối mới.
@@ -623,7 +625,8 @@ Bản đầu tiên: prototype chạy được từ dữ liệu đến Top-K base
 - Chưa có zero-cost proxy, cost model FLOPs/VRAM, Tensor-LoRA, deep unfolding; chưa có plugin image và timeseries.
 - Kết quả trên Indian Pines và Pavia University là một lần chạy ngắn trên CPU: với chia theo khối, mạng sâu chưa vượt rõ baseline cổ điển.
 
-[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v2.1.0...HEAD
+[2.1.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v2.1.0
 [2.0.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v2.0.0
 [1.9.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.9.0
 [1.8.2]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.8.2
