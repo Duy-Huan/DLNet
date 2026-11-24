@@ -219,6 +219,17 @@ SPACE = {
         "individual": [0, 1],
     },
     "tsmixer": {"width": [32, 64, 128], "depth": [1, 2, 4], "dropout": [0.0, 0.1, 0.3]},
+    # v2.1 (ops_v21.py): recurrent / attention mixers of 2024-2026
+    **{
+        f: {"width": [32, 64], "depth": [1, 2], "dropout": [0.0, 0.1]}
+        for f in ("rwkv7", "kimi_linear", "fox", "mamba3")
+    },
+    "mamba3_vision": {
+        "width": [32, 64],
+        "depth": [2, 4],
+        "dropout": [0.0, 0.1],
+        "patch": [4, 2, 7, 8],
+    },
 }
 REF_MAX_FEATURES = 512  # flattened inputs larger than this are PCA-reduced for the references
 REF_PCA = 64

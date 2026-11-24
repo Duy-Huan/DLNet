@@ -6,6 +6,15 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-11-24
+
+- **Kiến trúc chuỗi 2024–2026 trong zoo** (`dlnet/zoo/ops_v21.py`, 6 module mới, kho 221 module):
+  - `rwkv7_block` (RWKV-7), `kda_block` (Kimi Delta Attention, Kimi Linear), `fox_block` (Forgetting Transformer), `mla_block` (Multi-head Latent Attention, DeepSeek-V2/V3), `mamba3_block` (Mamba-3), và `scan2d_block` chạy một trong năm bộ trộn trên pixel theo hai chiều cho ảnh / HSI.
+  - Họ mới: `rwkv7`, `kimi_linear` (KDA + một MLA), `fox`, `mamba3` cho chuỗi thời gian; `mamba3_vision` cho ảnh. Ngữ pháp `--zoo` tự dùng các khối mới.
+  - PyTorch thuần, đối chiếu số học với flash-linear-attention 0.6.0 và state-spaces/mamba `e9594ce`: job CI mới `verify-v21`, 5/5 lớp khớp (sai số ≤ 3,6e-7).
+  - Regression test `tests/test_v21.py`: tính nhân quả của cả năm bộ trộn, quy tắc delta ghi / đọc lại đúng giá trị, cổng quên đóng attention về quá khứ, một bước Mamba-3 tính tay, khối RWKV-7 khởi đầu là phép đồng nhất. Coverage giữ 100 %.
+  - Hai dòng cũ chỉ được chạm tới nhờ lần bốc ngẫu nhiên của ngữ pháp (`space._sample_dense` gắn scSE, `MobileViTv2Block` khi kích thước không chia hết cho patch) giờ có test tất định riêng.
+
 ## [2.0.0] - 2026-11-22
 
 - **Plugin mới `hsi_sr`: siêu phân giải ảnh siêu phổ** (lý do tăng major: thêm một loại tác vụ mới, `super_resolution`, có đầu ra là ảnh lớn hơn đầu vào).
@@ -616,7 +625,8 @@ Bản đầu tiên: prototype chạy được từ dữ liệu đến Top-K base
 - Chưa có zero-cost proxy, cost model FLOPs/VRAM, Tensor-LoRA, deep unfolding; chưa có plugin image và timeseries.
 - Kết quả trên Indian Pines và Pavia University là một lần chạy ngắn trên CPU: với chia theo khối, mạng sâu chưa vượt rõ baseline cổ điển.
 
-[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/Duy-Huan/DLNet/compare/v2.1.0...HEAD
+[2.1.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v2.1.0
 [2.0.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v2.0.0
 [1.9.0]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.9.0
 [1.8.2]: https://github.com/Duy-Huan/DLNet/releases/tag/v1.8.2

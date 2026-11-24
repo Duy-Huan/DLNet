@@ -18,6 +18,8 @@ on:
       - dlnet/zoo/ops_prim.py
       - dlnet/zoo/ops_lib.py
       - dlnet/zoo/ops_v18.py
+      - dlnet/zoo/ops_v21.py
+      - scripts/verify_v21.py
       - dlnet/paper_import.py
       - scripts/verify_v18.py
       - scripts/bench_import.py
@@ -245,3 +247,28 @@ jobs:
         with:
           name: import-coverage
           path: import-*.json
+
+  verify-v21:
+    # v2.1 mixers (dlnet/zoo/ops_v21.py): RWKV-7, KDA, FoX, MLA against flash-linear-attention 0.6.0,
+    # Mamba-3 against state-spaces/mamba e9594ce (reference recurrences substituted for the kernels)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Reference code (pinned; unpacked, not installed)
+        run: |
+          set -e
+          mkdir -p /tmp/v21/whl && cd /tmp/v21
+          pip download --no-deps "fla-core==0.6.0" "flash-linear-attention==0.6.0" -d whl
+          python -m zipfile -e whl/fla_core-0.6.0-py3-none-any.whl /tmp/v21/pkg
+          python -m zipfile -e whl/flash_linear_attention-0.6.0-py3-none-any.whl /tmp/v21/pkg
+          git clone -q https://github.com/state-spaces/mamba mamba && git -C mamba checkout -q e9594ce
+      - name: Install DLNet (CPU torch)
+        run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -e . numpy einops
+      - name: Compare outputs
+        run: python scripts/verify_v21.py --fla /tmp/v21/pkg/fla --mamba /tmp/v21/mamba

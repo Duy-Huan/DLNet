@@ -196,6 +196,20 @@ Không port: dropout / drop-path trong các khối (dùng `res` có `drop_path` 
 
 Kiểm chứng: `scripts/verify_v18.py` (job CI `verify-v18`) chép trọng số timm (đã nhiễu) sang khối DLNet theo thứ tự, so đầu ra: **14/14 cấu hình trùng từng bit** (sai khác 0), kể cả kích thước lẻ buộc MobileViT nội suy. `window_attention` được kiểm qua việc dựng lại Swin v1/v2 của torchvision (sai khác 0, `scripts/bench_import.py`).
 
+### v2.1: kiến trúc chuỗi 2024–2026 (`dlnet/zoo/ops_v21.py`)
+
+| Paper | Mã gốc (ghim) | Lớp gốc | Op / họ trong DLNet |
+|---|---|---|---|
+| RWKV-7 "Goose" (2025) | fla-org/flash-linear-attention 0.6.0 (PyPI `fla-core`, `flash-linear-attention`) | `RWKV7Attention`, `RWKV7FeedForward` | `rwkv7_block`, họ `rwkv7` |
+| Kimi Linear (Kimi Team 2025, arXiv:2510.26692) | như trên | `KimiDeltaAttention` | `kda_block`, họ `kimi_linear` |
+| Forgetting Transformer (ICLR 2025) | như trên | `ForgettingAttention` | `fox_block`, họ `fox` |
+| DeepSeek-V2 / V3 (arXiv:2405.04434) | như trên | `MultiheadLatentAttention` | `mla_block` (trong `kimi_linear`) |
+| Mamba-3 (2025) | state-spaces/mamba `e9594ce` | `mamba_ssm/modules/mamba3.py` `Mamba3` (SISO) | `mamba3_block`, họ `mamba3`, `mamba3_vision` |
+
+Kiểm chứng (job `verify-v21`, `scripts/verify_v21.py`): file lớp gốc chạy nguyên văn, kernel Triton/CUDA thay bằng tham chiếu của chính repo (`dplr_recurrence`, `naive_recurrent_kda` + `naive_kda_gate`, `naive_forgetting_attn`, `mamba3_siso_step_ref`, `rotary_embedding_ref`, `rms_norm_ref`), flash-attn thay bằng softmax attention chính xác. **5/5 lớp khớp**, sai số lớn nhất 3,6e-7 (KDA, RWKV-7 time / channel mixing, FoX có / không cổng ra, MLA có / không q-latent, Mamba-3); giá trị khởi tạo xác định của RWKV-7 trùng (≤ 4,8e-7).
+
+Khác bản gốc: RWKV-7 không có value residual `v_first` giữa các khối (mỗi khối là lớp đầu); Mamba-3 chỉ SISO, một nhóm B/C, không norm đầu ra, không MIMO; MLA không YaRN; FoX không qk-norm / cửa sổ; KDA không GVA. `scan2d_block` (quét hai chiều trên pixel) là thành phần của DLNet, không có bản gốc để so.
+
 ### v2.0: siêu phân giải (`dlnet/zoo/ops_sr.py`, head `srN` trong `zoo/core.py`)
 
 Viết lại theo cấu trúc mô tả trong paper và mã công khai của tác giả, **chưa đối chiếu số học với mã gốc** (khác các port ở trên): khối nhỏ, chỉ gồm conv / ReLU / pooling chuẩn của torch.

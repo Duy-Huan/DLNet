@@ -54,6 +54,9 @@ OP_TRAITS = {
     "inception_next_block": {"local_conv", "multi_scale", "large_kernel"},
     "focal_block": {"local_conv", "multi_scale", "context"}, "pvt_block": {"global_attention"},
     "non_local": {"global_attention", "context"}, "simam": {"channel_attention"},
+    # v2.1 (ops_v21.py): softmax attention mixers; the 2-D scan depends on the pixel order
+    "fox_block": {"global_attention"}, "mla_block": {"global_attention"},
+    "scan2d_block": {"global_attention", "position_aware"},
     # segmentation decoders
     "unet": {"fine_detail"}, "unetpp": {"fine_detail"}, "linknet": {"fine_detail", "light"},
     "fpn": {"fine_detail", "multi_scale"}, "deconv": set(), "fcn": {"fine_detail"},
