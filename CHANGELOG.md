@@ -11,6 +11,7 @@ Quy tắc: mọi thay đổi người dùng nhìn thấy được phải thêm m
   - Họ mới: `rwkv7`, `kimi_linear` (KDA + một MLA), `fox`, `mamba3` cho chuỗi thời gian; `mamba3_vision` cho ảnh. Ngữ pháp `--zoo` tự dùng các khối mới.
   - PyTorch thuần, đối chiếu số học với flash-linear-attention 0.6.0 và state-spaces/mamba `e9594ce`: job CI mới `verify-v21`, 5/5 lớp khớp (sai số ≤ 3,6e-7).
   - Regression test `tests/test_v21.py`: tính nhân quả của cả năm bộ trộn, quy tắc delta ghi / đọc lại đúng giá trị, cổng quên đóng attention về quá khứ, một bước Mamba-3 tính tay, khối RWKV-7 khởi đầu là phép đồng nhất. Coverage giữ 100 %.
+  - Hai dòng cũ chỉ được chạm tới nhờ lần bốc ngẫu nhiên của ngữ pháp (`space._sample_dense` gắn scSE, `MobileViTv2Block` khi kích thước không chia hết cho patch) giờ có test tất định riêng.
 
 ## [2.0.0] - 2026-11-22
 

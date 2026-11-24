@@ -126,3 +126,18 @@ def test_image_family():
     cfg = families.complete({"family": "mamba3_vision", "width": 16, "depth": 1, "dropout": 0.0, "patch": 4},
                             "image", (1, 8, 8), 4)  # fmt: skip
     assert core.build_model(cfg)(torch.randn(2, 1, 8, 8)).shape == (2, 4)
+
+
+def test_dense_samples_sometimes_carry_decoder_attention():
+    """space._sample_dense adds scSE to some U-Net decoders (lost by chance when the grammar grew)."""
+    import numpy as np
+
+    from dlnet.zoo import space
+
+    specs = [space._sample_dense((3, 16, 16), np.random.default_rng(s), 8) for s in range(60)]
+    assert any(sp.get("attention") == "scse" for sp in specs)
+
+
+def test_mobilevitv2_resizes_a_map_that_is_not_a_patch_multiple():
+    m = _build({"op": "mobilevitv2_block", "patch": 2}, "map", (8, 5, 5))[0]
+    assert m(torch.randn(2, 8, 5, 5)).shape == (2, 8, 6, 6)  # rounded up to the patch, as timm
