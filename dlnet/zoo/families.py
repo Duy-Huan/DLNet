@@ -53,6 +53,7 @@ IMAGE = (
     "inceptionnext",
     "focalnet",
     "pvt",
+    "mamba3_vision",
 )
 SEGMENTATION = (
     "fcn", "unet", "deconvnet", "unetpp", "fpn", "deeplabv3", "deeplabv3plus", "pspnet", "linknet",
@@ -70,6 +71,10 @@ TIMESERIES = (
     "gated_deltanet",
     "dlinear",
     "tsmixer",
+    "rwkv7",
+    "kimi_linear",
+    "fox",
+    "mamba3",
 )
 HSI = (
     "cnn1d",
@@ -336,6 +341,10 @@ def image(cfg, dims):
         return S(N("patchify", dim=w, patch=cfg["patch"]), N("pos", mode="learned"),
                  rep(half, N("mambavision_block", mlp_ratio=4)), rep(max(1, d - half), TB(4, 4, p)),
                  N("seq_pool", mode="mean"), N("norm", norm="layer"))  # fmt: skip
+    if f == "mamba3_vision":  # v2.1: Mamba-3 blocks over patch tokens (as MambaVision / Vim)
+        return S(N("patchify", dim=w, patch=cfg["patch"]), N("pos", mode="learned"),
+                 rep(d, N("mamba3_block", d_state=16, headdim=16)), N("seq_pool", mode="mean"),
+                 N("norm", norm="layer"))  # fmt: skip
     if f == "kat":  # Kolmogorov-Arnold Transformer (ICLR 2025): ViT with GR-KAN instead of the MLP
         return S(N("patchify", dim=w, patch=cfg["patch"]), N("cls_token"), N("pos", mode="learned"),
                  rep(d, N("kat_block", heads=4, ratio=4, groups=8)), N("seq_pool", mode="cls"),
@@ -371,6 +380,14 @@ def segmentation(cfg, dims):
     return spec
 
 
+V21_SEQ = {
+    "rwkv7": N("rwkv7_block", heads=4, ratio=4),  # RWKV-7 (2025)
+    "kimi_linear": None,  # KDA + MLA hybrid (Kimi Linear, 2025)
+    "fox": N("fox_block", heads=4, ratio=2, output_gate=1),  # Forgetting Transformer (ICLR 2025)
+    "mamba3": N("mamba3_block", d_state=16, headdim=16),  # Mamba-3 (2025)
+}
+
+
 def timeseries(cfg, dims):
     f, w, d, p = cfg["family"], cfg["width"], cfg["depth"], cfg["dropout"]
     if f == "tcn":
@@ -400,6 +417,14 @@ def timeseries(cfg, dims):
             else N("gated_deltanet_block", heads=4, ratio=2)
         )
         return S(cba(w, 1, 1, "identity", "none"), N("tokens"), rep(d, blk))
+    if f in V21_SEQ:  # v2.1 mixers over time (ops_v21.py)
+        if (
+            f == "kimi_linear"
+        ):  # Kimi Linear: KDA blocks, then one MLA block (3:1 hybrid at depth 3)
+            blocks = [rep(d, N("kda_block", heads=4, ratio=2)), N("mla_block", heads=4, ratio=2)]
+        else:
+            blocks = [rep(d, V21_SEQ[f])]
+        return S(cba(w, 1, 1, "identity", "none"), N("tokens"), *blocks)
     if f == "ts_transformer":
         return S(
             cba(w, 1, 1, "identity", "none"),
