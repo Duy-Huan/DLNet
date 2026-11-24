@@ -122,6 +122,18 @@ python -m dlnet design --data cube.mat --gt gt.mat --split block --patch 9 --pca
 | Đồ thị | `gatv2_net`, `gcnii_net`, `appnp_net`, `sgc_net` | ma trận kề dày (đồ thị nhỏ); `gcnii_net` sâu `4 x depth` lớp |
 | Recommender | `xdeepfm`, `autoint`, `fibinet` | CIN, self-attention giữa các trường, SENET + tương tác song tuyến |
 
+**Họ thêm ở v2.1** (kiến trúc chuỗi 2024–2026, viết bằng PyTorch thuần theo flash-linear-attention 0.6.0 và `state-spaces/mamba`; đối chiếu số học trong job CI `verify-v21`, xem `THIRD_PARTY.md`):
+
+| Dữ liệu | Họ mới | Ghi chú |
+|---|---|---|
+| Chuỗi thời gian | `rwkv7` | RWKV-7 "Goose" (2025): quy tắc delta tổng quát, suy giảm theo từng kênh |
+| Chuỗi thời gian | `kimi_linear` | Kimi Linear (2025): các khối Kimi Delta Attention rồi một khối Multi-head Latent Attention (DeepSeek) |
+| Chuỗi thời gian | `fox` | Forgetting Transformer (ICLR 2025): softmax attention có cổng quên |
+| Chuỗi thời gian | `mamba3` | Mamba-3 (2025): rời rạc hóa hình thang, trạng thái quay (phức), không dùng conv |
+| Ảnh | `mamba3_vision` | khối Mamba-3 trên các patch |
+
+Module rời mới: `rwkv7_block`, `kda_block`, `fox_block`, `mla_block`, `mamba3_block` (chuỗi) và `scan2d_block` (ảnh / HSI: chạy một trong năm bộ trộn trên các pixel theo hai chiều rồi lấy trung bình, như Vision Mamba và Vision-LSTM). Ngữ pháp `--zoo` tự dùng chúng. Trên CPU các khối hồi quy (RWKV-7, KDA, Mamba-3) chạy tuần tự theo thời gian nên chậm hơn attention với chuỗi dài.
+
 Module rời dùng trong `--zoo`, thẻ paper và ngữ pháp: `attn_pool`, `pma`, `isab` (tập hợp / gộp token), `non_local`, `simam`, `blur_pool`, `gem` (ảnh).
 
 Ngữ pháp `--zoo` còn tự dùng các khối mới như `gated_attn_block`, `diff_attn_block`, `dyt`, `rope_vit_block`, `wtconv`, `uib`, `mobile_mqa`, `lsnet_block`, `star_block`, `efficientvit_block`, `msca_block`, `gr_kan`. Xem danh sách bằng `python -m dlnet zoo`.

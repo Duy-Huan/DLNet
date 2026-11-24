@@ -796,6 +796,13 @@ budget: {time: 2h, vram_gb: 12}
 - **Dự đoán**: `inference.prepare_input` trả `hsi_sr_data.Tiles` (tile chồng lấn nửa cạnh, đúng cỡ lúc train), `predict` ghép bằng trung bình → cube (H·s, W·s, B) theo thang gốc. Mọi kiến trúc (cả loại chỉ nhận đúng cỡ tile) đều dự đoán được trên cube bất kỳ kích thước.
 - **Chưa có**: cặp LR/HR thật (ảnh thấp đo riêng), hợp nhất với ảnh RGB/đa phổ (fusion), các họ transformer riêng cho SR (SwinIR, ESSA).
 
+### 14.6 Kiến trúc chuỗi 2024–2026 (v2.1, `zoo/ops_v21.py`)
+
+- Lớp: `RWKV7Attention` + `RWKV7FeedForward` (fla `rwkv7.py`), `KimiDeltaAttention` (fla `kda.py`), `ForgettingAttention` (fla `forgetting_attn.py`), `MultiheadLatentAttention` (fla `mla.py`), `Mamba3` SISO (`state-spaces/mamba` `modules/mamba3.py`). Kernel Triton/CUDA thay bằng phép hồi quy tham chiếu mà chính repo gốc dùng để kiểm kernel (`dplr_recurrence`, `naive_recurrent_kda`, `naive_forgetting_attn`, `mamba3_siso_step_ref`); flash-attn thay bằng softmax attention chính xác.
+- Khác bản gốc: mỗi khối RWKV-7 là "lớp đầu tiên" (không có value residual `v_first` giữa các khối); Mamba-3 chỉ SISO, một nhóm B/C, không norm đầu ra; MLA không có YaRN; FoX không có qk-norm, không cửa sổ.
+- Khối: tiền chuẩn hóa (RMSNorm, riêng RWKV-7 dùng LayerNorm) + SwiGLU (RWKV-7: channel mixing ReLU²; Mamba-3: không MLP như Mamba-2). `scan2d_block` là thành phần của DLNet: quét pixel theo hàng hai chiều với hai khối riêng rồi lấy trung bình.
+- Kiểm chứng: `scripts/verify_v21.py` (job `verify-v21` trong `verify-modern.yml`) chạy file lớp gốc không sửa, chỉ thay kernel; regression test `tests/test_v21.py` khóa tính nhân quả, quy tắc delta, cổng quên, một bước Mamba-3 tính tay.
+
 ## 15. Skills (bắt buộc đọc trước khi làm)
 
 Quy trình đã đúc kết nằm trong `skills/` (chỉ mục: `skills/README.md`).

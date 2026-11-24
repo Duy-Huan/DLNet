@@ -39,6 +39,7 @@ Tùy chọn (làm hết các bước trên bằng một lệnh, tự tìm Python
 
 ## Trang thai
 - Plugin `tabular` (CSV) va plugin `hsi` (anh sieu pho: cube + ground truth, phan loai pixel).
+- **v2.1: kien truc chuoi 2024–2026** trong zoo: RWKV-7, Kimi Delta Attention + MLA (Kimi Linear, DeepSeek), Forgetting Transformer, Mamba-3, va `scan2d_block` dung chung cho anh / HSI; ho `rwkv7`, `kimi_linear`, `fox`, `mamba3`, `mamba3_vision`. Viet bang PyTorch thuan, doi chieu so hoc voi flash-linear-attention 0.6.0 va state-spaces/mamba (job `verify-v21`).
 - **v2.0: plugin `hsi_sr`, sieu phan giai anh sieu pho.** Dua vao cube do phan giai cao; DLNet tu tao anh do phan giai thap (giao thuc Wald, `--scale`, `--degrade bicubic|gauss`), tim mang trong cac ho SRCNN, VDSR, EDSR, RCAN, SSPSR, 3D-FCNN va zoo (head pixel shuffle + residual bicubic), so voi noi suy nearest / bilinear / bicubic theo MPSNR, SSIM, SAM, ERGAS. `predict.py` phong to mot cube do phan giai thap bat ky kich thuoc. Huong dan: [doc/user-guide.md](doc/user-guide.md#4-chạy-theo-loại-bài-toán).
 - Lenh `dlnet unfold`: deep unfolding (LISTA) cho bai toan nghich thua `y = A x + nhieu` khi biet ma tran `A`.
 - Module thu vien: Tensor-LoRA (`dlnet/tensor_lora.py`), HOSVD (`dlnet/tensor.py`); chua duoc `design` dung.
